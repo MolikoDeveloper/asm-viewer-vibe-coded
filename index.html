@@ -341,6 +341,7 @@ dialog::backdrop{background:#0009}
         <select id="graphMode" disabled>
           <option value="calls" data-i18n="globalCallGraph">Global call graph</option>
           <option value="cfg" data-i18n="selectedCfg">Selected function CFG</option>
+          <option value="binary" data-i18n="binaryMap">Binary map</option>
         </select>
         <select id="viewMode" class="viewMode" disabled title="How provenance groups are represented" data-i18n-title="viewModeTitle">
           <option value="boundaries" data-i18n="viewBoundaries">View: boundaries</option>
@@ -359,7 +360,7 @@ dialog::backdrop{background:#0009}
         <span><i class="dot" style="background:#73d6a0"></i><span data-i18n="legendSourcePackage">Source package</span></span>
         <span><i class="dot" style="background:#d8b36a"></i><span data-i18n="legendNativeStatic">native static</span></span>
         <span><i class="dot" style="background:#ef817b"></i><span data-i18n="legendNativeDynamic">native dynamic</span></span>
-        <span data-i18n="legendAddress">┄ address ref.</span><span data-i18n="legendCrossFile">╌ cross-file call</span><span data-i18n="legendResolve">·· resolves-to</span>
+        <span data-i18n="legendAddress">┄ address ref.</span><span data-i18n="legendData">·· data ref.</span><span data-i18n="legendRelocation">·· relocation</span><span data-i18n="legendCrossFile">╌ cross-file call</span><span data-i18n="legendResolve">·· resolves-to</span>
       </div>
       <div class="empty" id="emptyGraph">
         <div><strong data-i18n="loadObjdump">Load an objdump / ASM</strong><span data-i18n="loadObjdumpSub">File, drag & drop, or direct paste.</span></div>
@@ -412,9 +413,9 @@ const I18N = {
     foldTitle:'Structural ASM folding',folding:'Folding…',collapseFunctions:'− Functions',expandFunctions:'+ Functions',collapseContents:'− Contents',expandContents:'+ Contents',collapseSections:'− Sections',expandSections:'+ Sections',
     groups:'Groups',groupsTitle:'Filter symbol families and sections',flow:'Flow',hideFlow:'Hide flow',flowTitle:'Show/hide flow below ASM',edit:'Edit',inspect:'Inspect',save:'Save',liveParsing:'Live parsing…',liveUpdated:'Graph updated',visibleGroups:'Visible groups',all:'All',none:'None',filterGroups:'Filter groups…',
     dropAsm:'Drop the ASM dump here',dropAsmSub:'It will be loaded as text, without validation.',selectFunctionInstruction:'Select a function or instruction',staticHeuristic:'static · heuristic',fit:'Fit',noFlow:'No flow selected',selectCodeOrNode:'Select code or a graph node.',
-    globalCallGraph:'Global call graph',selectedCfg:'Selected function CFG',reachabilityRootTitle:'Reachability analysis root',entry:'Entry',entryTitle:'Fit the component reachable from the entrypoint',fitAll:'Fit all',fitAllTitle:'Fit all nodes, including detached nodes',labels:'Labels',auto:'auto',yes:'yes',no:'no',
-    legendFamily:'color = symbol family',legendAddress:'┄ address ref.',legendCrossFile:'╌ cross-file call',legendResolve:'·· dynamic resolves-to',legendBridge:'╌ bridge across hidden nodes',loadObjdump:'Load assembly / objdump',loadObjdumpSub:'File, drag & drop, or direct paste.',ready:'Ready.',pasteAsm:'Paste assembly / objdump',pastePlaceholder:'Paste the complete content here…',cancel:'Cancel',load:'Load',
-    symbolFamilies:'Symbol families',codeSections:'Code sections',bridgeHidden:'automatically connect through hidden functions',matchDynamic:'match loaded dynamic implementations',addressSpace:'Address space',dynamicMatch:'Dynamic match',pltEntry:'PLT / import stub',implementation:'Implementation',resolvesTo:'resolves to',hiddenLines:'hidden lines',instructionsLower:'instructions',analyzing:'Analyzing ASM…',loadedOk:'ASM loaded. Ctrl+click follows calls; Alt+← returns to the origin.',loadedNoFunctions:'Loaded. No function boundaries were detected.',
+    globalCallGraph:'Global call graph',selectedCfg:'Selected function CFG',binaryMap:'Binary map',reachabilityRootTitle:'Reachability analysis root',entry:'Entry',entryTitle:'Fit the component reachable from the entrypoint',fitAll:'Fit all',fitAllTitle:'Fit all nodes, including detached nodes',labels:'Labels',auto:'auto',yes:'yes',no:'no',
+    legendFamily:'color = symbol family',legendAddress:'┄ address ref.',legendData:'·· data ref.',legendRelocation:'·· relocation',legendCrossFile:'╌ cross-file call',legendResolve:'·· dynamic resolves-to',legendBridge:'╌ bridge across hidden nodes',loadObjdump:'Load assembly / objdump',loadObjdumpSub:'File, drag & drop, or direct paste.',ready:'Ready.',pasteAsm:'Paste assembly / objdump',pastePlaceholder:'Paste the complete content here…',cancel:'Cancel',load:'Load',
+    symbolFamilies:'Symbol families',codeSections:'Code sections',bridgeHidden:'automatically connect through hidden functions',matchDynamic:'match loaded dynamic implementations',addressSpace:'Address space',binarySection:'Binary section',sectionKind:'Section kind',range:'Range',bytes:'Bytes',references:'References',relocations:'Relocations',dynamicMatch:'Dynamic match',pltEntry:'PLT / import stub',implementation:'Implementation',resolvesTo:'resolves to',hiddenLines:'hidden lines',instructionsLower:'instructions',analyzing:'Analyzing ASM…',loadedOk:'ASM loaded. Ctrl+click follows calls; Alt+← returns to the origin.',loadedNoFunctions:'Loaded. No function boundaries were detected.',
     visibleFunctions:'visible functions',directRefs:'direct refs',addressRefs:'address refs',indirectRefs:'indirect refs',reachable:'reachable',noPath:'no path',root:'root',functionsReachable:'reachable functions',noPathFromRoot:'no path from root',noPreviousOrigin:'No previous origin.',origin:'origin',
     function:'Function',block:'Block',linesLabel:'Lines',goToCode:'Go to code',role:'Role',reachability:'Reachability',family:'Family',address:'Address',approxSize:'Approx. size',section:'Section',source:'Source',instructions:'Instructions',callsJumps:'Calls/Jumps',incoming:'Incoming',center:'Center',openCfg:'Open CFG',selectFunctionCfg:'Select a function to view its CFG.',
     searchStatus:'Search',noMatches:'No matches.',readError:'Could not read the file',reachabilityRoot:'Reachability root',noLocalEvents:'No local semantic events',noLocalEventsSub:'ASM is still available above; select another function or a call.',selectedInstruction:'selected instruction',directCall:'direct call',indirectCall:'indirect call',controlTransfer:'control transfer',entryD0:'ENTRY / D0',noPathEntry:'NO PATH FROM ENTRYPOINT',hiddenCount:'hidden',elfEntry:'ELF entry',programEntry:'program entry',program:'program',ctrlReturn:'Alt+← to return',
@@ -431,9 +432,9 @@ const I18N = {
     foldTitle:'קיפול מבני של ASM',folding:'קיפול…',collapseFunctions:'− פונקציות',expandFunctions:'+ פונקציות',collapseContents:'− Contents',expandContents:'+ Contents',collapseSections:'− מקטעים',expandSections:'+ מקטעים',
     groups:'קבוצות',groupsTitle:'סינון משפחות סמלים ומקטעים',flow:'זרימה',hideFlow:'הסתר זרימה',flowTitle:'הצג/הסתר זרימה מתחת ל-ASM',edit:'עריכה',inspect:'תצוגה',save:'שמור',liveParsing:'מנתח בזמן אמת…',liveUpdated:'הגרף עודכן',visibleGroups:'קבוצות גלויות',all:'הכל',none:'ללא',filterGroups:'סינון קבוצות…',
     dropAsm:'גרור לכאן dump של ASM',dropAsmSub:'ייטען כטקסט, ללא אימות.',selectFunctionInstruction:'בחר פונקציה או הוראה',staticHeuristic:'סטטי · היוריסטי',fit:'התאם',noFlow:'לא נבחרה זרימה',selectCodeOrNode:'בחר קוד או צומת בגרף.',
-    globalCallGraph:'גרף קריאות גלובלי',selectedCfg:'CFG של הפונקציה שנבחרה',reachabilityRootTitle:'שורש ניתוח הנגישות',entry:'כניסה',entryTitle:'התאם את הרכיב הנגיש מנקודת הכניסה',fitAll:'התאם הכל',fitAllTitle:'התאם את כל הצמתים, כולל צמתים מנותקים',labels:'תוויות',auto:'אוטומטי',yes:'כן',no:'לא',
-    legendFamily:'צבע = משפחת סמלים',legendAddress:'┄ הפניה לכתובת',legendCrossFile:'╌ קריאה בין קבצים',legendResolve:'·· קישור דינמי resolves-to',legendBridge:'╌ גישור מעל צמתים מוסתרים',loadObjdump:'טען אסמבלי / objdump',loadObjdumpSub:'קובץ, גרירה ושחרור, או הדבקה ישירה.',ready:'מוכן.',pasteAsm:'הדבק אסמבלי / objdump',pastePlaceholder:'הדבק כאן את התוכן המלא…',cancel:'ביטול',load:'טען',
-    symbolFamilies:'משפחות סמלים',codeSections:'מקטעי קוד',bridgeHidden:'חבר אוטומטית דרך פונקציות מוסתרות',matchDynamic:'התאם מימושים דינמיים שנטענו',addressSpace:'מרחב כתובות',dynamicMatch:'התאמה דינמית',pltEntry:'PLT / import stub',implementation:'מימוש',resolvesTo:'נפתר אל',hiddenLines:'שורות מוסתרות',instructionsLower:'הוראות',analyzing:'מנתח ASM…',loadedOk:'ה-ASM נטען. Ctrl+click עוקב אחר קריאות; Alt+← חוזר למקור.',loadedNoFunctions:'נטען. לא זוהו גבולות פונקציה.',
+    globalCallGraph:'גרף קריאות גלובלי',selectedCfg:'CFG של הפונקציה שנבחרה',binaryMap:'מפת בינארי',reachabilityRootTitle:'שורש ניתוח הנגישות',entry:'כניסה',entryTitle:'התאם את הרכיב הנגיש מנקודת הכניסה',fitAll:'התאם הכל',fitAllTitle:'התאם את כל הצמתים, כולל צמתים מנותקים',labels:'תוויות',auto:'אוטומטי',yes:'כן',no:'לא',
+    legendFamily:'צבע = משפחת סמלים',legendAddress:'┄ הפניה לכתובת',legendData:'·· הפניית נתונים',legendRelocation:'·· relocation',legendCrossFile:'╌ קריאה בין קבצים',legendResolve:'·· קישור דינמי resolves-to',legendBridge:'╌ גישור מעל צמתים מוסתרים',loadObjdump:'טען אסמבלי / objdump',loadObjdumpSub:'קובץ, גרירה ושחרור, או הדבקה ישירה.',ready:'מוכן.',pasteAsm:'הדבק אסמבלי / objdump',pastePlaceholder:'הדבק כאן את התוכן המלא…',cancel:'ביטול',load:'טען',
+    symbolFamilies:'משפחות סמלים',codeSections:'מקטעי קוד',bridgeHidden:'חבר אוטומטית דרך פונקציות מוסתרות',matchDynamic:'התאם מימושים דינמיים שנטענו',addressSpace:'מרחב כתובות',binarySection:'מקטע בינארי',sectionKind:'סוג מקטע',range:'טווח',bytes:'בתים',references:'הפניות',relocations:'Relocations',dynamicMatch:'התאמה דינמית',pltEntry:'PLT / import stub',implementation:'מימוש',resolvesTo:'נפתר אל',hiddenLines:'שורות מוסתרות',instructionsLower:'הוראות',analyzing:'מנתח ASM…',loadedOk:'ה-ASM נטען. Ctrl+click עוקב אחר קריאות; Alt+← חוזר למקור.',loadedNoFunctions:'נטען. לא זוהו גבולות פונקציה.',
     visibleFunctions:'פונקציות גלויות',directRefs:'הפניות ישירות',addressRefs:'הפניות לכתובות',indirectRefs:'הפניות עקיפות',reachable:'ניתנות להגעה',noPath:'ללא נתיב',root:'שורש',functionsReachable:'פונקציות ניתנות להגעה',noPathFromRoot:'ללא נתיב מהשורש',noPreviousOrigin:'אין מקור קודם.',origin:'מקור',
     function:'פונקציה',block:'בלוק',linesLabel:'שורות',goToCode:'עבור לקוד',role:'תפקיד',reachability:'נגישות',family:'משפחה',address:'כתובת',approxSize:'גודל משוער',section:'מקטע',source:'מקור',instructions:'הוראות',callsJumps:'קריאות/קפיצות',incoming:'נכנסות',center:'מרכז',openCfg:'פתח CFG',selectFunctionCfg:'בחר פונקציה כדי להציג CFG.',
     searchStatus:'חיפוש',noMatches:'אין התאמות.',readError:'לא ניתן לקרוא את הקובץ',reachabilityRoot:'שורש נגישות',noLocalEvents:'אין אירועים סמנטיים מקומיים',noLocalEventsSub:'ה-ASM עדיין זמין למעלה; בחר פונקציה אחרת או קריאה.',selectedInstruction:'הוראה שנבחרה',directCall:'קריאה ישירה',indirectCall:'קריאה עקיפה',controlTransfer:'העברת בקרה',entryD0:'כניסה / D0',noPathEntry:'אין נתיב מנקודת הכניסה',hiddenCount:'מוסתרות',elfEntry:'כניסת ELF',programEntry:'כניסת התוכנית',program:'תוכנית',ctrlReturn:'Alt+← כדי לחזור',
@@ -488,7 +489,7 @@ function familyColor(name){
 }
 
 function symbolPrefixCandidates(name){
-  const n=(name||'').replace(/\+0x[0-9a-fA-F]+$/,'');
+  const n=(name||'').replace(/[+-]0x[0-9a-fA-F]+$/,'');
   const out=[];
 
   if(!n||n.includes('@plt')||n.startsWith('_'))return out;
@@ -551,7 +552,8 @@ function assignSymbolFamilies(functions){
 
 const state = {
   text:'', lines:[], lineMeta:[], functions:[], functionsByAddr:new Map(), functionsByName:new Map(),
-  calls:[], addressRefs:[], callByLine:new Map(), selectedFunction:null, selectedBlock:null, selectedLine:-1,
+  calls:[], addressRefs:[], dataRefs:[], relocations:[], sections:[], sectionById:new Map(), callByLine:new Map(),
+  selectedFunction:null, selectedBlock:null, selectedSection:null, selectedLine:-1,
   navStack:[], navMax:128,
   topBlocks:[], topBlockByStart:new Map(), collapsedTop:new Set(), collapsedFunctions:new Set(),
   visibleRows:[], rowOfLine:null, familyInfo:new Map(), familyVisibility:new Map(), sectionVisibility:new Map(),
@@ -1201,8 +1203,10 @@ function parseFasmSource(text){
     }
   }
 
+  const sectionModel=buildSourceSectionModel(lines,lineMeta,functions);
+  const dataRefs=buildDataReferences(functions,sectionModel.sections);
   const structure=analyzeStructure(lines,lineMeta,functions);
-  return {inputKind:'fasm-source',inputMeta:{dialect:'FASM',format:meta.format,bits:meta.bits,needed:meta.needed,includes:meta.includes,libraries:[...meta.libraries.values()]},explicitEntrySymbols:meta.entries,lines,lineMeta,functions,functionsByAddr,functionsByName,calls,addressRefs,callByLine,fasm:meta,externalSymbols,...structure};
+  return {inputKind:'fasm-source',inputMeta:{dialect:'FASM',format:meta.format,bits:meta.bits,needed:meta.needed,includes:meta.includes,libraries:[...meta.libraries.values()]},explicitEntrySymbols:meta.entries,lines,lineMeta,functions,functionsByAddr,functionsByName,calls,addressRefs,dataRefs,relocations:[],sections:sectionModel.sections,callByLine,fasm:meta,externalSymbols,...structure};
 }
 
 function enrichFasmProvenance(parsed,fileName){
@@ -1212,6 +1216,211 @@ function enrichFasmProvenance(parsed,fileName){
     fn.source=`${base}:${fn.startLine+1}`;
   }
   parsed.dwarf={available:false,cus:[],subprograms:[],projectRoots:[]};parsed.projectRoots=[base];parsed.provenanceMapped=parsed.functions.length;
+}
+
+
+// -----------------------------------------------------------------------------
+// Binary model: sections, bytes, relocations and data references.
+// -----------------------------------------------------------------------------
+
+function sectionSemanticKind(name){
+  const n=String(name||'').toLowerCase();
+  if(/^\.debug/.test(n))return 'debug';
+  if(/^\.plt/.test(n)||n==='.got'||n==='.got.plt'||n==='.dynamic'||n==='.dynsym'||n==='.dynstr'||/^\.rel(?:a)?\./.test(n)||n==='.interp')return 'linkage';
+  if(n==='.text'||n==='.init'||n==='.fini'||/(?:^|[._])(?:text|code)(?:$|[._])/.test(n))return 'code';
+  if(n==='.rodata'||n==='.eh_frame'||n==='.eh_frame_hdr'||n==='.gcc_except_table'||/rodata|const/.test(n))return 'read-only data';
+  if(n==='.data'||n==='.bss'||n==='.data.rel.ro'||n==='.tdata'||n==='.tbss'||/(?:^|[._])(?:data|bss)(?:$|[._])/.test(n))return 'writable data';
+  if(/^\.note/.test(n)||n==='.comment'||n==='.symtab'||n==='.strtab'||n==='.shstrtab')return 'metadata';
+  return 'other';
+}
+
+function sectionAddressable(name){
+  const kind=sectionSemanticKind(name);
+  return !['debug','metadata'].includes(kind)&&!/^\.rel(?:a)?\./.test(String(name||'').toLowerCase());
+}
+
+function parseObjdumpSectionModel(lines){
+  const sections=[],byName=new Map();
+  const contentsHead=/^Contents of section\s+([^:]+):/;
+  const disasmHead=/^Disassembly of section\s+([^:]+):/;
+  let current=null;
+
+  const ensure=(name,startLine,sourceKind)=>{
+    let sec=byName.get(name);
+    if(!sec){
+      sec={
+        id:`sec:${name}`,name,startLine,endLine:startLine,sourceKind,
+        kind:sectionSemanticKind(name),addressable:sectionAddressable(name),
+        addressStart:null,addressEnd:null,size:0,byteCount:0,chunks:[],
+        synthetic:false
+      };
+      byName.set(name,sec);sections.push(sec);
+    }else{
+      sec.startLine=Math.min(sec.startLine,startLine);
+      if(sourceKind==='contents')sec.sourceKind='contents';
+    }
+    return sec;
+  };
+
+  for(let i=0;i<lines.length;i++){
+    const raw=lines[i];let m;
+    if((m=raw.match(contentsHead))){
+      current=ensure(m[1],i,'contents');current.endLine=i;continue;
+    }
+    if((m=raw.match(disasmHead))){
+      current=null;ensure(m[1],i,'disassembly');continue;
+    }
+    if(!current)continue;
+
+    // objdump -s emits an address followed by up to four hexadecimal words.
+    m=raw.match(/^\s*([0-9a-fA-F]+)\s+(.+)$/);
+    if(!m){
+      if(raw.trim()&&!/^\s/.test(raw))current=null;
+      continue;
+    }
+    const address=parseInt(m[1],16),tokens=m[2].trim().split(/\s+/),bytes=[];
+    for(let ti=0;ti<Math.min(4,tokens.length);ti++){
+      const tok=tokens[ti];
+      if(!/^[0-9a-fA-F]{2,8}$/.test(tok)||tok.length%2)break;
+      for(let j=0;j<tok.length;j+=2)bytes.push(parseInt(tok.slice(j,j+2),16));
+    }
+    if(!bytes.length)continue;
+    current.chunks.push({address,bytes:new Uint8Array(bytes),line:i});
+    current.byteCount+=bytes.length;current.endLine=i;
+    current.addressStart=current.addressStart==null?address:Math.min(current.addressStart,address);
+    current.addressEnd=current.addressEnd==null?address+bytes.length:Math.max(current.addressEnd,address+bytes.length);
+  }
+
+  for(const sec of sections)if(sec.addressStart!=null&&sec.addressEnd!=null)sec.size=Math.max(0,sec.addressEnd-sec.addressStart);
+  return {sections,sectionByName:byName};
+}
+
+function parseObjdumpRelocations(lines){
+  const relocations=[];
+  let active=false,currentSection='',dynamic=false;
+  for(let i=0;i<lines.length;i++){
+    const raw=lines[i];let m;
+    if((m=raw.match(/^RELOCATION RECORDS FOR \[([^\]]+)\]:/i))){
+      active=true;dynamic=false;currentSection=m[1];continue;
+    }
+    if(/^DYNAMIC RELOCATION RECORDS/i.test(raw)){
+      active=true;dynamic=true;currentSection='.dynamic';continue;
+    }
+    if(!active)continue;
+    if(/^\s*(?:OFFSET|RELOCATION|TYPE)\b/i.test(raw)||!raw.trim())continue;
+    m=raw.match(/^\s*([0-9a-fA-F]+)\s+(\S+)\s+(.+?)\s*$/);
+    if(!m){
+      if(/^[A-Za-z].*:$/.test(raw.trim()))active=false;
+      continue;
+    }
+    const value=m[3].trim(),symbol=(value.match(/^([^\s+-]+)/)||[])[1]||value;
+    relocations.push({
+      id:`rel:${i}:${m[1]}`,offset:parseInt(m[1],16),offsetHex:m[1].toLowerCase(),
+      type:m[2],value,symbol,section:currentSection,dynamic,line:i
+    });
+  }
+  return relocations;
+}
+
+function mergeCodeSectionRanges(sectionModel,functions){
+  const {sections,sectionByName}=sectionModel;
+  for(const fn of functions){
+    if(!fn.section)continue;
+    let sec=sectionByName.get(fn.section);
+    if(!sec){
+      sec={
+        id:`sec:${fn.section}`,name:fn.section,startLine:fn.startLine,endLine:fn.endLine,
+        sourceKind:'disassembly',kind:sectionSemanticKind(fn.section),addressable:true,
+        addressStart:fn.addr,addressEnd:fn.addr+Math.max(1,fn.size),size:Math.max(1,fn.size),
+        byteCount:0,chunks:[],synthetic:!!fn.syntheticAddress
+      };
+      sections.push(sec);sectionByName.set(fn.section,sec);
+    }
+    sec.startLine=Math.min(sec.startLine,fn.startLine);sec.endLine=Math.max(sec.endLine,fn.endLine);
+    if(Number.isFinite(fn.addr)){
+      sec.addressStart=sec.addressStart==null?fn.addr:Math.min(sec.addressStart,fn.addr);
+      sec.addressEnd=sec.addressEnd==null?fn.addr+Math.max(1,fn.size):Math.max(sec.addressEnd,fn.addr+Math.max(1,fn.size));
+      sec.size=Math.max(sec.size||0,(sec.addressEnd||0)-(sec.addressStart||0));
+    }
+  }
+  return sectionModel;
+}
+
+function sectionContainingAddress(sections,address){
+  if(!Number.isFinite(address))return null;
+  let best=null;
+  for(const sec of sections){
+    if(!sec.addressable||sec.addressStart==null||sec.addressEnd==null)continue;
+    if(address>=sec.addressStart&&address<sec.addressEnd){
+      if(!best||(sec.addressEnd-sec.addressStart)<(best.addressEnd-best.addressStart))best=sec;
+    }
+  }
+  return best;
+}
+
+function instructionAbsoluteReferences(inst){
+  const refs=[],seen=new Set(),op=inst.operands||'';
+  const push=(addr,name=null)=>{
+    if(!Number.isFinite(addr))return;
+    const key=`${addr}|${name||''}`;if(seen.has(key))return;seen.add(key);refs.push({addr,name});
+  };
+  let m;
+  const commentRe=/#\s*(?:0x)?([0-9a-fA-F]{5,16})(?:\s*<([^>]+)>)?/g;
+  while((m=commentRe.exec(op)))push(parseInt(m[1],16),m[2]||null);
+  const immRe=/\$(?:0x)?([0-9a-fA-F]{5,16})\b/g;
+  while((m=immRe.exec(op)))push(parseInt(m[1],16),null);
+  // Intel/FASM absolute memory references.
+  const memRe=/\[(?:qword\s+|dword\s+|word\s+|byte\s+)?(?:0x)?([0-9a-fA-F]{5,16})\]/ig;
+  while((m=memRe.exec(op)))push(parseInt(m[1],16),null);
+  return refs;
+}
+
+function buildDataReferences(functions,sections){
+  const out=[];
+  for(const fn of functions){
+    for(const inst of fn.instructions){
+      for(const ref of instructionAbsoluteReferences(inst)){
+        const sec=sectionContainingAddress(sections,ref.addr);
+        if(!sec||sec.kind==='code')continue;
+        out.push({
+          id:`dref:${fn.id}:${inst.line}:${ref.addr}`,from:fn,toSection:sec,
+          targetAddr:ref.addr,targetName:ref.name||null,kind:'data-ref',instruction:inst
+        });
+      }
+    }
+  }
+  return out;
+}
+
+function sectionBytePreview(section,max=48){
+  if(!section?.chunks?.length)return '';
+  const out=[];
+  for(const chunk of section.chunks){
+    for(const b of chunk.bytes){out.push(b);if(out.length>=max)break}
+    if(out.length>=max)break;
+  }
+  return out.map(b=>b.toString(16).padStart(2,'0')).join(' ');
+}
+
+function buildSourceSectionModel(lines,lineMeta,functions){
+  const sections=[],byName=new Map();
+  const ensure=(name,line)=>{
+    let sec=byName.get(name);
+    if(!sec){
+      sec={id:`sec:${name}`,name,startLine:line,endLine:line,sourceKind:'source',kind:sectionSemanticKind(name),addressable:true,addressStart:null,addressEnd:null,size:0,byteCount:0,chunks:[],synthetic:true};
+      byName.set(name,sec);sections.push(sec);
+    }
+    return sec;
+  };
+  let current=ensure('.source',0);
+  for(let i=0;i<lineMeta.length;i++){
+    const meta=lineMeta[i];
+    if(meta?.type==='section'&&meta.section){current=ensure(meta.section,i);current.startLine=Math.min(current.startLine,i)}
+    if(current)current.endLine=i;
+  }
+  const model={sections,sectionByName:byName};
+  mergeCodeSectionRanges(model,functions);
+  return model;
 }
 
 function parseAsm(text){
@@ -1342,8 +1551,11 @@ function parseAsm(text){
     }
   }
 
+  const sectionModel=mergeCodeSectionRanges(parseObjdumpSectionModel(lines),functions);
+  const relocations=parseObjdumpRelocations(lines);
+  const dataRefs=buildDataReferences(functions,sectionModel.sections);
   const structure=analyzeStructure(lines,lineMeta,functions);
-  return {lines,lineMeta,functions,functionsByAddr,functionsByName,calls,addressRefs,callByLine,...structure};
+  return {lines,lineMeta,functions,functionsByAddr,functionsByName,calls,addressRefs,dataRefs,relocations,sections:sectionModel.sections,callByLine,...structure};
 }
 
 
@@ -1634,6 +1846,11 @@ function namespaceParsedWorkspace(record,parsed){
   }
   for(const edge of parsed.calls)edge.workspaceFileId=record.id;
   for(const edge of parsed.addressRefs)edge.workspaceFileId=record.id;
+  for(const sec of parsed.sections||[]){
+    sec.id=`${record.id}::${sec.id}`;sec.workspaceFileId=record.id;sec.workspaceFilePath=record.path;
+  }
+  for(const edge of parsed.dataRefs||[]){edge.id=`${record.id}::${edge.id}`;edge.workspaceFileId=record.id}
+  for(const rel of parsed.relocations||[]){rel.id=`${record.id}::${rel.id}`;rel.workspaceFileId=record.id}
   parsed.functionsByAddr=new Map(parsed.functions.map(fn=>[fn.addr,fn]));
   parsed.functionsByName=new Map();
   for(const fn of parsed.functions)if(!parsed.functionsByName.has(fn.name))parsed.functionsByName.set(fn.name,fn);
@@ -1755,6 +1972,9 @@ function parseWorkspaceRecord(record){
     if(fn.pltStub)fn.nodeRole='plt-stub';
     if(record.artifactKind==='shared-library')fn.libraryImplementation=true;
   }
+  for(const sec of parsed.sections||[]){
+    sec.addressSpaceId=record.addressSpaceId;sec.addressSpaceLabel=record.addressSpaceLabel;sec.artifactKind=record.artifactKind;sec.artifactLabel=record.artifactLabel;
+  }
 
   record.parsed=parsed;record.inputKind=inputKind;record.inputMeta=parsed.inputMeta||null;record.error=null;
   record.includes=(parsed.inputMeta?.includes||[]).map(normalizeWorkspacePath);
@@ -1808,7 +2028,7 @@ function chooseWorkspaceSymbol(fromFileId,targetName,index){
   if(exported.length===1)return exported[0];
   return candidates.length===1?candidates[0]:null;
 }
-function resolveWorkspaceLinks(functions,calls,addressRefs){
+function resolveWorkspaceLinks(functions,calls,addressRefs,dataRefs=[],relocations=[],sections=[]){
   buildWorkspaceDependencyMap();
   const index=workspaceSymbolIndex(functions);state.functionsByNameMulti=index;
   for(const edge of calls){
@@ -1830,6 +2050,21 @@ function resolveWorkspaceLinks(functions,calls,addressRefs){
         const target=chooseWorkspaceSymbol(fn.workspaceFileId,name,index);if(!target||target===fn)continue;
         const key=`${fn.id}|${target.id}|${inst.line}`;if(seen.has(key))continue;
         seen.add(key);addressRefs.push({from:fn,to:target,targetName:name,targetAddr:target.addr,kind:'address',instruction:inst,workspaceFileId:fn.workspaceFileId,crossFile:target.workspaceFileId!==fn.workspaceFileId});
+      }
+    }
+  }
+  const sectionIndex=new Map();
+  for(const sec of sections)sectionIndex.set(`${sec.workspaceFileId}|${sec.name}`,sec);
+  for(const rel of relocations){
+    rel.fromSection=sectionIndex.get(`${rel.workspaceFileId}|${rel.section}`)||null;
+    rel.toFunction=null;rel.toSection=null;
+    if(rel.symbol?.startsWith('.'))rel.toSection=sectionIndex.get(`${rel.workspaceFileId}|${rel.symbol}`)||null;
+    if(!rel.toSection&&rel.symbol){
+      const target=chooseWorkspaceSymbol(rel.workspaceFileId,rel.symbol,index);
+      if(target){
+        rel.toFunction=target;
+        rel.toSection=sectionIndex.get(`${target.workspaceFileId}|${target.section}`)||null;
+        rel.crossFile=target.workspaceFileId!==rel.workspaceFileId;
       }
     }
   }
@@ -1887,14 +2122,14 @@ function activateWorkspaceFile(id,opts={}){
 
 function rebuildWorkspaceAnalysis({live=false,preserveView=true}={}){
   const previousView={...state.view},previousMode=state.mode,previousEntry=state.entryFunction?.name||'',previousExpanded=new Set(state.expandedOriginGroups),previousOriginVisibility=new Map(state.originVisibility);
-  const functions=[],calls=[],addressRefs=[],functionsByAddr=new Map(),functionsByName=new Map(),roots=[];let mapped=0;
+  const functions=[],calls=[],addressRefs=[],dataRefs=[],relocations=[],sections=[],functionsByAddr=new Map(),functionsByName=new Map(),roots=[];let mapped=0;
   for(const id of state.workspaceOrder){
     const rec=state.workspaceFiles.get(id);if(!rec?.parsed)continue;const p=rec.parsed;
-    functions.push(...p.functions);calls.push(...p.calls);addressRefs.push(...p.addressRefs);mapped+=p.provenanceMapped||0;roots.push(...(p.projectRoots||[]));
+    functions.push(...p.functions);calls.push(...p.calls);addressRefs.push(...p.addressRefs);dataRefs.push(...(p.dataRefs||[]));relocations.push(...(p.relocations||[]));sections.push(...(p.sections||[]));mapped+=p.provenanceMapped||0;roots.push(...(p.projectRoots||[]));
     for(const fn of p.functions){if(!functionsByAddr.has(fn.addr))functionsByAddr.set(fn.addr,fn);if(!functionsByName.has(fn.name))functionsByName.set(fn.name,fn)}
   }
-  resolveWorkspaceLinks(functions,calls,addressRefs);
-  state.functions=functions;state.calls=calls;state.addressRefs=addressRefs;state.functionsByAddr=functionsByAddr;state.functionsByName=functionsByName;
+  resolveWorkspaceLinks(functions,calls,addressRefs,dataRefs,relocations,sections);
+  state.functions=functions;state.calls=calls;state.addressRefs=addressRefs;state.dataRefs=dataRefs;state.relocations=relocations;state.sections=sections;state.sectionById=new Map(sections.map(sec=>[sec.id,sec]));state.functionsByAddr=functionsByAddr;state.functionsByName=functionsByName;
   els.emptyGraph.style.display=functions.length?'none':'grid';
   state.projectRoots=[...new Set(roots)];state.provenanceMapped=mapped;state.explicitEntrySymbols=state.workspaceOrder.flatMap(id=>state.workspaceFiles.get(id)?.explicitEntrySymbols||[]);
   state.expandedOriginGroups=previousExpanded;
@@ -2063,16 +2298,24 @@ function configureEntrypoints(){
 }
 
 function updateStats(){
-  const direct=state.calls.filter(e=>e.to).length,indirect=state.calls.filter(e=>e.indirect).length,addrRefs=state.addressRefs.length,visibleFns=state.functions.filter(functionVisible).length,reachable=state.graphNodes.filter(n=>n.reachable).length,detached=state.graphNodes.length-reachable,staticGroups=[...state.originGroups.values()].filter(g=>g.kind==='native-static').length;
+  const direct=state.calls.filter(e=>e.to).length,indirect=state.calls.filter(e=>e.indirect).length,addrRefs=state.addressRefs.length,visibleFns=state.functions.filter(functionVisible).length,staticGroups=[...state.originGroups.values()].filter(g=>g.kind==='native-static').length;
   const kinds=new Set(state.workspaceOrder.map(id=>state.workspaceFiles.get(id)?.inputKind).filter(Boolean));
-  const mappedLabel=kinds.size>1?'mapped':state.inputKind==='fasm-source'?t('sourceMapped'):t('dwarfMapped');
+  const mappedLabel=kinds.size>1?'mapped':kinds.has('fasm-source')?t('sourceMapped'):t('dwarfMapped');
+
+  if(state.mode==='binary'){
+    els.stats.textContent=`${num(state.workspaceOrder.length)} files · ${num(state.sections.length)} sections · ${num(state.dataRefs.length)} data refs · ${num(state.relocations.length)} relocations · ${num(state.functions.length)} functions · ${num(state.dynamicMatches.length)} dynamic matches`;
+    els.entrySummary.style.display='none';
+    return;
+  }
+
+  const reachable=state.graphNodes.filter(n=>n.reachable).length,detached=state.graphNodes.length-reachable;
   els.stats.textContent=`${num(state.workspaceOrder.length)} files · ${num(visibleFns)}/${num(state.functions.length)} ${t('visibleFunctions')} · ${num(state.graphNodes.length)} ${t('displayNodes')} · ${num(staticGroups)} ${t('staticGroups')} · ${num(state.provenanceMapped||0)} ${mappedLabel} · ${num(direct)} ${t('directRefs')} · ${num(addrRefs)} ${t('addressRefs')} · ${num(indirect)} ${t('indirectRefs')}`;
   if(state.entryFunction){const elf=state.elfEntry?`<strong>ELF:</strong> ${escapeHtml(state.elfEntry.name)}`:'<strong>ELF:</strong> —',program=state.programEntry?`<span class="program">${t('program')}: ${escapeHtml(state.programEntry.name)}</span>`:`<span class="program">${t('program')}: —</span>`,current=`${t('root')}: ${escapeHtml(state.entryFunction.name)}`,detachedText=detached?`<span class="detached">${num(detached)} ${t('noPathFromRoot')}</span>`:`0 ${t('noPath')}`;els.entrySummary.innerHTML=`${elf} · ${program} · ${current}<br>${num(reachable)} ${t('reachable')} · ${detachedText}`;els.entrySummary.style.display='block'}else els.entrySummary.style.display='none';
 }
 
 function clearAll(){
-  state.text='';state.lines=[];state.lineMeta=[];state.functions=[];state.calls=[];state.addressRefs=[];state.callByLine=new Map();
-  state.functionsByAddr=new Map();state.functionsByName=new Map();state.selectedFunction=null;state.selectedBlock=null;
+  state.text='';state.lines=[];state.lineMeta=[];state.functions=[];state.calls=[];state.addressRefs=[];state.dataRefs=[];state.relocations=[];state.sections=[];state.sectionById=new Map();state.callByLine=new Map();
+  state.functionsByAddr=new Map();state.functionsByName=new Map();state.selectedFunction=null;state.selectedBlock=null;state.selectedSection=null;
   state.navStack=[];state.graphSpatial=null;state.graphAdjacency=new Map();state.graphDepths=[];
   state.entryFunction=null;state.elfEntry=null;state.programEntry=null;state.reachableIds=new Set();state.reachParent=new Map();state.depthById=new Map();state.detachedY=null;
   state.graphNodes=[];state.graphEdges=[];state.nodeById=new Map();state.searchHits=[];state.searchIndex=-1;
@@ -2239,6 +2482,26 @@ function updateInspector(item){
       <b>${t('members')}</b><span>${num(g.members.length)}</span>
       <b>${t('sourceRoots')}</b><span class="sourcePath">${roots.length?roots.map(escapeHtml).join('<br>'):'—'}</span>
     </div><div class="actions"><button data-action="toggle-group">${expanded?t('collapseGroup'):t('expandGroup')}</button><button data-action="center">${t('center')}</button></div>`;
+  }else if(item.kind==='address-space'){
+    const rec=item.record,secs=state.sections.filter(sec=>sec.workspaceFileId===item.workspaceFileId);
+    html=`<div class="title">${escapeHtml(item.label)}</div><div class="meta">
+      <b>${t('addressSpace')}</b><span>${escapeHtml(item.label)}</span>
+      <b>Artifact</b><span>${escapeHtml(rec?.artifactKind||'—')}</span>
+      <b>File</b><span class="sourcePath">${escapeHtml(rec?.path||'—')}</span>
+      <b>${t('binarySection')}</b><span>${num(secs.length)}</span>
+    </div><div class="actions"><button data-action="center">${t('center')}</button></div>`;
+  }else if(item.kind==='section'){
+    const sec=item.section,refs=state.dataRefs.filter(r=>r.toSection===sec),relIn=state.relocations.filter(r=>r.toSection===sec),relOut=state.relocations.filter(r=>r.fromSection===sec),preview=sectionBytePreview(sec);
+    html=`<div class="title">${escapeHtml(sec.name)}</div><div class="meta">
+      <b>${t('binarySection')}</b><span>${escapeHtml(sec.name)}</span>
+      <b>${t('sectionKind')}</b><span>${escapeHtml(sec.kind)}</span>
+      <b>${t('addressSpace')}</b><span>${escapeHtml(sec.addressSpaceLabel||sec.workspaceFilePath||'—')}</span>
+      <b>${t('range')}</b><span>${sec.synthetic?`${t('line')} ${sec.startLine+1}–${sec.endLine+1}`:(sec.addressStart!=null?`${safeHex(sec.addressStart)} – ${safeHex(sec.addressEnd)}`:'—')}</span>
+      <b>${t('bytes')}</b><span>${num(sec.byteCount||sec.size||0)}</span>
+      <b>${t('references')}</b><span>${num(refs.length)}</span>
+      <b>${t('relocations')}</b><span>${num(relIn.length+relOut.length)}</span>
+    </div>${preview?`<div class="path"><b>BYTES</b><br><span class="linkage">${escapeHtml(preview)}${sec.byteCount>48?' …':''}</span></div>`:''}
+    <div class="actions"><button data-action="code">${t('goToCode')}</button><button data-action="center">${t('center')}</button></div>`;
   }else if(item.kind==='block'){
     html=`<div class="title">${escapeHtml(item.label)}</div><div class="meta"><b>${t('function')}</b><span>${escapeHtml(functionDisplayName(item.function))}</span><b>Range</b><span>${item.function?.syntheticAddress?`${t('line')} ${item.startLine+1}–${item.endLine+1}`:`${safeHex(item.startAddr)} – ${safeHex(item.endAddr)}`}</span><b>${t('instructions')}</b><span>${item.instructions.length}</span><b>${t('linesLabel')}</b><span>${item.startLine+1}–${item.endLine+1}</span></div><div class="actions"><button data-action="code">${t('goToCode')}</button></div>`;
   }else{
@@ -2260,8 +2523,14 @@ function updateInspector(item){
     ${path.length?`<div class="path"><b>PATH</b><br>${path.map(n=>escapeHtml(n.label)).join(' → ')}</div>`:''}<div class="actions"><button data-action="code">${t('goToCode')}</button><button data-action="center">${t('center')}</button><button data-action="cfg">${t('openCfg')}</button>${item.dynamicMatch?`<button data-action="dynamic-match">${t('implementation')}</button>`:''}${item.dynamicMatchedBy?.length?`<button data-action="dynamic-stub">${t('pltEntry')}</button>`:''}${canCollapse?`<button data-action="collapse-group">${t('collapseGroup')}</button>`:''}</div>`;
   }
   els.inspector.innerHTML=html;els.inspector.classList.remove('hidden');
-  els.inspector.querySelector('[data-action="code"]')?.addEventListener('click',()=>scrollToLine(item.startLine,true));
-  els.inspector.querySelector('[data-action="center"]')?.addEventListener('click',()=>centerNode(item.kind==='group'?state.nodeById.get(item.id):state.nodeById.get(state.functionRepresentative.get(item.id)||item.id),.9));
+  els.inspector.querySelector('[data-action="code"]')?.addEventListener('click',()=>{
+    if(item.kind==='section'&&item.section?.workspaceFileId)activateWorkspaceFile(item.section.workspaceFileId,{line:item.section.startLine});
+    else scrollToLine(item.startLine,true);
+  });
+  els.inspector.querySelector('[data-action="center"]')?.addEventListener('click',()=>{
+    const node=item.kind==='group'||item.kind==='section'||item.kind==='address-space'?state.nodeById.get(item.id):state.nodeById.get(state.functionRepresentative.get(item.id)||item.id);
+    if(node)centerNode(node,.9);
+  });
   els.inspector.querySelector('[data-action="cfg"]')?.addEventListener('click',()=>{state.mode='cfg';els.graphMode.value='cfg';buildGraph();fitGraph()});
   els.inspector.querySelector('[data-action="toggle-group"]')?.addEventListener('click',()=>toggleOriginGroup(item.group.id));
   els.inspector.querySelector('[data-action="collapse-group"]')?.addEventListener('click',()=>toggleOriginGroup(item.provenance.groupId,false));
@@ -2483,6 +2752,85 @@ function buildBasicBlocks(fn){
   return blocks;
 }
 
+
+const SECTION_COLORS={
+  code:'#6fa8ff',
+  linkage:'#d8b36a',
+  'read-only data':'#8fbd91',
+  'writable data':'#d88b72',
+  debug:'#9c82d8',
+  metadata:'#727d88',
+  other:'#7f8d9a'
+};
+function sectionColor(kind){return SECTION_COLORS[kind]||SECTION_COLORS.other}
+
+function buildBinaryGraph(){
+  const nodes=[],edges=[],nodeById=new Map(),spaceNodes=new Map(),sectionNodes=new Map();
+  const spaces=new Map();
+
+  for(const id of state.workspaceOrder){
+    const rec=state.workspaceFiles.get(id);if(!rec)continue;
+    spaces.set(id,{
+      id:`as:${id}`,kind:'address-space',workspaceFileId:id,label:rec.addressSpaceLabel||rec.artifactLabel||rec.path,
+      record:rec,x:0,y:0,w:clamp(180+(rec.addressSpaceLabel||rec.path||'').length*5.3,220,360),h:54,
+      color:'#b5c0cb',reachable:true,depth:0
+    });
+  }
+
+  const orderedSpaces=[...spaces.values()];
+  const SPACE_GAP=1250,COL_GAP=215,YG=66;
+  const columnOf=kind=>kind==='code'?0:kind==='linkage'?1:(kind==='read-only data'||kind==='writable data')?2:(kind==='debug'||kind==='metadata')?3:4;
+  orderedSpaces.forEach((space,si)=>{
+    space.x=si*SPACE_GAP+COL_GAP*2;space.y=0;nodes.push(space);nodeById.set(space.id,space);spaceNodes.set(space.workspaceFileId,space);
+
+    const buckets=[[],[],[],[],[]];
+    for(const sec of state.sections.filter(sec=>sec.workspaceFileId===space.workspaceFileId))buckets[columnOf(sec.kind)].push(sec);
+    for(const bucket of buckets)bucket.sort((a,b)=>{
+      const aa=a.addressStart??Number.MAX_SAFE_INTEGER,bb=b.addressStart??Number.MAX_SAFE_INTEGER;
+      return aa-bb||a.name.localeCompare(b.name);
+    });
+
+    buckets.forEach((bucket,ci)=>bucket.forEach((sec,ri)=>{
+      const label=sec.name,node={
+        id:`section:${sec.id}`,kind:'section',section:sec,label,
+        workspaceFileId:sec.workspaceFileId,addressSpaceId:sec.addressSpaceId,addressSpaceLabel:sec.addressSpaceLabel,
+        x:si*SPACE_GAP+ci*COL_GAP,y:105+ri*YG,w:clamp(145+label.length*5.8,170,285),h:48,
+        color:sectionColor(sec.kind),reachable:true,depth:1
+      };
+      nodes.push(node);nodeById.set(node.id,node);sectionNodes.set(sec.id,node);
+    }));
+  });
+
+  const sectionLookup=new Map(state.sections.map(sec=>[`${sec.workspaceFileId}|${sec.name}`,sec]));
+  const aggregate=new Map();
+  const addEdge=(from,to,kind,count=1,crossFile=false)=>{
+    if(!from||!to||from===to)return;
+    const key=`${from.id}|${to.id}|${kind}`,old=aggregate.get(key);
+    if(old){old.count+=count;old.crossFile=old.crossFile||crossFile;return}
+    const e={from,to,kind,count,crossFile};aggregate.set(key,e);edges.push(e);
+  };
+
+  for(const ref of state.dataRefs){
+    const fromSec=sectionLookup.get(`${ref.workspaceFileId}|${ref.from.section}`),a=fromSec?sectionNodes.get(fromSec.id):null,b=ref.toSection?sectionNodes.get(ref.toSection.id):null;
+    addEdge(a,b,'data-ref',1,false);
+  }
+
+  for(const rel of state.relocations){
+    const a=rel.fromSection?sectionNodes.get(rel.fromSection.id):null,b=rel.toSection?sectionNodes.get(rel.toSection.id):null;
+    addEdge(a,b,'relocation',1,!!rel.crossFile);
+  }
+
+  // PLT and GOT are separate physical mechanisms. This edge is structural,
+  // not a function call and not a dynamic-symbol resolution.
+  for(const id of state.workspaceOrder){
+    const plt=sectionLookup.get(`${id}|.plt`)||sectionLookup.get(`${id}|.plt.sec`);
+    const gotplt=sectionLookup.get(`${id}|.got.plt`);
+    if(plt&&gotplt)addEdge(sectionNodes.get(plt.id),sectionNodes.get(gotplt.id),'linkage',1,false);
+  }
+
+  return {nodes,edges,nodeById};
+}
+
 function buildCfgGraph(){
   const fn=state.selectedFunction;
   if(!fn)return {nodes:[],edges:[],nodeById:new Map()};
@@ -2493,11 +2841,11 @@ function buildCfgGraph(){
 
 function buildGraph(){
   state.mode=els.graphMode.value||state.mode;
-  const g=state.mode==='cfg'?buildCfgGraph():buildCallGraph();
+  const g=state.mode==='cfg'?buildCfgGraph():state.mode==='binary'?buildBinaryGraph():buildCallGraph();
   state.graphNodes=g.nodes;state.graphEdges=g.edges;state.nodeById=g.nodeById;state.hoverNode=null;
   buildGraphRenderIndex();
   state.dirty=true;
-  if(state.mode==='calls')updateStats();
+  if(state.mode==='calls'||state.mode==='binary')updateStats();
   if(state.mode==='cfg'&&!state.selectedFunction)setStatus(t('selectFunctionCfg'));
 }
 
@@ -2720,10 +3068,11 @@ function renderGraph(){
     }
 
     if(state.detachedY!==null&&state.detachedY>=worldMin.y-40/z&&state.detachedY<=worldMax.y+40/z){
-      ctx.strokeStyle='#5b3537';ctx.lineWidth=1.3/z;ctx.setLineDash([10/z,8/z]);
-      ctx.beginPath();ctx.moveTo(worldMin.x,state.detachedY);ctx.lineTo(worldMax.x,state.detachedY);ctx.stroke();
-      ctx.setLineDash([]);ctx.fillStyle='#d38380';ctx.textAlign='left';
-      ctx.fillText(t('noPathEntry'),worldMin.x+12/z,state.detachedY+10/z);
+      const label=t('noPathEntry'),lx=worldMin.x+12/z,ly=state.detachedY+8/z;
+      ctx.font=`600 ${9/z*clamp(z,.72,1)}px ui-monospace,monospace`;ctx.textAlign='left';ctx.textBaseline='top';
+      const tw=ctx.measureText(label).width;ctx.fillStyle='#24191b';
+      roundRect(ctx,lx-6/z,ly-4/z,tw+12/z,18/z,4/z);ctx.fill();
+      ctx.fillStyle='#d38380';ctx.fillText(label,lx,ly);
     }
     ctx.restore();
   }
@@ -2756,6 +3105,10 @@ function renderGraph(){
     const dim=selectedNode&&!near&&!onPath;
 
     let col=e.kind==='dynamic-match'?'#d7b457':
+            e.kind==='data-ref'?'#72a58c':
+            e.kind==='relocation'?'#b58bd2':
+            e.kind==='linkage'?'#d8b36a':
+            e.kind==='contains'?'#3f4b56':
             e.crossFile&&e.kind==='call'?'#6fa8d8':
             e.kind==='call'?'#557792':
             e.kind==='address'?'#8b7450':
@@ -2769,7 +3122,7 @@ function renderGraph(){
     drawArrow(
       ctx,x1,y1,x2,y2,col,
       Math.max(.75,(onPath?2.2:near?1.6:1)/z*.72),
-      e.kind==='address'||e.kind==='hidden'||e.crossFile||e.kind==='dynamic-match',
+      e.kind==='address'||e.kind==='hidden'||e.crossFile||e.kind==='dynamic-match'||e.kind==='data-ref'||e.kind==='relocation',
       dim?.10:(onPath||near?1:.38)
     );
 
@@ -2800,7 +3153,7 @@ function renderGraph(){
   const selectedNeighbors=selectedNode?state.graphAdjacency.get(selectedNode.id):null;
 
   for(const n of frameNodes){
-    const selected=(n.kind==='function'&&n.function===state.selectedFunction)||(n.kind==='group'&&n.group?.id===state.selectedOriginGroupId)||(n.kind==='block'&&n===state.selectedBlock);
+    const selected=(n.kind==='function'&&n.function===state.selectedFunction)||(n.kind==='group'&&n.group?.id===state.selectedOriginGroupId)||(n.kind==='block'&&n===state.selectedBlock)||(n.kind==='section'&&n.section===state.selectedSection);
     const hovered=n===state.hoverNode;
     const isEntry=state.mode==='calls'&&((n.function&&n.function===state.entryFunction)||(n.kind==='group'&&state.functionRepresentative.get(state.entryFunction?.id)===n.id));
     const isElf=state.mode==='calls'&&n.function===state.elfEntry;
@@ -2843,6 +3196,8 @@ function renderGraph(){
 
       if(n.kind==='block'&&z>.45){ctx.fillStyle='#81909f';ctx.font=`${9/z*clamp(z,.7,1)}px ui-monospace,monospace`;ctx.fillText(n.instructions.slice(0,3).map(i=>i.mnemonic).join(' · '),n.x-n.w/2+pad,n.y+13/z)}
       if(n.kind==='group'&&z>.30){ctx.fillStyle='#82909e';ctx.font=`${9/z*clamp(z,.7,1)}px ui-monospace,monospace`;ctx.fillText(`${num(n.memberCount||n.group?.members?.length||0)} ${t('members')} · ${provenanceKindLabel(n.group?.kind)}`,n.x-n.w/2+pad,n.y+13/z)}
+      if(n.kind==='section'&&z>.30){ctx.fillStyle='#82909e';ctx.font=`${9/z*clamp(z,.7,1)}px ui-monospace,monospace`;ctx.fillText(`${n.section.kind} · ${num(n.section.byteCount||n.section.size||0)} B`,n.x-n.w/2+pad,n.y+13/z)}
+      if(n.kind==='address-space'&&z>.30){ctx.fillStyle='#82909e';ctx.font=`${9/z*clamp(z,.7,1)}px ui-monospace,monospace`;ctx.fillText(`${n.record?.artifactKind||'artifact'} · independent address space`,n.x-n.w/2+pad,n.y+13/z)}
     }
     ctx.restore();
   }
@@ -2865,10 +3220,12 @@ function nodeAt(clientX,clientY){
 }
 
 function selectGraphNode(n){
-  if(!n){state.selectedBlock=null;state.selectedOriginGroupId=null;updateInspector(state.selectedFunction);state.dirty=true;return}
+  if(!n){state.selectedBlock=null;state.selectedOriginGroupId=null;state.selectedSection=null;updateInspector(state.selectedFunction);state.dirty=true;return}
   if(n.kind==='function')selectFunction(n.function,{scroll:true,keepMode:true});
-  else if(n.kind==='group'){state.selectedOriginGroupId=n.group.id;state.selectedBlock=null;updateInspector(n);state.dirty=true}
-  else if(n.kind==='block'){state.selectedBlock=n;scrollToLine(n.startLine,true);updateInspector(n);state.dirty=true}
+  else if(n.kind==='group'){state.selectedOriginGroupId=n.group.id;state.selectedBlock=null;state.selectedSection=null;updateInspector(n);state.dirty=true}
+  else if(n.kind==='block'){state.selectedBlock=n;state.selectedSection=null;scrollToLine(n.startLine,true);updateInspector(n);state.dirty=true}
+  else if(n.kind==='section'){state.selectedSection=n.section;state.selectedBlock=null;state.selectedOriginGroupId=null;updateInspector(n);state.dirty=true}
+  else if(n.kind==='address-space'){state.selectedSection=null;state.selectedBlock=null;state.selectedOriginGroupId=null;updateInspector(n);state.dirty=true}
 }
 
 function doSearch(dir=1){
@@ -3383,7 +3740,14 @@ els.foldAction.addEventListener('change',()=>{
 });
 
 // Graph controls
-els.graphMode.addEventListener('change',()=>{state.mode=els.graphMode.value;els.viewMode.disabled=state.mode!=='calls';buildGraph();fitGraph(state.mode==='calls')});
+els.graphMode.addEventListener('change',()=>{
+  state.mode=els.graphMode.value;
+  const calls=state.mode==='calls';
+  els.viewMode.disabled=!calls;
+  els.entrySelect.disabled=!calls;
+  els.entryBtn.disabled=!calls;
+  buildGraph();fitGraph(calls);
+});
 els.viewMode.addEventListener('change',()=>{state.viewMode=els.viewMode.value;state.selectedOriginGroupId=null;buildGraph();fitGraph(true);updateInspector(state.selectedFunction)});
 els.entrySelect.addEventListener('change',()=>{
   const fn=state.functions.find(f=>f.id===els.entrySelect.value);
