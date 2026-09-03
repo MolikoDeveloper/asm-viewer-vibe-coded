@@ -44,6 +44,26 @@ html[dir="rtl"] .familyName,html[dir="rtl"] .inspector .title,html[dir="rtl"] .i
 .workspace{display:flex;min-height:0;min-width:0}
 .panel{min-width:0;min-height:0;position:relative;background:var(--panel)}
 #codePanel{width:46%;display:grid;grid-template-rows:auto minmax(0,1fr) 0;transition:grid-template-rows .12s ease}
+.codeWorkspace{min-height:0;display:grid;grid-template-columns:158px minmax(0,1fr);background:#0c0f13}
+.fileRail{min-width:0;border-right:1px solid var(--border);background:#0e1318;display:flex;flex-direction:column}
+.fileRailHead{height:30px;display:flex;align-items:center;gap:6px;padding:0 8px;border-bottom:1px solid #171e25;color:#7f8b97;font-size:10px;text-transform:uppercase;letter-spacing:.06em}
+.fileRailHead .grow{flex:1}
+.fileList{min-height:0;overflow:auto;padding:4px 0}
+.fileRow{height:28px;display:grid;grid-template-columns:8px minmax(0,1fr) auto;align-items:center;gap:6px;padding:0 6px 0 8px;color:#9ca9b6;cursor:pointer;border-left:2px solid transparent}
+.fileRow:hover{background:#131a21;color:#d1dae3}
+.fileRow.active{background:#17212b;color:#edf4fb;border-left-color:#6fa8ff}
+.fileRow.dirty .fileName::after{content:' •';color:#d8b36a}
+.fileKindDot{width:7px;height:7px;border-radius:50%;background:#6b7784}
+.fileKindDot.fasm{background:#d8b36a}
+.fileKindDot.objdump{background:#6fa8ff}
+.fileName{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:11px/1.2 ui-monospace,SFMono-Regular,Consolas,monospace}
+.fileRemove{opacity:.15;border:0;background:transparent;color:#aab6c0;padding:2px 4px;min-height:20px}
+.fileRow:hover .fileRemove{opacity:.75}
+.fileRemove:hover{opacity:1!important;color:#ef817b}
+.fileEmpty{padding:10px 8px;color:#596673;font-size:10px;line-height:1.5}
+.codeSurface{min-width:0;min-height:0;position:relative;display:flex;flex-direction:column}
+.codeSurface>.codeViewport{flex:1}
+@media(max-width:900px){.codeWorkspace{grid-template-columns:118px minmax(0,1fr)}}
 #codePanel.trace-open{grid-template-rows:auto minmax(120px,1fr) 245px}
 #graphPanel{flex:1;position:relative;overflow:hidden;background:#0c1014}
 .panelHead{
@@ -240,8 +260,10 @@ dialog::backdrop{background:#0009}
       <option value="en">English</option>
       <option value="he">עברית</option>
     </select>
-    <input id="fileInput" type="file" accept=".txt,.asm,.fasm,.inc,.s,.S,.dump,.objdump,text/plain" hidden>
-    <button id="openBtn" class="primary" data-i18n="openAsm">Open ASM</button>
+    <input id="fileInput" type="file" accept=".txt,.asm,.fasm,.inc,.s,.S,.dump,.objdump,text/plain" multiple hidden>
+    <input id="folderInput" type="file" webkitdirectory directory multiple hidden>
+    <button id="openBtn" class="primary" data-i18n="openFiles">Open files</button>
+    <button id="openFolderBtn" data-i18n="openFolder">Open folder</button>
     <button id="pasteBtn" data-i18n="paste">Paste</button>
     <button id="clearBtn" disabled data-i18n="clear">Clear</button>
     <button id="editBtn" disabled data-i18n="edit">Edit</button>
@@ -281,13 +303,21 @@ dialog::backdrop{background:#0009}
         <div class="familyPanelSearch"><input id="familySearch" placeholder="Filter groups…" data-i18n-placeholder="filterGroups"></div>
         <div class="familyList" id="familyList"></div>
       </div>
-      <div class="codeViewport" id="codeViewport" tabindex="0">
-        <div id="codeSpacer"><div id="codeLayer"></div></div>
-        <div class="editorWrap" id="editorWrap">
-          <pre class="editorGutter" id="editorGutter"></pre>
-          <textarea class="codeEditor" id="codeEditor" spellcheck="false" wrap="off"></textarea>
+      <div class="codeWorkspace">
+        <aside class="fileRail">
+          <div class="fileRailHead"><span data-i18n="files">Files</span><span class="grow"></span><span id="fileCount">0</span></div>
+          <div class="fileList" id="fileList"><div class="fileEmpty" data-i18n="noWorkspaceFiles">No workspace files.</div></div>
+        </aside>
+        <div class="codeSurface">
+          <div class="codeViewport" id="codeViewport" tabindex="0">
+            <div id="codeSpacer"><div id="codeLayer"></div></div>
+            <div class="editorWrap" id="editorWrap">
+              <pre class="editorGutter" id="editorGutter"></pre>
+              <textarea class="codeEditor" id="codeEditor" spellcheck="false" wrap="off"></textarea>
+            </div>
+            <div class="dropHint"><div><strong data-i18n="dropFiles">Drop assembly files here</strong><br><span data-i18n="dropFilesSub">Multiple objdump, ASM, FASM, and include files are supported.</span></div></div>
+          </div>
         </div>
-        <div class="dropHint"><div><strong data-i18n="dropAsm">Drop the ASM dump here</strong><br><span data-i18n="dropAsmSub">It will be loaded as text, without validation.</span></div></div>
       </div>
       <section class="tracePane" id="tracePane">
         <div class="traceHead">
@@ -329,7 +359,7 @@ dialog::backdrop{background:#0009}
         <span><i class="dot" style="background:#73d6a0"></i><span data-i18n="legendSourcePackage">Source package</span></span>
         <span><i class="dot" style="background:#d8b36a"></i><span data-i18n="legendNativeStatic">native static</span></span>
         <span><i class="dot" style="background:#ef817b"></i><span data-i18n="legendNativeDynamic">native dynamic</span></span>
-        <span data-i18n="legendAddress">┄ address ref.</span>
+        <span data-i18n="legendAddress">┄ address ref.</span><span data-i18n="legendCrossFile">╌ cross-file call</span>
       </div>
       <div class="empty" id="emptyGraph">
         <div><strong data-i18n="loadObjdump">Load an objdump / ASM</strong><span data-i18n="loadObjdumpSub">File, drag & drop, or direct paste.</span></div>
@@ -360,9 +390,9 @@ dialog::backdrop{background:#0009}
 const $ = s => document.querySelector(s);
 const els = {
   languageSelect:$('#languageSelect'),
-  fileInput:$('#fileInput'), openBtn:$('#openBtn'), pasteBtn:$('#pasteBtn'), clearBtn:$('#clearBtn'),
+  fileInput:$('#fileInput'), folderInput:$('#folderInput'), openBtn:$('#openBtn'), openFolderBtn:$('#openFolderBtn'), pasteBtn:$('#pasteBtn'), clearBtn:$('#clearBtn'),
   search:$('#search'), prevSearch:$('#prevSearch'), nextSearch:$('#nextSearch'),
-  fileLabel:$('#fileLabel'), formatBadge:$('#formatBadge'), codeInfo:$('#codeInfo'), codeViewport:$('#codeViewport'),
+  fileLabel:$('#fileLabel'), formatBadge:$('#formatBadge'), codeInfo:$('#codeInfo'), codeViewport:$('#codeViewport'), fileList:$('#fileList'), fileCount:$('#fileCount'),
   codeSpacer:$('#codeSpacer'), codeLayer:$('#codeLayer'), foldAction:$('#foldAction'),
   editBtn:$('#editBtn'), saveBtn:$('#saveBtn'), editorWrap:$('#editorWrap'), editorGutter:$('#editorGutter'), codeEditor:$('#codeEditor'),
   filterToggle:$('#filterToggle'), familyPanel:$('#familyPanel'), familyList:$('#familyList'), familySearch:$('#familySearch'),
@@ -378,12 +408,12 @@ const els = {
 
 const I18N = {
   en:{
-    openAsm:'Open ASM',paste:'Paste',clear:'Clear',searchPlaceholder:'Search symbol / code…',previous:'Previous',next:'Next',noFile:'No file',lines:'lines',line:'line',
+    openAsm:'Open ASM',openFiles:'Open files',openFolder:'Open folder',paste:'Paste',clear:'Clear',files:'Files',noWorkspaceFiles:'No workspace files.',dropFiles:'Drop assembly files here',dropFilesSub:'Multiple objdump, ASM, FASM, and include files are supported.',workspace:'Workspace',mixedInput:'mixed input',searchPlaceholder:'Search symbol / code…',previous:'Previous',next:'Next',noFile:'No file',lines:'lines',line:'line',
     foldTitle:'Structural ASM folding',folding:'Folding…',collapseFunctions:'− Functions',expandFunctions:'+ Functions',collapseContents:'− Contents',expandContents:'+ Contents',collapseSections:'− Sections',expandSections:'+ Sections',
     groups:'Groups',groupsTitle:'Filter symbol families and sections',flow:'Flow',hideFlow:'Hide flow',flowTitle:'Show/hide flow below ASM',edit:'Edit',inspect:'Inspect',save:'Save',liveParsing:'Live parsing…',liveUpdated:'Graph updated',visibleGroups:'Visible groups',all:'All',none:'None',filterGroups:'Filter groups…',
     dropAsm:'Drop the ASM dump here',dropAsmSub:'It will be loaded as text, without validation.',selectFunctionInstruction:'Select a function or instruction',staticHeuristic:'static · heuristic',fit:'Fit',noFlow:'No flow selected',selectCodeOrNode:'Select code or a graph node.',
     globalCallGraph:'Global call graph',selectedCfg:'Selected function CFG',reachabilityRootTitle:'Reachability analysis root',entry:'Entry',entryTitle:'Fit the component reachable from the entrypoint',fitAll:'Fit all',fitAllTitle:'Fit all nodes, including detached nodes',labels:'Labels',auto:'auto',yes:'yes',no:'no',
-    legendFamily:'color = symbol family',legendAddress:'┄ address ref.',legendBridge:'╌ bridge across hidden nodes',loadObjdump:'Load assembly / objdump',loadObjdumpSub:'File, drag & drop, or direct paste.',ready:'Ready.',pasteAsm:'Paste assembly / objdump',pastePlaceholder:'Paste the complete content here…',cancel:'Cancel',load:'Load',
+    legendFamily:'color = symbol family',legendAddress:'┄ address ref.',legendCrossFile:'╌ cross-file call',legendBridge:'╌ bridge across hidden nodes',loadObjdump:'Load assembly / objdump',loadObjdumpSub:'File, drag & drop, or direct paste.',ready:'Ready.',pasteAsm:'Paste assembly / objdump',pastePlaceholder:'Paste the complete content here…',cancel:'Cancel',load:'Load',
     symbolFamilies:'Symbol families',codeSections:'Code sections',bridgeHidden:'automatically connect through hidden functions',hiddenLines:'hidden lines',instructionsLower:'instructions',analyzing:'Analyzing ASM…',loadedOk:'ASM loaded. Ctrl+click follows calls; Alt+← returns to the origin.',loadedNoFunctions:'Loaded. No function boundaries were detected.',
     visibleFunctions:'visible functions',directRefs:'direct refs',addressRefs:'address refs',indirectRefs:'indirect refs',reachable:'reachable',noPath:'no path',root:'root',functionsReachable:'reachable functions',noPathFromRoot:'no path from root',noPreviousOrigin:'No previous origin.',origin:'origin',
     function:'Function',block:'Block',linesLabel:'Lines',goToCode:'Go to code',role:'Role',reachability:'Reachability',family:'Family',address:'Address',approxSize:'Approx. size',section:'Section',source:'Source',instructions:'Instructions',callsJumps:'Calls/Jumps',incoming:'Incoming',center:'Center',openCfg:'Open CFG',selectFunctionCfg:'Select a function to view its CFG.',
@@ -397,12 +427,12 @@ const I18N = {
     dwarfMapped:'DWARF mapped',sourceMapped:'source-mapped',fasmSource:'FASM source',objdumpInput:'objdump',fasmLoaded:'FASM source loaded',dwarfUnavailable:'DWARF unavailable',displayNodes:'display nodes',staticGroups:'static groups'
   },
   he:{
-    openAsm:'פתח ASM',paste:'הדבק',clear:'נקה',searchPlaceholder:'חיפוש סמל / קוד…',previous:'הקודם',next:'הבא',noFile:'אין קובץ',lines:'שורות',line:'שורה',
+    openAsm:'פתח ASM',openFiles:'פתח קבצים',openFolder:'פתח תיקייה',paste:'הדבק',clear:'נקה',files:'קבצים',noWorkspaceFiles:'אין קבצים ב-workspace.',dropFiles:'גרור לכאן קבצי אסמבלי',dropFilesSub:'נתמכים מספר קובצי objdump, ASM, FASM וקובצי include.',workspace:'Workspace',mixedInput:'קלט מעורב',searchPlaceholder:'חיפוש סמל / קוד…',previous:'הקודם',next:'הבא',noFile:'אין קובץ',lines:'שורות',line:'שורה',
     foldTitle:'קיפול מבני של ASM',folding:'קיפול…',collapseFunctions:'− פונקציות',expandFunctions:'+ פונקציות',collapseContents:'− Contents',expandContents:'+ Contents',collapseSections:'− מקטעים',expandSections:'+ מקטעים',
     groups:'קבוצות',groupsTitle:'סינון משפחות סמלים ומקטעים',flow:'זרימה',hideFlow:'הסתר זרימה',flowTitle:'הצג/הסתר זרימה מתחת ל-ASM',edit:'עריכה',inspect:'תצוגה',save:'שמור',liveParsing:'מנתח בזמן אמת…',liveUpdated:'הגרף עודכן',visibleGroups:'קבוצות גלויות',all:'הכל',none:'ללא',filterGroups:'סינון קבוצות…',
     dropAsm:'גרור לכאן dump של ASM',dropAsmSub:'ייטען כטקסט, ללא אימות.',selectFunctionInstruction:'בחר פונקציה או הוראה',staticHeuristic:'סטטי · היוריסטי',fit:'התאם',noFlow:'לא נבחרה זרימה',selectCodeOrNode:'בחר קוד או צומת בגרף.',
     globalCallGraph:'גרף קריאות גלובלי',selectedCfg:'CFG של הפונקציה שנבחרה',reachabilityRootTitle:'שורש ניתוח הנגישות',entry:'כניסה',entryTitle:'התאם את הרכיב הנגיש מנקודת הכניסה',fitAll:'התאם הכל',fitAllTitle:'התאם את כל הצמתים, כולל צמתים מנותקים',labels:'תוויות',auto:'אוטומטי',yes:'כן',no:'לא',
-    legendFamily:'צבע = משפחת סמלים',legendAddress:'┄ הפניה לכתובת',legendBridge:'╌ גישור מעל צמתים מוסתרים',loadObjdump:'טען אסמבלי / objdump',loadObjdumpSub:'קובץ, גרירה ושחרור, או הדבקה ישירה.',ready:'מוכן.',pasteAsm:'הדבק אסמבלי / objdump',pastePlaceholder:'הדבק כאן את התוכן המלא…',cancel:'ביטול',load:'טען',
+    legendFamily:'צבע = משפחת סמלים',legendAddress:'┄ הפניה לכתובת',legendCrossFile:'╌ קריאה בין קבצים',legendBridge:'╌ גישור מעל צמתים מוסתרים',loadObjdump:'טען אסמבלי / objdump',loadObjdumpSub:'קובץ, גרירה ושחרור, או הדבקה ישירה.',ready:'מוכן.',pasteAsm:'הדבק אסמבלי / objdump',pastePlaceholder:'הדבק כאן את התוכן המלא…',cancel:'ביטול',load:'טען',
     symbolFamilies:'משפחות סמלים',codeSections:'מקטעי קוד',bridgeHidden:'חבר אוטומטית דרך פונקציות מוסתרות',hiddenLines:'שורות מוסתרות',instructionsLower:'הוראות',analyzing:'מנתח ASM…',loadedOk:'ה-ASM נטען. Ctrl+click עוקב אחר קריאות; Alt+← חוזר למקור.',loadedNoFunctions:'נטען. לא זוהו גבולות פונקציה.',
     visibleFunctions:'פונקציות גלויות',directRefs:'הפניות ישירות',addressRefs:'הפניות לכתובות',indirectRefs:'הפניות עקיפות',reachable:'ניתנות להגעה',noPath:'ללא נתיב',root:'שורש',functionsReachable:'פונקציות ניתנות להגעה',noPathFromRoot:'ללא נתיב מהשורש',noPreviousOrigin:'אין מקור קודם.',origin:'מקור',
     function:'פונקציה',block:'בלוק',linesLabel:'שורות',goToCode:'עבור לקוד',role:'תפקיד',reachability:'נגישות',family:'משפחה',address:'כתובת',approxSize:'גודל משוער',section:'מקטע',source:'מקור',instructions:'הוראות',callsJumps:'קריאות/קפיצות',incoming:'נכנסות',center:'מרכז',openCfg:'פתח CFG',selectFunctionCfg:'בחר פונקציה כדי להציג CFG.',
@@ -440,6 +470,7 @@ function setLanguage(lang,{persist=true}={}){
     els.formatBadge.textContent=details.join(' · ');
   }else if(state.lines?.length)els.formatBadge.textContent=t('objdumpInput');
   if(state.editMode)els.editBtn.textContent=t('inspect');
+  renderWorkspaceFiles();
   state.dirty=true;state.traceDirty=true;
 }
 
@@ -529,6 +560,8 @@ const state = {
   viewMode:'boundaries', dwarf:null, projectRoots:[], selectedOriginGroupId:null,
   inputKind:'objdump', inputMeta:null, explicitEntrySymbols:[],
   editMode:false, editTimer:null, editRevision:0,
+  workspaceFiles:new Map(), workspaceOrder:[], activeFileId:null, workspaceRevision:0,
+  workspaceName:'Workspace', functionsByNameMulti:new Map(), workspaceDependencies:new Map(),
   bridgeHidden:true,
   entryFunction:null, elfEntry:null, programEntry:null, reachableIds:new Set(), reachParent:new Map(), depthById:new Map(), detachedY:null,
   searchHits:[], searchIndex:-1, graphNodes:[], graphEdges:[], nodeById:new Map(),
@@ -854,8 +887,8 @@ function groupVisible(id){return state.originVisibility.get(id)!==false}
 // FASM source has no final machine addresses, so source-line based synthetic
 // addresses are used internally and are explicitly marked as synthetic.
 
-function detectInputKind(text){
-  const sample=String(text||'').slice(0,512000);
+function detectInputKind(text,fileName=''){
+  const sample=String(text||'').slice(0,512000),name=String(fileName||'');
   if(/(?:^|\n)\s*(?:Disassembly of section|Contents of section)\s+/m.test(sample)||
      /(?:^|\n)\s*[0-9a-fA-F]+\s+<[^>]+>:\s*$/m.test(sample)||
      /\bfile format\s+(?:elf|pei?|mach-o|binary)/i.test(sample))return 'objdump';
@@ -868,7 +901,9 @@ function detectInputKind(text){
   if(/(?:^|\n)\s*(?:library|import|extrn|needed|interpreter)\b/im.test(sample))score+=2;
   if(/(?:^|\n)\s*include\s+['"][^'"]+['"]/im.test(sample))score+=1;
   if(/(?:^|\n)\s*(?:proc\s+)?[\w.$?@]+:\s*(?:;.*)?$/m.test(sample))score+=1;
-  return score>=3?'fasm-source':'objdump';
+  if(score>=3)return 'fasm-source';
+  if(/\.(?:asm|fasm|inc|s)$/i.test(name))return 'fasm-source';
+  return 'objdump';
 }
 
 function stripFasmComment(line){
@@ -1024,7 +1059,7 @@ function parseFasmSource(text){
   const lines=text.replace(/\r\n?/g,'\n').split('\n'),meta=parseFasmMetadata(lines),lineMeta=new Array(lines.length);
   const functions=[],functionsByAddr=new Map(),functionsByName=new Map(),calls=[],addressRefs=[],callByLine=new Map();
   const BASE=0x10000000,synthAddr=line=>BASE+line*0x10;
-  let currentSection={name:'.source',executable:true,line:0},currentFn=null;
+  let currentSection={name:'.source',executable:true,line:0},currentFn=null,definitionDepth=0;
   const labelDefs=[],functionCandidates=new Set([...(meta.entries||[]),...(meta.publics||[])]);
 
   // Pre-scan call-like source statements so ordinary global jump labels remain
@@ -1049,14 +1084,35 @@ function parseFasmSource(text){
     labelDefs.push({name,line,function:fn,anonymous:false,local:false});return fn;
   }
   function sectionFrom(code,line){
-    const m=code.match(/^(section|segment)\s+(.+)$/i);if(!m)return null;
-    const rest=m[2].trim(),quoted=rest.match(/^['"]([^'"]+)['"]/),name=quoted?quoted[1]:(rest.match(/^([^\s,]+)/)||[])[1]||rest;
-    return {name,executable:/\b(?:executable|code)\b/i.test(rest)||/(?:^|\.)(?:text|code)(?:$|\.)/i.test(name),line,raw:rest};
+    let m=code.match(/^(section|segment)\s+(.+)$/i);
+    if(m){
+      const rest=m[2].trim(),quoted=rest.match(/^['"]([^'"]+)['"]/),name=quoted?quoted[1]:(rest.match(/^([^\s,]+)/)||[])[1]||rest;
+      return {name,executable:/\b(?:executable|code)\b/i.test(rest)||/(?:^|\.)(?:text|code)(?:$|\.)/i.test(name),line,raw:rest};
+    }
+    m=code.match(/^\.section\s+([^\s,]+)/i);
+    if(m){const name=m[1];return {name,executable:/(?:^|\.)(?:text|code)(?:$|\.)/i.test(name),line,raw:code}}
+    m=code.match(/^\.(text|data|rodata|bss)\b/i);
+    if(m){const name='.'+m[1].toLowerCase();return {name,executable:name==='.text',line,raw:code}}
+    return null;
   }
 
   for(let i=0;i<lines.length;i++){
     const trim=stripFasmComment(lines[i]).trim();
     if(!trim){lineMeta[i]={type:'blank',function:currentFn};continue}
+
+    // Macro/struc definitions are compile-time source, not executable code.
+    // This matters for large FASM include trees such as win32a.inc.
+    if(definitionDepth>0){
+      const opens=(trim.match(/\{/g)||[]).length,closes=(trim.match(/\}/g)||[]).length;
+      definitionDepth+=opens-closes;
+      if(definitionDepth<=0)definitionDepth=0;
+      lineMeta[i]={type:'comment',function:currentFn};continue;
+    }
+    if(/^(?:macro|struc)\b/i.test(trim)){
+      const opens=(trim.match(/\{/g)||[]).length,closes=(trim.match(/\}/g)||[]).length;
+      definitionDepth=Math.max(1,opens-closes);
+      lineMeta[i]={type:'comment',function:currentFn};continue;
+    }
 
     const sec=sectionFrom(trim,i);
     if(sec){closeFn(i-1);currentFn=null;currentSection=sec;lineMeta[i]={type:'section',section:sec.name,sectionKind:'fasm-source'};continue}
@@ -1504,88 +1560,325 @@ function toggleFoldAtLine(line){
   rebuildVisibleLines();renderCode(true);
 }
 
-function loadText(text,name='pasted.asm',opts={}){
-  const live=!!opts.live;
-  const previous=live?{
-    selectedName:state.selectedFunction?.name||'',
-    selectedLine:state.selectedLine,
-    viewMode:state.viewMode,
-    graphMode:state.mode,
-    view:{...state.view},
-    expanded:[...state.expandedOriginGroups],
-    editMode:state.editMode
-  }:null;
 
-  setStatus(live?t('liveParsing'):t('analyzing'));
+// -----------------------------------------------------------------------------
+// Multi-file workspace
+// -----------------------------------------------------------------------------
 
-  const inputKind=detectInputKind(text);
-  const parsed=inputKind==='fasm-source'?parseFasmSource(text):parseAsm(text);
-  parsed.inputKind=inputKind;
-  if(inputKind==='fasm-source')enrichFasmProvenance(parsed,name);else enrichProvenance(parsed);
-
-  Object.assign(state,parsed,{
-    text,fileName:name,selectedFunction:null,selectedBlock:null,selectedLine:-1,selectedOriginGroupId:null,
-    searchHits:[],searchIndex:-1,collapsedTop:new Set(),collapsedFunctions:new Set(),
-    navStack:live?state.navStack:[],groupViewStack:live?state.groupViewStack:[],
-    expandedOriginGroups:new Set(live?(previous?.expanded||[]):[]),
-    functionRepresentative:new Map(),viewMode:live?(previous?.viewMode||'boundaries'):'boundaries',
-    inputKind:parsed.inputKind||inputKind,inputMeta:parsed.inputMeta||null,explicitEntrySymbols:parsed.explicitEntrySymbols||[],
-    editMode:live?!!previous?.editMode:false
-  });
-
-  els.viewMode.value=state.viewMode;
-
-  for(const block of state.topBlocks)if(block.kind==='contents')state.collapsedTop.add(block.id);
-
-  els.fileLabel.textContent=name;
-  if(state.inputKind==='fasm-source'){
-    const details=[t('fasmSource'),state.inputMeta?.format,state.inputMeta?.bits?`${state.inputMeta.bits}-bit`:null].filter(Boolean);
-    els.formatBadge.textContent=details.join(' · ');els.formatBadge.className='formatBadge fasm';
-  }else{
-    els.formatBadge.textContent=t('objdumpInput');els.formatBadge.className='formatBadge objdump';
+function normalizeWorkspacePath(path){
+  return String(path||'').replace(/\\/g,'/').replace(/^\.\/+/,'').replace(/\/+/g,'/');
+}
+function workspaceDirname(path){
+  const p=normalizeWorkspacePath(path),i=p.lastIndexOf('/');
+  return i>=0?p.slice(0,i):'';
+}
+function workspaceBasename(path){
+  const p=normalizeWorkspacePath(path),i=p.lastIndexOf('/');
+  return i>=0?p.slice(i+1):p;
+}
+function workspaceJoin(base,relative){
+  const raw=normalizeWorkspacePath((base?base+'/':'')+relative),parts=[];
+  for(const part of raw.split('/')){
+    if(!part||part==='.')continue;
+    if(part==='..'){parts.pop();continue}
+    parts.push(part);
   }
+  return parts.join('/');
+}
+function workspaceFileId(path){
+  const p=normalizeWorkspacePath(path)||'source.asm';
+  let id='wf:'+p,seq=2;
+  while(state.workspaceFiles.has(id)&&state.workspaceFiles.get(id)?.path!==p)id=`wf:${p}#${seq++}`;
+  return id;
+}
+function workspaceProjectLabel(){
+  const paths=state.workspaceOrder.map(id=>state.workspaceFiles.get(id)?.path).filter(Boolean);
+  if(!paths.length)return t('workspace');
+  const first=paths[0].split('/')[0];
+  return paths.length>1&&paths.every(p=>p.startsWith(first+'/'))?first:t('workspace');
+}
 
-  els.clearBtn.disabled=false;els.search.disabled=false;els.prevSearch.disabled=false;els.nextSearch.disabled=false;
-  els.graphMode.disabled=false;els.entrySelect.disabled=false;els.entryBtn.disabled=false;els.fitBtn.disabled=false;els.labelsBtn.disabled=false;
-  els.traceToggle.disabled=false;els.traceFit.disabled=false;els.foldAction.disabled=false;els.filterToggle.disabled=false;els.viewMode.disabled=false;
-  els.editBtn.disabled=false;els.editBtn.textContent=state.editMode?t('inspect'):t('edit');els.editBtn.classList.toggle('active',state.editMode);els.saveBtn.classList.toggle('visible',state.editMode);
-  els.codeViewport.classList.toggle('editing',state.editMode);
-  els.emptyGraph.style.display=parsed.functions.length?'none':'grid';
+function renderWorkspaceFiles(){
+  els.fileCount.textContent=String(state.workspaceOrder.length);
+  if(!state.workspaceOrder.length){
+    els.fileList.innerHTML=`<div class="fileEmpty">${escapeHtml(t('noWorkspaceFiles'))}</div>`;
+    return;
+  }
+  els.fileList.innerHTML=state.workspaceOrder.map(id=>{
+    const f=state.workspaceFiles.get(id);if(!f)return '';
+    const active=id===state.activeFileId?' active':'',dirty=f.dirty?' dirty':'',
+          kind=f.inputKind==='objdump'?'objdump':'fasm',title=f.path||f.name;
+    return `<div class="fileRow${active}${dirty}" data-file-id="${escapeHtml(id)}" title="${escapeHtml(title)}">
+      <i class="fileKindDot ${kind}"></i>
+      <span class="fileName">${escapeHtml(f.path||f.name)}</span>
+      <button class="fileRemove" data-remove-file="${escapeHtml(id)}" title="Remove">×</button>
+    </div>`;
+  }).join('');
+}
+
+function namespaceParsedWorkspace(record,parsed){
+  for(const fn of parsed.functions){
+    fn.id=`${record.id}::${fn.id}`;fn.workspaceFileId=record.id;fn.workspaceFilePath=record.path;
+    for(const inst of fn.instructions){inst.workspaceFileId=record.id;inst.workspaceFilePath=record.path}
+  }
+  for(const fn of parsed.functions){
+    const meta=parsed.lineMeta[fn.startLine];
+    if(meta?.foldable?.kind==='function')meta.foldable.id=fn.id;
+  }
+  for(const edge of parsed.calls)edge.workspaceFileId=record.id;
+  for(const edge of parsed.addressRefs)edge.workspaceFileId=record.id;
+  parsed.functionsByAddr=new Map(parsed.functions.map(fn=>[fn.addr,fn]));
+  parsed.functionsByName=new Map();
+  for(const fn of parsed.functions)if(!parsed.functionsByName.has(fn.name))parsed.functionsByName.set(fn.name,fn);
+}
+
+function classifyAssemblyWorkspaceProvenance(record,parsed){
+  const pkg=sourcePackageFromPath(record.path,record.path,'');
+  const project=workspaceProjectLabel(),projectId='project:workspace:'+project;
+  for(const fn of parsed.functions){
+    const base={
+      confidence:'exact',sourcePath:record.path,logicalSource:record.path,sourceRoot:workspaceDirname(record.path),
+      semanticName:fn.name,linkageName:fn.name,declLine:fn.startLine+1,reason:'assembly source in workspace'
+    };
+    fn.provenance=pkg
+      ?makeProvenance('source-package','source-package:'+pkg,pkg,{...base,sourceRoot:pkg,reason:'assembly source package path'})
+      :makeProvenance('project',projectId,project,base);
+    fn.source=`${record.path}:${fn.startLine+1}`;
+  }
+  parsed.dwarf={available:false,cus:[],subprograms:[],projectRoots:[]};
+  parsed.projectRoots=[workspaceDirname(record.path)||record.path];
+  parsed.provenanceMapped=parsed.functions.length;
+}
+
+function parseWorkspaceRecord(record){
+  const inputKind=detectInputKind(record.text,record.path||record.name);
+  const parsed=inputKind==='fasm-source'?parseFasmSource(record.text):parseAsm(record.text);
+  parsed.inputKind=inputKind;
+  if(inputKind==='fasm-source'){
+    const fasmSpecific=/(?:^|\n)\s*(?:format|use16|use32|use64|library|import|proc|endp)\b/im.test(record.text);
+    parsed.inputMeta={...(parsed.inputMeta||{}),dialect:fasmSpecific?'FASM':'ASM source'};
+    classifyAssemblyWorkspaceProvenance(record,parsed);
+  }
+  else enrichProvenance(parsed);
+  namespaceParsedWorkspace(record,parsed);
+
+  record.parsed=parsed;record.inputKind=inputKind;record.inputMeta=parsed.inputMeta||null;record.error=null;
+  record.includes=(parsed.inputMeta?.includes||[]).map(normalizeWorkspacePath);
+  record.explicitEntrySymbols=parsed.explicitEntrySymbols||[];
+  record.exportedSymbols=new Set([...(parsed.fasm?.publics||[]),...(record.explicitEntrySymbols||[])]);
+  return parsed;
+}
+
+function buildWorkspaceDependencyMap(){
+  const byPath=new Map(),byBase=new Map();
+  for(const id of state.workspaceOrder){
+    const f=state.workspaceFiles.get(id);if(!f)continue;
+    byPath.set(normalizeWorkspacePath(f.path),id);
+    const base=workspaceBasename(f.path);
+    let arr=byBase.get(base);if(!arr){arr=[];byBase.set(base,arr)}arr.push(id);
+  }
+  const deps=new Map();
+  for(const id of state.workspaceOrder){
+    const f=state.workspaceFiles.get(id);if(!f)continue;
+    const set=new Set(),dir=workspaceDirname(f.path);
+    for(const inc of f.includes||[]){
+      const rel=workspaceJoin(dir,inc),exact=byPath.get(rel)||byPath.get(normalizeWorkspacePath(inc));
+      if(exact){set.add(exact);continue}
+      const matches=byBase.get(workspaceBasename(inc))||[];
+      if(matches.length===1)set.add(matches[0]);
+    }
+    deps.set(id,set);
+  }
+  state.workspaceDependencies=deps;
+}
+
+function normalizeWorkspaceSymbol(name){
+  return String(name||'').trim().replace(/^<|>$/g,'').replace(/\+0x[0-9a-fA-F]+$/,'').replace(/@plt(?:-0x[0-9a-fA-F]+)?$/i,'').replace(/@@[^@]+$/,'');
+}
+function workspaceSymbolIndex(functions){
+  const map=new Map();
+  const add=(key,fn)=>{if(!key)return;let arr=map.get(key);if(!arr){arr=[];map.set(key,arr)}if(!arr.includes(fn))arr.push(fn)};
+  for(const fn of functions){
+    add(fn.name,fn);add(normalizeWorkspaceSymbol(fn.name),fn);
+    const semantic=fn.provenance?.semanticName;if(semantic&&semantic!==fn.name)add(semantic,fn);
+  }
+  return map;
+}
+function chooseWorkspaceSymbol(fromFileId,targetName,index){
+  const keys=[String(targetName||''),normalizeWorkspaceSymbol(targetName)].filter(Boolean),candidates=[];
+  for(const key of keys)for(const fn of index.get(key)||[])if(!candidates.includes(fn))candidates.push(fn);
+  if(!candidates.length)return null;
+  const deps=state.workspaceDependencies.get(fromFileId)||new Set(),depCandidates=candidates.filter(fn=>deps.has(fn.workspaceFileId));
+  if(depCandidates.length===1)return depCandidates[0];
+  const exported=candidates.filter(fn=>state.workspaceFiles.get(fn.workspaceFileId)?.exportedSymbols?.has(fn.name));
+  if(exported.length===1)return exported[0];
+  return candidates.length===1?candidates[0]:null;
+}
+function resolveWorkspaceLinks(functions,calls,addressRefs){
+  buildWorkspaceDependencyMap();
+  const index=workspaceSymbolIndex(functions);state.functionsByNameMulti=index;
+  for(const edge of calls){
+    if(edge.to||edge.indirect||!edge.targetName)continue;
+    if(edge.externalProvenance?.kind==='native-dynamic')continue;
+    const target=chooseWorkspaceSymbol(edge.from.workspaceFileId,edge.targetName,index);
+    if(target&&target!==edge.from){
+      edge.to=target;edge.crossFile=target.workspaceFileId!==edge.from.workspaceFileId;
+      if(edge.externalProvenance?.kind==='native-static')edge.externalProvenance=null;
+    }
+  }
+  const seen=new Set(addressRefs.map(e=>`${e.from.id}|${e.to?.id}|${e.instruction?.line}`));
+  for(const fn of functions){
+    for(const inst of fn.instructions){
+      const mn=inst.mnemonic.toLowerCase();if(mn.startsWith('call')||/^j/.test(mn))continue;
+      const names=[],angle=inst.operands.match(/<([^>]+)>/);if(angle)names.push(angle[1]);
+      if(inst.sourceDialect==='fasm')names.push(...(inst.operands.match(/[A-Za-z_?$@][\w.$?@]*/g)||[]));
+      for(const name of names){
+        const target=chooseWorkspaceSymbol(fn.workspaceFileId,name,index);if(!target||target===fn)continue;
+        const key=`${fn.id}|${target.id}|${inst.line}`;if(seen.has(key))continue;
+        seen.add(key);addressRefs.push({from:fn,to:target,targetName:name,targetAddr:target.addr,kind:'address',instruction:inst,workspaceFileId:fn.workspaceFileId,crossFile:target.workspaceFileId!==fn.workspaceFileId});
+      }
+    }
+  }
+}
+
+function saveActiveWorkspaceView(){
+  const rec=state.workspaceFiles.get(state.activeFileId);if(!rec)return;
+  rec.viewState={scrollTop:els.codeViewport.scrollTop,selectedLine:state.selectedLine,collapsedTop:new Set(state.collapsedTop),searchQuery:els.search.value};
+  if(state.editMode)rec.editorState={caret:els.codeEditor.selectionStart,scrollTop:els.codeEditor.scrollTop,scrollLeft:els.codeEditor.scrollLeft};
+}
+function setActiveFileSurface(record,{focusEditor=false}={}){
+  if(!record?.parsed)return;
+  const parsed=record.parsed;
+  state.activeFileId=record.id;state.text=record.text;state.fileName=record.path||record.name;state.inputKind=record.inputKind;state.inputMeta=record.inputMeta||null;
+  state.lines=parsed.lines;state.lineMeta=parsed.lineMeta;state.callByLine=parsed.callByLine;state.topBlocks=parsed.topBlocks;state.topBlockByStart=parsed.topBlockByStart;
+  state.collapsedTop=new Set(record.viewState?.collapsedTop||[]);
+  if(!record.viewState?.collapsedTop)for(const block of state.topBlocks)if(block.kind==='contents')state.collapsedTop.add(block.id);
+  state.selectedLine=Math.min(record.viewState?.selectedLine??-1,Math.max(-1,state.lines.length-1));
+
+  els.fileLabel.textContent=record.path||record.name;
+  const label=record.inputKind==='objdump'?t('objdumpInput'):[record.inputMeta?.dialect||'ASM',record.inputMeta?.format,record.inputMeta?.bits?`${record.inputMeta.bits}-bit`:null].filter(Boolean).join(' · ');
+  els.formatBadge.textContent=label||'ASM';els.formatBadge.className='formatBadge '+(record.inputKind==='objdump'?'objdump':'fasm');
+
+  rebuildVisibleLines();renderCode(true);els.codeViewport.scrollTop=record.viewState?.scrollTop||0;
+  if(state.editMode){
+    els.codeEditor.value=record.text;rebuildEditorGutter();
+    els.codeEditor.selectionStart=els.codeEditor.selectionEnd=Math.min(record.editorState?.caret??0,record.text.length);
+    els.codeEditor.scrollTop=record.editorState?.scrollTop||0;els.codeEditor.scrollLeft=record.editorState?.scrollLeft||0;els.editorGutter.scrollTop=els.codeEditor.scrollTop;
+    if(focusEditor)requestAnimationFrame(()=>els.codeEditor.focus());
+  }
+  renderWorkspaceFiles();
+}
+function activateWorkspaceFile(id,opts={}){
+  if(!id)return false;
+  if(id===state.activeFileId){if(opts.line!=null)scrollToLine(opts.line,true);return true}
+  const next=state.workspaceFiles.get(id);if(!next)return false;
+
+  clearTimeout(state.editTimer);state.editRevision++;
+  const current=state.workspaceFiles.get(state.activeFileId);
+  let changed=false;
+  if(current&&state.editMode&&els.codeEditor.value!==current.text){
+    current.text=els.codeEditor.value;current.dirty=true;parseWorkspaceRecord(current);changed=true;
+  }
+  saveActiveWorkspaceView();
+  state.activeFileId=id;
+
+  if(changed)rebuildWorkspaceAnalysis({live:true,preserveView:true});
+  else setActiveFileSurface(next,{focusEditor:state.editMode});
+
+  if(opts.line!=null)scrollToLine(opts.line,true);
+  return true;
+}
+
+
+function rebuildWorkspaceAnalysis({live=false,preserveView=true}={}){
+  const previousView={...state.view},previousMode=state.mode,previousEntry=state.entryFunction?.name||'',previousExpanded=new Set(state.expandedOriginGroups),previousOriginVisibility=new Map(state.originVisibility);
+  const functions=[],calls=[],addressRefs=[],functionsByAddr=new Map(),functionsByName=new Map(),roots=[];let mapped=0;
+  for(const id of state.workspaceOrder){
+    const rec=state.workspaceFiles.get(id);if(!rec?.parsed)continue;const p=rec.parsed;
+    functions.push(...p.functions);calls.push(...p.calls);addressRefs.push(...p.addressRefs);mapped+=p.provenanceMapped||0;roots.push(...(p.projectRoots||[]));
+    for(const fn of p.functions){if(!functionsByAddr.has(fn.addr))functionsByAddr.set(fn.addr,fn);if(!functionsByName.has(fn.name))functionsByName.set(fn.name,fn)}
+  }
+  resolveWorkspaceLinks(functions,calls,addressRefs);
+  state.functions=functions;state.calls=calls;state.addressRefs=addressRefs;state.functionsByAddr=functionsByAddr;state.functionsByName=functionsByName;
+  els.emptyGraph.style.display=functions.length?'none':'grid';
+  state.projectRoots=[...new Set(roots)];state.provenanceMapped=mapped;state.explicitEntrySymbols=state.workspaceOrder.flatMap(id=>state.workspaceFiles.get(id)?.explicitEntrySymbols||[]);
+  state.expandedOriginGroups=previousExpanded;
 
   configureEntrypoints();
-  setupGroups();
-  rebuildVisibleLines();
+  if(previousEntry&&state.functionsByName.has(previousEntry))state.entryFunction=state.functionsByName.get(previousEntry);
+  setupGroups();for(const [id,value] of previousOriginVisibility)if(state.originVisibility.has(id))state.originVisibility.set(id,value);
+  buildGraph();updateStats();
+  if(preserveView){state.mode=previousMode;els.graphMode.value=previousMode;state.view={...previousView};updateZoomInfo();state.dirty=true}else fitGraph(true);
+  const active=state.workspaceFiles.get(state.activeFileId);if(active)setActiveFileSurface(active);
+  renderWorkspaceFiles();state.workspaceRevision++;if(live)setStatus(t('liveUpdated'));
+}
 
-  if(live&&previous?.selectedName){
-    state.selectedFunction=state.functionsByName.get(previous.selectedName)||state.programEntry||state.entryFunction||parsed.functions[0]||null;
-    state.selectedLine=Math.min(previous.selectedLine,state.lines.length-1);
-  }else if(parsed.functions.length){
-    state.selectedFunction=state.programEntry||state.entryFunction||parsed.functions[0];
+async function addWorkspaceFileObjects(fileList,{replace=false}={}){
+  const files=[...fileList];if(!files.length)return;if(replace)clearAll();setStatus(t('analyzing'));
+  const touched=[];let lastId=null;
+  for(const file of files){
+    try{
+      const path=normalizeWorkspacePath(file.webkitRelativePath||file.name),text=await file.text();
+      let rec=[...state.workspaceFiles.values()].find(x=>x.path===path);
+      if(!rec){
+        rec={id:workspaceFileId(path),name:file.name,path,text:'',dirty:false,viewState:null,editorState:null};
+        state.workspaceFiles.set(rec.id,rec);state.workspaceOrder.push(rec.id);
+      }
+      rec.text=text;rec.name=file.name;rec.path=path;rec.dirty=false;touched.push(rec);lastId=rec.id;
+    }catch(err){setStatus(`${t('readError')}: ${file.name}: ${err.message}`)}
   }
 
-  if(live&&previous?.graphMode){
-    state.mode=previous.graphMode;els.graphMode.value=state.mode;
+  const oldProject=state.workspaceName;
+  state.workspaceName=workspaceProjectLabel();
+
+  for(const rec of touched){
+    try{parseWorkspaceRecord(rec)}catch(err){rec.error=err;setStatus(`${t('readError')}: ${rec.path}: ${err.message}`)}
   }
 
-  buildGraph();buildTrace();renderCode(true);updateStats();
-
-  if(live&&previous?.view){
-    state.view.zoom=previous.view.zoom;state.view.panX=previous.view.panX;state.view.panY=previous.view.panY;
-    updateZoomInfo();state.dirty=true;
-  }else fitGraph(true);
-
-  if(state.editMode){
-    els.codeViewport.classList.add('editing');
-    els.editBtn.classList.add('active');
-    els.editBtn.textContent=t('inspect');
-    els.saveBtn.classList.add('visible');
+  // If the workspace root changed, source files need only provenance rebasing,
+  // not a full reparse of large objdump files.
+  if(oldProject!==state.workspaceName){
+    for(const id of state.workspaceOrder){
+      const rec=state.workspaceFiles.get(id);
+      if(rec?.parsed&&rec.inputKind==='fasm-source'&&!touched.includes(rec))classifyAssemblyWorkspaceProvenance(rec,rec.parsed);
+    }
   }
 
-  const mappedLabel=state.inputKind==='fasm-source'?t('sourceMapped'):t('dwarfMapped');
-  const loadedLabel=state.inputKind==='fasm-source'?t('fasmLoaded'):t('loadedOk');
-  setStatus(parsed.functions.length
-    ? `${live?t('liveUpdated'):loadedLabel} · ${num(parsed.provenanceMapped||0)} ${mappedLabel}`
-    : (live?t('liveUpdated'):t('loadedNoFunctions')));
+  state.workspaceOrder.sort((a,b)=>(state.workspaceFiles.get(a)?.path||'').localeCompare(state.workspaceFiles.get(b)?.path||''));
+  if(!state.activeFileId)state.activeFileId=state.workspaceOrder[0]||lastId;
+  rebuildWorkspaceAnalysis({preserveView:false});
+  if(lastId)activateWorkspaceFile(lastId);
+  enableWorkspaceControls();
+  setStatus(`${num(state.workspaceOrder.length)} files · ${num(state.functions.length)} functions`);
+}
+function addWorkspaceText(text,name='pasted.asm'){
+  let base=name,n=2;const used=new Set([...state.workspaceFiles.values()].map(x=>x.path));
+  while(used.has(base)){const dot=name.lastIndexOf('.');base=dot>=0?`${name.slice(0,dot)}-${n++}${name.slice(dot)}`:`${name}-${n++}`}
+  const rec={id:workspaceFileId(base),name:workspaceBasename(base),path:base,text,dirty:true,viewState:null,editorState:null};
+  state.workspaceFiles.set(rec.id,rec);state.workspaceOrder.push(rec.id);state.workspaceName=workspaceProjectLabel();
+  parseWorkspaceRecord(rec);state.activeFileId=rec.id;rebuildWorkspaceAnalysis({preserveView:false});activateWorkspaceFile(rec.id);enableWorkspaceControls();
+  setStatus(`${num(state.workspaceOrder.length)} files · ${num(state.functions.length)} functions`);
+}
+function removeWorkspaceFile(id){
+  const rec=state.workspaceFiles.get(id);if(!rec)return;if(rec.dirty&&!confirm(`Remove unsaved file "${rec.path}"?`))return;
+  const ix=state.workspaceOrder.indexOf(id);state.workspaceFiles.delete(id);state.workspaceOrder=state.workspaceOrder.filter(x=>x!==id);
+  if(state.activeFileId===id)state.activeFileId=state.workspaceOrder[Math.min(ix,state.workspaceOrder.length-1)]||null;
+  if(!state.workspaceOrder.length){clearAll();return}
+  rebuildWorkspaceAnalysis({preserveView:true});activateWorkspaceFile(state.activeFileId);
+}
+function enableWorkspaceControls(){
+  const enabled=state.workspaceOrder.length>0;
+  els.clearBtn.disabled=!enabled;els.search.disabled=!enabled;els.prevSearch.disabled=!enabled;els.nextSearch.disabled=!enabled;
+  els.graphMode.disabled=!enabled;els.entrySelect.disabled=!enabled;els.entryBtn.disabled=!enabled;els.fitBtn.disabled=!enabled;els.labelsBtn.disabled=!enabled;
+  els.traceToggle.disabled=!enabled;els.traceFit.disabled=!enabled;els.foldAction.disabled=!enabled;els.filterToggle.disabled=!enabled;els.viewMode.disabled=!enabled;els.editBtn.disabled=!enabled;
+}
+
+function loadText(text,name='pasted.asm',opts={}){
+  if(opts.live){
+    const rec=state.workspaceFiles.get(state.activeFileId);if(!rec)return;
+    rec.text=text;rec.dirty=true;parseWorkspaceRecord(rec);rebuildWorkspaceAnalysis({live:true,preserveView:true});return;
+  }
+  addWorkspaceText(text,name);
 }
 
 
@@ -1641,12 +1934,13 @@ function setEditMode(on){
 }
 
 function saveEditedSource(){
-  const text=state.editMode?els.codeEditor.value:state.text;
+  const rec=state.workspaceFiles.get(state.activeFileId),text=state.editMode?els.codeEditor.value:(rec?.text??state.text);
   if(!text)return;
+  if(rec){rec.text=text;rec.dirty=false;state.text=text}
   const blob=new Blob([text],{type:'text/plain;charset=utf-8'});
   const url=URL.createObjectURL(blob),a=document.createElement('a');
-  a.href=url;a.download=state.fileName||'source.asm';document.body.appendChild(a);a.click();a.remove();
-  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  a.href=url;a.download=workspaceBasename(rec?.path||state.fileName||'source.asm');document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);renderWorkspaceFiles();
 }
 
 
@@ -1675,8 +1969,9 @@ function configureEntrypoints(){
 
 function updateStats(){
   const direct=state.calls.filter(e=>e.to).length,indirect=state.calls.filter(e=>e.indirect).length,addrRefs=state.addressRefs.length,visibleFns=state.functions.filter(functionVisible).length,reachable=state.graphNodes.filter(n=>n.reachable).length,detached=state.graphNodes.length-reachable,staticGroups=[...state.originGroups.values()].filter(g=>g.kind==='native-static').length;
-  const mappedLabel=state.inputKind==='fasm-source'?t('sourceMapped'):t('dwarfMapped');
-  els.stats.textContent=`${num(visibleFns)}/${num(state.functions.length)} ${t('visibleFunctions')} · ${num(state.graphNodes.length)} ${t('displayNodes')} · ${num(staticGroups)} ${t('staticGroups')} · ${num(state.provenanceMapped||0)} ${mappedLabel} · ${num(direct)} ${t('directRefs')} · ${num(addrRefs)} ${t('addressRefs')} · ${num(indirect)} ${t('indirectRefs')}`;
+  const kinds=new Set(state.workspaceOrder.map(id=>state.workspaceFiles.get(id)?.inputKind).filter(Boolean));
+  const mappedLabel=kinds.size>1?'mapped':state.inputKind==='fasm-source'?t('sourceMapped'):t('dwarfMapped');
+  els.stats.textContent=`${num(state.workspaceOrder.length)} files · ${num(visibleFns)}/${num(state.functions.length)} ${t('visibleFunctions')} · ${num(state.graphNodes.length)} ${t('displayNodes')} · ${num(staticGroups)} ${t('staticGroups')} · ${num(state.provenanceMapped||0)} ${mappedLabel} · ${num(direct)} ${t('directRefs')} · ${num(addrRefs)} ${t('addressRefs')} · ${num(indirect)} ${t('indirectRefs')}`;
   if(state.entryFunction){const elf=state.elfEntry?`<strong>ELF:</strong> ${escapeHtml(state.elfEntry.name)}`:'<strong>ELF:</strong> —',program=state.programEntry?`<span class="program">${t('program')}: ${escapeHtml(state.programEntry.name)}</span>`:`<span class="program">${t('program')}: —</span>`,current=`${t('root')}: ${escapeHtml(state.entryFunction.name)}`,detachedText=detached?`<span class="detached">${num(detached)} ${t('noPathFromRoot')}</span>`:`0 ${t('noPath')}`;els.entrySummary.innerHTML=`${elf} · ${program} · ${current}<br>${num(reachable)} ${t('reachable')} · ${detachedText}`;els.entrySummary.style.display='block'}else els.entrySummary.style.display='none';
 }
 
@@ -1692,6 +1987,8 @@ function clearAll(){
   state.groupViewStack=[];state.dwarf=null;state.projectRoots=[];state.selectedOriginGroupId=null;
   state.inputKind='objdump';state.inputMeta=null;state.explicitEntrySymbols=[];
   state.editMode=false;state.editRevision++;clearTimeout(state.editTimer);state.editTimer=null;
+  state.workspaceFiles=new Map();state.workspaceOrder=[];state.activeFileId=null;state.workspaceRevision=0;
+  state.workspaceName='Workspace';state.functionsByNameMulti=new Map();state.workspaceDependencies=new Map();
 
   els.fileLabel.textContent=t('noFile');els.formatBadge.textContent='—';els.formatBadge.className='formatBadge';els.codeInfo.textContent=`0 ${t('lines')}`;els.codeSpacer.style.height='0';els.codeLayer.innerHTML='';
   els.codeViewport.classList.remove('editing');els.codeEditor.value='';els.editorGutter.textContent='';els.editBtn.classList.remove('active');els.editBtn.textContent=t('edit');els.editBtn.disabled=true;els.saveBtn.classList.remove('visible');
@@ -1701,6 +1998,7 @@ function clearAll(){
   els.familyPanel.classList.remove('open');els.filterToggle.classList.remove('active');els.familyList.innerHTML='';
   els.entrySelect.innerHTML='';els.entrySummary.style.display='none';els.inspector.classList.add('hidden');els.stats.textContent='';
   state.traceNodes=[];state.traceEdges=[];state.traceDirty=true;els.traceTitle.textContent=t('selectFunctionInstruction');els.traceEmpty.style.display='grid';
+  renderWorkspaceFiles();els.fileCount.textContent='0';
   setStatus(t('ready'));state.dirty=true;
 }
 
@@ -1771,6 +2069,7 @@ function scrollToLine(line,select=true){
 function currentNavigationLocation(){
   return {
     functionId:state.selectedFunction?.id||null,
+    fileId:state.activeFileId,
     line:state.selectedLine,
     mode:state.mode
   };
@@ -1793,7 +2092,7 @@ function navigationBack(){
     state.mode=loc.mode||state.mode;
     els.graphMode.value=state.mode;
     selectFunction(fn,{scroll:false,keepMode:true});
-  }
+  }else if(loc.fileId)activateWorkspaceFile(loc.fileId);
   if(loc.line>=0)scrollToLine(loc.line,true);
   if(state.mode==='cfg')buildGraph();
   setStatus(`← ${fn?.name||t('origin')}${loc.line>=0?` · ${t('line')} ${loc.line+1}`:''}`);
@@ -1815,6 +2114,7 @@ function followCallAtLine(line){
 
 function selectFunction(fn,{scroll=true,keepMode=true}={}){
   if(!fn)return;
+  if(fn.workspaceFileId&&fn.workspaceFileId!==state.activeFileId)activateWorkspaceFile(fn.workspaceFileId);
   state.selectedFunction=fn;state.selectedBlock=null;state.selectedOriginGroupId=null;
   if(state.mode==='calls'&&fn.provenance){
     const g=state.originGroups.get(fn.provenance.groupId);
@@ -1963,17 +2263,17 @@ function buildCallGraph(){
     baseNodes.push(n);baseById.set(n.id,n);extMap.set(key,n);return n;
   }
   const edgeMap=new Map();
-  for(const c of [...state.calls,...state.addressRefs]){const a=baseById.get(c.from.id);if(!a)continue;const b=c.to?baseById.get(c.to.id):extNode(c);if(!b)continue;const key=`${a.id}|${b.id}|${c.kind}`,old=edgeMap.get(key);if(old){old.count++;continue}const e={from:a,to:b,kind:c.kind,count:1,inferred:c.kind==='address'};edgeMap.set(key,e);baseEdges.push(e)}
+  for(const c of [...state.calls,...state.addressRefs]){const a=baseById.get(c.from.id);if(!a)continue;const b=c.to?baseById.get(c.to.id):extNode(c);if(!b)continue;const key=`${a.id}|${b.id}|${c.kind}`,old=edgeMap.get(key);if(old){old.count++;old.crossFile=old.crossFile||!!c.crossFile;continue}const e={from:a,to:b,kind:c.kind,count:1,inferred:c.kind==='address',crossFile:!!c.crossFile};edgeMap.set(key,e);baseEdges.push(e)}
   const rootFn=state.entryFunction||state.programEntry||state.elfEntry||state.functions[0]||null,rootBase=rootFn?baseById.get(rootFn.id):null;
   const baseVisible=n=>{if(n===rootBase)return true;if(n.external)return true;return functionVisible(n.function)};
   const visibleBase=baseNodes.filter(baseVisible),visibleBaseSet=new Set(visibleBase.map(n=>n.id));
   const bridgedEdges=[],bridgedMap=new Map();
-  const addBaseEdge=(from,to,kind,count=1,hiddenCount=0)=>{if(!from||!to||from===to)return;const key=`${from.id}|${to.id}|${kind}`,old=bridgedMap.get(key);if(old){old.count+=count;old.hiddenCount=Math.max(old.hiddenCount||0,hiddenCount);return}const e={from,to,kind,count,hiddenCount};bridgedMap.set(key,e);bridgedEdges.push(e)};
-  for(const e of baseEdges)if(baseVisible(e.from)&&baseVisible(e.to))addBaseEdge(e.from,e.to,e.kind,e.count,0);
+  const addBaseEdge=(from,to,kind,count=1,hiddenCount=0,crossFile=false)=>{if(!from||!to||from===to)return;const key=`${from.id}|${to.id}|${kind}`,old=bridgedMap.get(key);if(old){old.count+=count;old.hiddenCount=Math.max(old.hiddenCount||0,hiddenCount);old.crossFile=old.crossFile||crossFile;return}const e={from,to,kind,count,hiddenCount,crossFile};bridgedMap.set(key,e);bridgedEdges.push(e)};
+  for(const e of baseEdges)if(baseVisible(e.from)&&baseVisible(e.to))addBaseEdge(e.from,e.to,e.kind,e.count,0,e.crossFile);
   if(state.bridgeHidden){
     const outgoing=new Map(baseNodes.map(n=>[n.id,[]]));for(const e of baseEdges)outgoing.get(e.from.id)?.push(e);
     for(const source of visibleBase){const queue=[],seen=new Map();for(const first of outgoing.get(source.id)||[]){if(baseVisible(first.to))continue;queue.push({node:first.to,hidden:1});seen.set(first.to.id,1)}
-      for(let qi=0;qi<queue.length&&qi<5000;qi++){const cur=queue[qi];for(const e of outgoing.get(cur.node.id)||[]){if(e.to===source)continue;if(baseVisible(e.to)){addBaseEdge(source,e.to,'hidden',1,cur.hidden);continue}const next=cur.hidden+1;if(next>32)continue;const prev=seen.get(e.to.id);if(prev!==undefined&&prev<=next)continue;seen.set(e.to.id,next);queue.push({node:e.to,hidden:next})}}
+      for(let qi=0;qi<queue.length&&qi<5000;qi++){const cur=queue[qi];for(const e of outgoing.get(cur.node.id)||[]){if(e.to===source)continue;if(baseVisible(e.to)){addBaseEdge(source,e.to,'hidden',1,cur.hidden,!!e.crossFile);continue}const next=cur.hidden+1;if(next>32)continue;const prev=seen.get(e.to.id);if(prev!==undefined&&prev<=next)continue;seen.set(e.to.id,next);queue.push({node:e.to,hidden:next})}}
     }
   }
   const displayNodes=[],displayById=new Map(),repMap=new Map();state.functionRepresentative=new Map();
@@ -1995,7 +2295,7 @@ function buildCallGraph(){
   }
   for(const n of visibleBase)representative(n);
   const displayEdges=[],displayEdgeMap=new Map();
-  for(const e of bridgedEdges){const a=representative(e.from),b=representative(e.to);if(!a||!b||a===b)continue;const key=`${a.id}|${b.id}|${e.kind}`,old=displayEdgeMap.get(key);if(old){old.count+=e.count;old.hiddenCount=Math.max(old.hiddenCount||0,e.hiddenCount||0);continue}const ne={from:a,to:b,kind:e.kind,count:e.count,hiddenCount:e.hiddenCount||0};displayEdgeMap.set(key,ne);displayEdges.push(ne)}
+  for(const e of bridgedEdges){const a=representative(e.from),b=representative(e.to);if(!a||!b||a===b)continue;const key=`${a.id}|${b.id}|${e.kind}`,old=displayEdgeMap.get(key);if(old){old.count+=e.count;old.hiddenCount=Math.max(old.hiddenCount||0,e.hiddenCount||0);old.crossFile=old.crossFile||e.crossFile;continue}const ne={from:a,to:b,kind:e.kind,count:e.count,hiddenCount:e.hiddenCount||0,crossFile:!!e.crossFile};displayEdgeMap.set(key,ne);displayEdges.push(ne)}
   const root=rootBase?representative(rootBase):null,adj=new Map(displayNodes.map(n=>[n.id,[]])),pred=new Map(displayNodes.map(n=>[n.id,[]]));for(const e of displayEdges){adj.get(e.from.id)?.push(e);pred.get(e.to.id)?.push(e)}
   const depth=new Map(),parent=new Map(),queue=[];if(root){depth.set(root.id,0);queue.push(root)}for(let qi=0;qi<queue.length;qi++){const n=queue[qi],d=depth.get(n.id);for(const edge of adj.get(n.id)||[])if(!depth.has(edge.to.id)){depth.set(edge.to.id,d+1);parent.set(edge.to.id,edge);queue.push(edge.to)}}
   state.reachableIds=new Set(depth.keys());state.reachParent=parent;state.depthById=depth;for(const n of displayNodes){n.reachable=depth.has(n.id);n.depth=depth.get(n.id)??null}
@@ -2345,7 +2645,8 @@ function renderGraph(){
     const near=selectedNode&&(e.from===selectedNode||e.to===selectedNode);
     const dim=selectedNode&&!near&&!onPath;
 
-    let col=e.kind==='call'?'#557792':
+    let col=e.crossFile&&e.kind==='call'?'#6fa8d8':
+            e.kind==='call'?'#557792':
             e.kind==='address'?'#8b7450':
             e.kind==='hidden'?'#a47fd1':
             e.kind==='fallthrough'?'#4e6756':
@@ -2357,7 +2658,7 @@ function renderGraph(){
     drawArrow(
       ctx,x1,y1,x2,y2,col,
       Math.max(.75,(onPath?2.2:near?1.6:1)/z*.72),
-      e.kind==='address'||e.kind==='hidden',
+      e.kind==='address'||e.kind==='hidden'||e.crossFile,
       dim?.10:(onPath||near?1:.38)
     );
 
@@ -2468,25 +2769,41 @@ function doSearch(dir=1){
 }
 
 async function loadFile(file){
-  try{
-    const buf=await file.arrayBuffer();
-    loadText(decoder.decode(buf),file.name);
-  }catch(err){setStatus(`${t('readError')}: ${err.message}`)}
+  await addWorkspaceFileObjects([file]);
 }
+
 
 // Language
 els.languageSelect.addEventListener('change',()=>setLanguage(els.languageSelect.value));
 
-// File / paste
+// File / paste / workspace
 els.openBtn.addEventListener('click',()=>els.fileInput.click());
-els.fileInput.addEventListener('change',()=>{const f=els.fileInput.files?.[0];if(f)loadFile(f);els.fileInput.value=''});
+els.openFolderBtn.addEventListener('click',()=>els.folderInput.click());
+els.fileInput.addEventListener('change',async()=>{
+  const files=[...(els.fileInput.files||[])];if(files.length)await addWorkspaceFileObjects(files);
+  els.fileInput.value='';
+});
+els.folderInput.addEventListener('change',async()=>{
+  const files=[...(els.folderInput.files||[])];if(files.length)await addWorkspaceFileObjects(files);
+  els.folderInput.value='';
+});
 els.pasteBtn.addEventListener('click',()=>{els.pasteArea.value='';els.pasteDialog.showModal();setTimeout(()=>els.pasteArea.focus(),0)});
 els.pasteCancel.addEventListener('click',()=>els.pasteDialog.close());
-els.pasteLoad.addEventListener('click',()=>{loadText(els.pasteArea.value,'pasted.asm');els.pasteDialog.close()});
+els.pasteLoad.addEventListener('click',()=>{addWorkspaceText(els.pasteArea.value,'pasted.asm');els.pasteDialog.close()});
 els.clearBtn.addEventListener('click',clearAll);
 els.editBtn.addEventListener('click',()=>setEditMode(!state.editMode));
 els.saveBtn.addEventListener('click',saveEditedSource);
-els.codeEditor.addEventListener('input',()=>{rebuildEditorGutter();scheduleLiveParse()});
+
+els.fileList.addEventListener('click',e=>{
+  const remove=e.target.closest('[data-remove-file]');
+  if(remove){e.stopPropagation();removeWorkspaceFile(remove.dataset.removeFile);return}
+  const row=e.target.closest('[data-file-id]');if(row)activateWorkspaceFile(row.dataset.fileId);
+});
+
+els.codeEditor.addEventListener('input',()=>{
+  const rec=state.workspaceFiles.get(state.activeFileId);if(rec)rec.dirty=true;
+  renderWorkspaceFiles();rebuildEditorGutter();scheduleLiveParse();
+});
 els.codeEditor.addEventListener('scroll',()=>{els.editorGutter.scrollTop=els.codeEditor.scrollTop});
 els.codeEditor.addEventListener('keydown',e=>{
   if(e.key==='Tab'){
@@ -2499,9 +2816,15 @@ els.codeEditor.addEventListener('keydown',e=>{
   }
 });
 
-
 for(const evt of ['dragenter','dragover'])document.addEventListener(evt,e=>{e.preventDefault();document.body.classList.add('draggingFile')});
-for(const evt of ['dragleave','drop'])document.addEventListener(evt,e=>{e.preventDefault();if(evt==='drop'){const f=e.dataTransfer?.files?.[0];if(f)loadFile(f)}document.body.classList.remove('draggingFile')});
+for(const evt of ['dragleave','drop'])document.addEventListener(evt,async e=>{
+  e.preventDefault();
+  if(evt==='drop'){
+    const files=[...(e.dataTransfer?.files||[])];
+    if(files.length)await addWorkspaceFileObjects(files);
+  }
+  document.body.classList.remove('draggingFile');
+});
 
 // Search
 els.search.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();doSearch(e.shiftKey?-1:1)}});
