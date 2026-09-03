@@ -359,7 +359,7 @@ dialog::backdrop{background:#0009}
         <span><i class="dot" style="background:#73d6a0"></i><span data-i18n="legendSourcePackage">Source package</span></span>
         <span><i class="dot" style="background:#d8b36a"></i><span data-i18n="legendNativeStatic">native static</span></span>
         <span><i class="dot" style="background:#ef817b"></i><span data-i18n="legendNativeDynamic">native dynamic</span></span>
-        <span data-i18n="legendAddress">┄ address ref.</span><span data-i18n="legendCrossFile">╌ cross-file call</span>
+        <span data-i18n="legendAddress">┄ address ref.</span><span data-i18n="legendCrossFile">╌ cross-file call</span><span data-i18n="legendResolve">·· resolves-to</span>
       </div>
       <div class="empty" id="emptyGraph">
         <div><strong data-i18n="loadObjdump">Load an objdump / ASM</strong><span data-i18n="loadObjdumpSub">File, drag & drop, or direct paste.</span></div>
@@ -413,8 +413,8 @@ const I18N = {
     groups:'Groups',groupsTitle:'Filter symbol families and sections',flow:'Flow',hideFlow:'Hide flow',flowTitle:'Show/hide flow below ASM',edit:'Edit',inspect:'Inspect',save:'Save',liveParsing:'Live parsing…',liveUpdated:'Graph updated',visibleGroups:'Visible groups',all:'All',none:'None',filterGroups:'Filter groups…',
     dropAsm:'Drop the ASM dump here',dropAsmSub:'It will be loaded as text, without validation.',selectFunctionInstruction:'Select a function or instruction',staticHeuristic:'static · heuristic',fit:'Fit',noFlow:'No flow selected',selectCodeOrNode:'Select code or a graph node.',
     globalCallGraph:'Global call graph',selectedCfg:'Selected function CFG',reachabilityRootTitle:'Reachability analysis root',entry:'Entry',entryTitle:'Fit the component reachable from the entrypoint',fitAll:'Fit all',fitAllTitle:'Fit all nodes, including detached nodes',labels:'Labels',auto:'auto',yes:'yes',no:'no',
-    legendFamily:'color = symbol family',legendAddress:'┄ address ref.',legendCrossFile:'╌ cross-file call',legendBridge:'╌ bridge across hidden nodes',loadObjdump:'Load assembly / objdump',loadObjdumpSub:'File, drag & drop, or direct paste.',ready:'Ready.',pasteAsm:'Paste assembly / objdump',pastePlaceholder:'Paste the complete content here…',cancel:'Cancel',load:'Load',
-    symbolFamilies:'Symbol families',codeSections:'Code sections',bridgeHidden:'automatically connect through hidden functions',hiddenLines:'hidden lines',instructionsLower:'instructions',analyzing:'Analyzing ASM…',loadedOk:'ASM loaded. Ctrl+click follows calls; Alt+← returns to the origin.',loadedNoFunctions:'Loaded. No function boundaries were detected.',
+    legendFamily:'color = symbol family',legendAddress:'┄ address ref.',legendCrossFile:'╌ cross-file call',legendResolve:'·· dynamic resolves-to',legendBridge:'╌ bridge across hidden nodes',loadObjdump:'Load assembly / objdump',loadObjdumpSub:'File, drag & drop, or direct paste.',ready:'Ready.',pasteAsm:'Paste assembly / objdump',pastePlaceholder:'Paste the complete content here…',cancel:'Cancel',load:'Load',
+    symbolFamilies:'Symbol families',codeSections:'Code sections',bridgeHidden:'automatically connect through hidden functions',matchDynamic:'match loaded dynamic implementations',addressSpace:'Address space',dynamicMatch:'Dynamic match',pltEntry:'PLT / import stub',implementation:'Implementation',resolvesTo:'resolves to',hiddenLines:'hidden lines',instructionsLower:'instructions',analyzing:'Analyzing ASM…',loadedOk:'ASM loaded. Ctrl+click follows calls; Alt+← returns to the origin.',loadedNoFunctions:'Loaded. No function boundaries were detected.',
     visibleFunctions:'visible functions',directRefs:'direct refs',addressRefs:'address refs',indirectRefs:'indirect refs',reachable:'reachable',noPath:'no path',root:'root',functionsReachable:'reachable functions',noPathFromRoot:'no path from root',noPreviousOrigin:'No previous origin.',origin:'origin',
     function:'Function',block:'Block',linesLabel:'Lines',goToCode:'Go to code',role:'Role',reachability:'Reachability',family:'Family',address:'Address',approxSize:'Approx. size',section:'Section',source:'Source',instructions:'Instructions',callsJumps:'Calls/Jumps',incoming:'Incoming',center:'Center',openCfg:'Open CFG',selectFunctionCfg:'Select a function to view its CFG.',
     searchStatus:'Search',noMatches:'No matches.',readError:'Could not read the file',reachabilityRoot:'Reachability root',noLocalEvents:'No local semantic events',noLocalEventsSub:'ASM is still available above; select another function or a call.',selectedInstruction:'selected instruction',directCall:'direct call',indirectCall:'indirect call',controlTransfer:'control transfer',entryD0:'ENTRY / D0',noPathEntry:'NO PATH FROM ENTRYPOINT',hiddenCount:'hidden',elfEntry:'ELF entry',programEntry:'program entry',program:'program',ctrlReturn:'Alt+← to return',
@@ -432,8 +432,8 @@ const I18N = {
     groups:'קבוצות',groupsTitle:'סינון משפחות סמלים ומקטעים',flow:'זרימה',hideFlow:'הסתר זרימה',flowTitle:'הצג/הסתר זרימה מתחת ל-ASM',edit:'עריכה',inspect:'תצוגה',save:'שמור',liveParsing:'מנתח בזמן אמת…',liveUpdated:'הגרף עודכן',visibleGroups:'קבוצות גלויות',all:'הכל',none:'ללא',filterGroups:'סינון קבוצות…',
     dropAsm:'גרור לכאן dump של ASM',dropAsmSub:'ייטען כטקסט, ללא אימות.',selectFunctionInstruction:'בחר פונקציה או הוראה',staticHeuristic:'סטטי · היוריסטי',fit:'התאם',noFlow:'לא נבחרה זרימה',selectCodeOrNode:'בחר קוד או צומת בגרף.',
     globalCallGraph:'גרף קריאות גלובלי',selectedCfg:'CFG של הפונקציה שנבחרה',reachabilityRootTitle:'שורש ניתוח הנגישות',entry:'כניסה',entryTitle:'התאם את הרכיב הנגיש מנקודת הכניסה',fitAll:'התאם הכל',fitAllTitle:'התאם את כל הצמתים, כולל צמתים מנותקים',labels:'תוויות',auto:'אוטומטי',yes:'כן',no:'לא',
-    legendFamily:'צבע = משפחת סמלים',legendAddress:'┄ הפניה לכתובת',legendCrossFile:'╌ קריאה בין קבצים',legendBridge:'╌ גישור מעל צמתים מוסתרים',loadObjdump:'טען אסמבלי / objdump',loadObjdumpSub:'קובץ, גרירה ושחרור, או הדבקה ישירה.',ready:'מוכן.',pasteAsm:'הדבק אסמבלי / objdump',pastePlaceholder:'הדבק כאן את התוכן המלא…',cancel:'ביטול',load:'טען',
-    symbolFamilies:'משפחות סמלים',codeSections:'מקטעי קוד',bridgeHidden:'חבר אוטומטית דרך פונקציות מוסתרות',hiddenLines:'שורות מוסתרות',instructionsLower:'הוראות',analyzing:'מנתח ASM…',loadedOk:'ה-ASM נטען. Ctrl+click עוקב אחר קריאות; Alt+← חוזר למקור.',loadedNoFunctions:'נטען. לא זוהו גבולות פונקציה.',
+    legendFamily:'צבע = משפחת סמלים',legendAddress:'┄ הפניה לכתובת',legendCrossFile:'╌ קריאה בין קבצים',legendResolve:'·· קישור דינמי resolves-to',legendBridge:'╌ גישור מעל צמתים מוסתרים',loadObjdump:'טען אסמבלי / objdump',loadObjdumpSub:'קובץ, גרירה ושחרור, או הדבקה ישירה.',ready:'מוכן.',pasteAsm:'הדבק אסמבלי / objdump',pastePlaceholder:'הדבק כאן את התוכן המלא…',cancel:'ביטול',load:'טען',
+    symbolFamilies:'משפחות סמלים',codeSections:'מקטעי קוד',bridgeHidden:'חבר אוטומטית דרך פונקציות מוסתרות',matchDynamic:'התאם מימושים דינמיים שנטענו',addressSpace:'מרחב כתובות',dynamicMatch:'התאמה דינמית',pltEntry:'PLT / import stub',implementation:'מימוש',resolvesTo:'נפתר אל',hiddenLines:'שורות מוסתרות',instructionsLower:'הוראות',analyzing:'מנתח ASM…',loadedOk:'ה-ASM נטען. Ctrl+click עוקב אחר קריאות; Alt+← חוזר למקור.',loadedNoFunctions:'נטען. לא זוהו גבולות פונקציה.',
     visibleFunctions:'פונקציות גלויות',directRefs:'הפניות ישירות',addressRefs:'הפניות לכתובות',indirectRefs:'הפניות עקיפות',reachable:'ניתנות להגעה',noPath:'ללא נתיב',root:'שורש',functionsReachable:'פונקציות ניתנות להגעה',noPathFromRoot:'ללא נתיב מהשורש',noPreviousOrigin:'אין מקור קודם.',origin:'מקור',
     function:'פונקציה',block:'בלוק',linesLabel:'שורות',goToCode:'עבור לקוד',role:'תפקיד',reachability:'נגישות',family:'משפחה',address:'כתובת',approxSize:'גודל משוער',section:'מקטע',source:'מקור',instructions:'הוראות',callsJumps:'קריאות/קפיצות',incoming:'נכנסות',center:'מרכז',openCfg:'פתח CFG',selectFunctionCfg:'בחר פונקציה כדי להציג CFG.',
     searchStatus:'חיפוש',noMatches:'אין התאמות.',readError:'לא ניתן לקרוא את הקובץ',reachabilityRoot:'שורש נגישות',noLocalEvents:'אין אירועים סמנטיים מקומיים',noLocalEventsSub:'ה-ASM עדיין זמין למעלה; בחר פונקציה אחרת או קריאה.',selectedInstruction:'הוראה שנבחרה',directCall:'קריאה ישירה',indirectCall:'קריאה עקיפה',controlTransfer:'העברת בקרה',entryD0:'כניסה / D0',noPathEntry:'אין נתיב מנקודת הכניסה',hiddenCount:'מוסתרות',elfEntry:'כניסת ELF',programEntry:'כניסת התוכנית',program:'תוכנית',ctrlReturn:'Alt+← כדי לחזור',
@@ -562,6 +562,7 @@ const state = {
   editMode:false, editTimer:null, editRevision:0,
   workspaceFiles:new Map(), workspaceOrder:[], activeFileId:null, workspaceRevision:0,
   workspaceName:'Workspace', functionsByNameMulti:new Map(), workspaceDependencies:new Map(),
+  dynamicMatches:[], matchDynamicImplementations:true,
   bridgeHidden:true,
   entryFunction:null, elfEntry:null, programEntry:null, reachableIds:new Set(), reachParent:new Map(), depthById:new Map(), detachedY:null,
   searchHits:[], searchIndex:-1, graphNodes:[], graphEdges:[], nodeById:new Map(),
@@ -1432,11 +1433,17 @@ function renderFamilyPanel(){
   html+=`<div class="familySectionTitle">${t('codeSections')}</div>`;
   for(const [name,count] of sectionRows){const checked=state.sectionVisibility.get(name)!==false?'checked':'';html+=`<label class="familyRow"><input type="checkbox" data-code-section="${escapeHtml(name)}" ${checked}><i class="familyDot" style="background:#74808d"></i><span class="familyName">${escapeHtml(name)}</span><span class="familyCount">${count}</span></label>`}
   html+=`<label class="familyOption"><input id="bridgeHidden" type="checkbox" ${state.bridgeHidden?'checked':''}>${t('bridgeHidden')}</label>`;
+  html+=`<label class="familyOption"><input id="matchDynamic" type="checkbox" ${state.matchDynamicImplementations?'checked':''}>${t('matchDynamic')}</label>`;
   els.familyList.innerHTML=html;
   els.familyList.querySelectorAll('[data-origin-group]').forEach(cb=>cb.addEventListener('change',()=>{state.originVisibility.set(cb.dataset.originGroup,cb.checked);applyVisibilityFilters()}));
   els.familyList.querySelectorAll('[data-family]').forEach(cb=>cb.addEventListener('change',()=>{state.familyVisibility.set(cb.dataset.family,cb.checked);applyVisibilityFilters()}));
   els.familyList.querySelectorAll('[data-code-section]').forEach(cb=>cb.addEventListener('change',()=>{state.sectionVisibility.set(cb.dataset.codeSection,cb.checked);applyVisibilityFilters()}));
   els.familyList.querySelector('#bridgeHidden')?.addEventListener('change',e=>{state.bridgeHidden=e.target.checked;buildGraph();fitGraph(true)});
+  els.familyList.querySelector('#matchDynamic')?.addEventListener('change',e=>{
+    state.matchDynamicImplementations=e.target.checked;
+    buildDynamicImplementationMatches(state.functions);
+    buildGraph();fitGraph(true);updateStats();
+  });
 }
 
 function applyVisibilityFilters(){
@@ -1650,6 +1657,84 @@ function classifyAssemblyWorkspaceProvenance(record,parsed){
   parsed.provenanceMapped=parsed.functions.length;
 }
 
+
+function detectArtifactIdentity(record){
+  const text=record.text||'',path=normalizeWorkspacePath(record.path||record.name||'');
+  let artifactPath='';
+  const header=text.match(/^\s*(.+?):\s+file format\s+([^\s]+)\s*$/m);
+  if(header)artifactPath=normalizeWorkspacePath(header[1].trim());
+  const archive=text.match(/^\s*In archive\s+(.+?):\s*$/m);
+  if(archive)artifactPath=normalizeWorkspacePath(archive[1].trim());
+
+  const candidate=artifactPath||path,base=workspaceBasename(candidate)||workspaceBasename(path)||'artifact';
+  let kind='object-or-executable';
+  if(/\.so(?:\.\d+)*$/i.test(base)||/\.dylib$/i.test(base)||/\.dll$/i.test(base))kind='shared-library';
+  else if(/\.a$/i.test(base)||/\.lib$/i.test(base)||archive)kind='static-archive';
+  else if(/\.(?:asm|fasm|inc|s)$/i.test(path))kind='source';
+
+  return {
+    kind,
+    path:candidate,
+    label:base,
+    addressSpaceId:record.id,
+    addressSpaceLabel:kind==='source'?`${record.path} · source`:base
+  };
+}
+
+function clearDynamicMatchFlags(){
+  for(const fn of state.functions||[]){
+    fn.dynamicMatch=null;
+    fn.dynamicMatchedBy=[];
+  }
+  state.dynamicMatches=[];
+}
+
+function buildDynamicImplementationMatches(functions){
+  clearDynamicMatchFlags();
+  if(!state.matchDynamicImplementations)return;
+
+  const implIndex=new Map();
+  for(const fn of functions){
+    const rec=state.workspaceFiles.get(fn.workspaceFileId);
+    if(rec?.artifactKind!=='shared-library')continue;
+    if(fn.pltStub||fn.section==='.plt'||/@plt/i.test(fn.name))continue;
+    const key=normalizeWorkspaceSymbol(fn.name);
+    if(!key)continue;
+    let arr=implIndex.get(key);if(!arr){arr=[];implIndex.set(key,arr)}
+    arr.push(fn);
+  }
+
+  for(const plt of functions){
+    if(!plt.pltStub)continue;
+    const key=normalizeWorkspaceSymbol(plt.name);
+    const candidates=(implIndex.get(key)||[]).filter(fn=>fn.workspaceFileId!==plt.workspaceFileId);
+    if(!candidates.length)continue;
+
+    const provider=(plt.provenance?.groupLabel||'').toLowerCase();
+    let best=[],bestScore=-1;
+    for(const fn of candidates){
+      const rec=state.workspaceFiles.get(fn.workspaceFileId);
+      const lib=(rec?.artifactLabel||rec?.path||'').toLowerCase();
+      let score=0;
+      if(provider&&provider!=='dynamic imports'&&lib.includes(provider))score+=10;
+      if(normalizeWorkspaceSymbol(fn.name)===key)score+=4;
+      if(fn.provenance?.semanticName&&normalizeWorkspaceSymbol(fn.provenance.semanticName)===key)score+=2;
+      if(score>bestScore){bestScore=score;best=[fn]}
+      else if(score===bestScore)best.push(fn);
+    }
+    if(best.length!==1)continue;
+
+    const impl=best[0];
+    plt.dynamicMatch=impl;
+    if(!impl.dynamicMatchedBy)impl.dynamicMatchedBy=[];
+    impl.dynamicMatchedBy.push(plt);
+    state.dynamicMatches.push({
+      from:plt,to:impl,kind:'dynamic-match',count:1,crossFile:true,
+      fromAddressSpace:plt.addressSpaceId,toAddressSpace:impl.addressSpaceId
+    });
+  }
+}
+
 function parseWorkspaceRecord(record){
   const inputKind=detectInputKind(record.text,record.path||record.name);
   const parsed=inputKind==='fasm-source'?parseFasmSource(record.text):parseAsm(record.text);
@@ -1661,6 +1746,15 @@ function parseWorkspaceRecord(record){
   }
   else enrichProvenance(parsed);
   namespaceParsedWorkspace(record,parsed);
+
+  const artifact=detectArtifactIdentity(record);
+  record.artifactKind=artifact.kind;record.artifactLabel=artifact.label;record.artifactPath=artifact.path;record.addressSpaceId=artifact.addressSpaceId;record.addressSpaceLabel=artifact.addressSpaceLabel;
+  for(const fn of parsed.functions){
+    fn.addressSpaceId=record.addressSpaceId;fn.addressSpaceLabel=record.addressSpaceLabel;fn.artifactKind=record.artifactKind;fn.artifactLabel=record.artifactLabel;
+    fn.pltStub=(fn.section==='.plt'||/@plt(?:$|-0x)/i.test(fn.name))&&!/@plt-0x[0-9a-f]+$/i.test(fn.name);
+    if(fn.pltStub)fn.nodeRole='plt-stub';
+    if(record.artifactKind==='shared-library')fn.libraryImplementation=true;
+  }
 
   record.parsed=parsed;record.inputKind=inputKind;record.inputMeta=parsed.inputMeta||null;record.error=null;
   record.includes=(parsed.inputMeta?.includes||[]).map(normalizeWorkspacePath);
@@ -1739,6 +1833,7 @@ function resolveWorkspaceLinks(functions,calls,addressRefs){
       }
     }
   }
+  buildDynamicImplementationMatches(functions);
 }
 
 function saveActiveWorkspaceView(){
@@ -1989,6 +2084,7 @@ function clearAll(){
   state.editMode=false;state.editRevision++;clearTimeout(state.editTimer);state.editTimer=null;
   state.workspaceFiles=new Map();state.workspaceOrder=[];state.activeFileId=null;state.workspaceRevision=0;
   state.workspaceName='Workspace';state.functionsByNameMulti=new Map();state.workspaceDependencies=new Map();
+  state.dynamicMatches=[];
 
   els.fileLabel.textContent=t('noFile');els.formatBadge.textContent='—';els.formatBadge.className='formatBadge';els.codeInfo.textContent=`0 ${t('lines')}`;els.codeSpacer.style.height='0';els.codeLayer.innerHTML='';
   els.codeViewport.classList.remove('editing');els.codeEditor.value='';els.editorGutter.textContent='';els.editBtn.classList.remove('active');els.editBtn.textContent=t('edit');els.editBtn.disabled=true;els.saveBtn.classList.remove('visible');
@@ -2154,9 +2250,14 @@ function updateInspector(item){
       <b>${t('confidence')}</b><span>${escapeHtml(t(p.confidence==='source'?'sourceBased':p.confidence))}</span>
       <b>${t('semanticName')}</b><span>${escapeHtml(p.semanticName||'—')}</span><b>${t('linkageName')}</b><span class="linkage">${escapeHtml(p.linkageName||item.name)}</span>
       <b>${t('declaredAt')}</b><span class="sourcePath">${escapeHtml(p.logicalSource||p.sourcePath||'—')}${p.declLine?':'+p.declLine:''}</span>
+      <b>${t('addressSpace')}</b><span>${escapeHtml(item.addressSpaceLabel||item.workspaceFilePath||'—')}</span>
+      ${item.pltStub?`<b>${t('role')}</b><span>${t('pltEntry')}</span>`:''}
       <b>${item.syntheticAddress?t('line'):t('address')}</b><span>${item.syntheticAddress?num(item.startLine+1):safeHex(item.addr)}</span><b>${t('approxSize')}</b><span>${item.syntheticAddress?`${num(item.instructions.length)} ${t('instructionsLower')}`:`${num(item.size)} B`}</span><b>${t('section')}</b><span>${escapeHtml(item.section||'—')}</span>
       <b>${t('instructions')}</b><span>${num(item.instructions.length)}</span><b>${t('callsJumps')}</b><span>${num(item.calls.length)}</span><b>${t('incoming')}</b><span>${num(incoming)}</span>
-    </div>${path.length?`<div class="path"><b>PATH</b><br>${path.map(n=>escapeHtml(n.label)).join(' → ')}</div>`:''}<div class="actions"><button data-action="code">${t('goToCode')}</button><button data-action="center">${t('center')}</button><button data-action="cfg">${t('openCfg')}</button>${canCollapse?`<button data-action="collapse-group">${t('collapseGroup')}</button>`:''}</div>`;
+    </div>
+    ${item.dynamicMatch?`<div class="path"><b>${t('dynamicMatch')}</b><br>${escapeHtml(item.name)} · ${item.syntheticAddress?t('line')+' '+(item.startLine+1):safeHex(item.addr)}<br>↓ ${t('resolvesTo')}<br>${escapeHtml(functionDisplayName(item.dynamicMatch))} · ${safeHex(item.dynamicMatch.addr)}<br>${escapeHtml(item.dynamicMatch.addressSpaceLabel||'')}</div>`:''}
+    ${item.dynamicMatchedBy?.length?`<div class="path"><b>${t('dynamicMatch')}</b><br>${item.dynamicMatchedBy.map(x=>`${escapeHtml(x.name)} · ${safeHex(x.addr)} · ${escapeHtml(x.addressSpaceLabel||'')}`).join('<br>')}</div>`:''}
+    ${path.length?`<div class="path"><b>PATH</b><br>${path.map(n=>escapeHtml(n.label)).join(' → ')}</div>`:''}<div class="actions"><button data-action="code">${t('goToCode')}</button><button data-action="center">${t('center')}</button><button data-action="cfg">${t('openCfg')}</button>${item.dynamicMatch?`<button data-action="dynamic-match">${t('implementation')}</button>`:''}${item.dynamicMatchedBy?.length?`<button data-action="dynamic-stub">${t('pltEntry')}</button>`:''}${canCollapse?`<button data-action="collapse-group">${t('collapseGroup')}</button>`:''}</div>`;
   }
   els.inspector.innerHTML=html;els.inspector.classList.remove('hidden');
   els.inspector.querySelector('[data-action="code"]')?.addEventListener('click',()=>scrollToLine(item.startLine,true));
@@ -2164,6 +2265,8 @@ function updateInspector(item){
   els.inspector.querySelector('[data-action="cfg"]')?.addEventListener('click',()=>{state.mode='cfg';els.graphMode.value='cfg';buildGraph();fitGraph()});
   els.inspector.querySelector('[data-action="toggle-group"]')?.addEventListener('click',()=>toggleOriginGroup(item.group.id));
   els.inspector.querySelector('[data-action="collapse-group"]')?.addEventListener('click',()=>toggleOriginGroup(item.provenance.groupId,false));
+  els.inspector.querySelector('[data-action="dynamic-match"]')?.addEventListener('click',()=>item.dynamicMatch&&selectFunction(item.dynamicMatch,{scroll:true,keepMode:true}));
+  els.inspector.querySelector('[data-action="dynamic-stub"]')?.addEventListener('click',()=>item.dynamicMatchedBy?.[0]&&selectFunction(item.dynamicMatchedBy[0],{scroll:true,keepMode:true}));
 }
 
 
@@ -2253,7 +2356,10 @@ function toggleOriginGroup(groupId,forceExpand=null,{remember=true,fit=true}={})
 function buildCallGraph(){
   const baseNodes=[],baseEdges=[],baseById=new Map();
   for(const fn of state.functions){
-    const p=fn.provenance||makeProvenance('unknown','unknown:unclassified','Unclassified'),label=functionDisplayName(fn),node={id:fn.id,kind:'function',function:fn,label,family:fn.family,provenance:p,x:0,y:0,w:clamp(96+label.length*5.7,125,270),h:44,reachable:false,depth:null,color:provenanceColor(p.kind)};
+    const p=fn.provenance||makeProvenance('unknown','unknown:unclassified','Unclassified'),
+          baseLabel=functionDisplayName(fn),
+          label=fn.dynamicMatchedBy?.length?`${baseLabel} · ${fn.artifactLabel||fn.addressSpaceLabel||''}`:baseLabel,
+          node={id:fn.id,kind:'function',function:fn,label,family:fn.family,provenance:p,x:0,y:0,w:clamp(96+label.length*5.7,125,310),h:44,reachable:false,depth:null,color:provenanceColor(p.kind)};
     baseNodes.push(node);baseById.set(node.id,node);
   }
   const extMap=new Map();
@@ -2263,7 +2369,7 @@ function buildCallGraph(){
     baseNodes.push(n);baseById.set(n.id,n);extMap.set(key,n);return n;
   }
   const edgeMap=new Map();
-  for(const c of [...state.calls,...state.addressRefs]){const a=baseById.get(c.from.id);if(!a)continue;const b=c.to?baseById.get(c.to.id):extNode(c);if(!b)continue;const key=`${a.id}|${b.id}|${c.kind}`,old=edgeMap.get(key);if(old){old.count++;old.crossFile=old.crossFile||!!c.crossFile;continue}const e={from:a,to:b,kind:c.kind,count:1,inferred:c.kind==='address',crossFile:!!c.crossFile};edgeMap.set(key,e);baseEdges.push(e)}
+  for(const c of [...state.calls,...state.addressRefs,...state.dynamicMatches]){const a=baseById.get(c.from.id);if(!a)continue;const b=c.to?baseById.get(c.to.id):extNode(c);if(!b)continue;const key=`${a.id}|${b.id}|${c.kind}`,old=edgeMap.get(key);if(old){old.count++;old.crossFile=old.crossFile||!!c.crossFile;continue}const e={from:a,to:b,kind:c.kind,count:1,inferred:c.kind==='address',crossFile:!!c.crossFile};edgeMap.set(key,e);baseEdges.push(e)}
   const rootFn=state.entryFunction||state.programEntry||state.elfEntry||state.functions[0]||null,rootBase=rootFn?baseById.get(rootFn.id):null;
   const baseVisible=n=>{if(n===rootBase)return true;if(n.external)return true;return functionVisible(n.function)};
   const visibleBase=baseNodes.filter(baseVisible),visibleBaseSet=new Set(visibleBase.map(n=>n.id));
@@ -2289,7 +2395,11 @@ function buildCallGraph(){
         let g=state.originGroups.get(n.provenance.groupId);if(!g){g={id:n.provenance.groupId,label:n.provenance.groupLabel,kind:n.provenance.kind,members:[],virtualCount:1,sourceRoots:new Set(),confidenceCounts:new Map([['inferred',1]]),color:provenanceColor(n.provenance.kind)};state.originGroups.set(g.id,g);if(!state.originVisibility.has(g.id))state.originVisibility.set(g.id,true)}rep=groupNodeFor(g)
       }else{displayNodes.push(n);displayById.set(n.id,n)}
     }else{
-      const g=state.originGroups.get(n.provenance.groupId);if(g&&groupShouldCollapse(g))rep=groupNodeFor(g);else{displayNodes.push(n);displayById.set(n.id,n)}state.functionRepresentative.set(n.function.id,rep.id);
+      const forceDynamicPair=state.viewMode!=='groups'&&(n.function?.dynamicMatch||(n.function?.dynamicMatchedBy?.length));
+      const g=state.originGroups.get(n.provenance.groupId);
+      if(g&&groupShouldCollapse(g)&&!forceDynamicPair)rep=groupNodeFor(g);
+      else{displayNodes.push(n);displayById.set(n.id,n)}
+      state.functionRepresentative.set(n.function.id,rep.id);
     }
     repMap.set(n.id,rep);return rep;
   }
@@ -2645,7 +2755,8 @@ function renderGraph(){
     const near=selectedNode&&(e.from===selectedNode||e.to===selectedNode);
     const dim=selectedNode&&!near&&!onPath;
 
-    let col=e.crossFile&&e.kind==='call'?'#6fa8d8':
+    let col=e.kind==='dynamic-match'?'#d7b457':
+            e.crossFile&&e.kind==='call'?'#6fa8d8':
             e.kind==='call'?'#557792':
             e.kind==='address'?'#8b7450':
             e.kind==='hidden'?'#a47fd1':
@@ -2658,7 +2769,7 @@ function renderGraph(){
     drawArrow(
       ctx,x1,y1,x2,y2,col,
       Math.max(.75,(onPath?2.2:near?1.6:1)/z*.72),
-      e.kind==='address'||e.kind==='hidden'||e.crossFile,
+      e.kind==='address'||e.kind==='hidden'||e.crossFile||e.kind==='dynamic-match',
       dim?.10:(onPath||near?1:.38)
     );
 
@@ -2669,6 +2780,15 @@ function renderGraph(){
         ctx.font=`${9/z*clamp(z,.72,1)}px ui-monospace,monospace`;
         ctx.textAlign='center';ctx.textBaseline='bottom';
         ctx.fillText(`+${e.hiddenCount} ${t('hiddenCount')}`,mx,my-4/z);ctx.restore();
+      }
+    }
+    if(e.kind==='dynamic-match'&&z>.34){
+      const mx=(x1+x2)/2,my=(y1+y2)/2;
+      if(mx>=worldMin.x&&mx<=worldMax.x&&my>=worldMin.y&&my<=worldMax.y){
+        ctx.save();ctx.fillStyle='#d7b457';
+        ctx.font=`600 ${8.5/z*clamp(z,.72,1)}px ui-monospace,monospace`;
+        ctx.textAlign='center';ctx.textBaseline='bottom';
+        ctx.fillText(t('resolvesTo'),mx,my-5/z);ctx.restore();
       }
     }
   }
