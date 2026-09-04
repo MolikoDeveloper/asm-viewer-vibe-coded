@@ -388,6 +388,11 @@ dialog::backdrop{background:#0009}
           <option value="normal" data-i18n="cfgNormalEdges">CFG edges: normal</option>
           <option value="exception" data-i18n="cfgExceptionEdges">CFG edges: normal + exception</option>
         </select>
+        <select id="unwindSource" class="viewMode" style="display:none" title="Preferred unwind source">
+          <option value="auto" data-i18n="unwindAuto">Unwind: auto</option>
+          <option value="debug_frame">Unwind: .debug_frame</option>
+          <option value="eh_frame">Unwind: .eh_frame</option>
+        </select>
         <select id="binaryScope" class="viewMode" style="display:none" title="Binary address-space focus">
           <option value="" data-i18n="allAddressSpaces">All address spaces</option>
         </select>
@@ -491,7 +496,7 @@ const els = {
   traceToggle:$('#traceToggle'), tracePane:$('#tracePane'),
   traceTitle:$('#traceTitle'), traceFit:$('#traceFit'), traceCanvas:$('#traceCanvas'), traceCanvasWrap:$('#traceCanvasWrap'), traceEmpty:$('#traceEmpty'),
   graph:$('#graph'), graphPanel:$('#graphPanel'),
-  graphMode:$('#graphMode'), cfgView:$('#cfgView'), cfgEdgeMode:$('#cfgEdgeMode'), binaryScope:$('#binaryScope'), dataflowFilter:$('#dataflowFilter'), dataflowFocus:$('#dataflowFocus'), viewMode:$('#viewMode'), entrySelect:$('#entrySelect'), entryBtn:$('#entryBtn'), fitBtn:$('#fitBtn'), labelsBtn:$('#labelsBtn'),
+  graphMode:$('#graphMode'), cfgView:$('#cfgView'), cfgEdgeMode:$('#cfgEdgeMode'), unwindSource:$('#unwindSource'), binaryScope:$('#binaryScope'), dataflowFilter:$('#dataflowFilter'), dataflowFocus:$('#dataflowFocus'), viewMode:$('#viewMode'), entrySelect:$('#entrySelect'), entryBtn:$('#entryBtn'), fitBtn:$('#fitBtn'), labelsBtn:$('#labelsBtn'),
   entrySummary:$('#entrySummary'), inspector:$('#inspector'), legend:$('#legend'), emptyGraph:$('#emptyGraph'), status:$('#status'), stats:$('#stats'),
   zoomInfo:$('#zoomInfo'), divider:$('#divider'), codePanel:$('#codePanel'), workspace:$('#workspace'),
   pasteDialog:$('#pasteDialog'), pasteArea:$('#pasteArea'), pasteCancel:$('#pasteCancel'), pasteLoad:$('#pasteLoad'),
@@ -505,7 +510,7 @@ const I18N = {
     foldTitle:'Structural ASM folding',folding:'Folding…',collapseFunctions:'− Functions',expandFunctions:'+ Functions',collapseContents:'− Contents',expandContents:'+ Contents',collapseSections:'− Sections',expandSections:'+ Sections',
     groups:'Groups',groupsTitle:'Filter symbol families and sections',flow:'Flow',hideFlow:'Hide flow',flowTitle:'Show/hide flow below ASM',edit:'Edit',inspect:'Inspect',save:'Save',liveParsing:'Live parsing…',liveUpdated:'Graph updated',visibleGroups:'Visible groups',all:'All',none:'None',filterGroups:'Filter groups…',
     dropAsm:'Drop the ASM dump here',dropAsmSub:'It will be loaded as text, without validation.',selectFunctionInstruction:'Select a function or instruction',staticHeuristic:'static · x86-64 dataflow',fit:'Fit',noFlow:'No flow selected',selectCodeOrNode:'Select code or a graph node.',
-    globalCallGraph:'Global call graph',selectedCfg:'Selected function CFG',selectedDataflow:'Selected function dataflow',binaryMap:'Binary map',cfgControl:'CFG: control flow',cfgDominators:'CFG: dominators',cfgLoops:'CFG: loops',cfgNormalEdges:'CFG edges: normal',cfgExceptionEdges:'CFG edges: normal + exception',exceptionEdges:'Exception edges',unwindFrames:'Unwind frames',landingPads:'Landing pads',dominators:'Dominators',immediateDominator:'Immediate dominator',dominanceFrontier:'Dominance frontier',backEdges:'Back edges',naturalLoops:'Natural loops',loopDepth:'Loop depth',criticalEdges:'Critical edges',branchPredicate:'Branch predicate',tailCalls:'Tail calls',unresolvedTransfers:'Unresolved transfers',reachable:'Reachable',pathFromEntry:'Path from entry',allAddressSpaces:'All address spaces',reachabilityRootTitle:'Reachability analysis root',entry:'Entry',entryTitle:'Fit the component reachable from the entrypoint',fitAll:'Fit all',fitAllTitle:'Fit all nodes, including detached nodes',labels:'Labels',auto:'auto',yes:'yes',no:'no',
+    globalCallGraph:'Global call graph',selectedCfg:'Selected function CFG',selectedDataflow:'Selected function dataflow',binaryMap:'Binary map',cfgControl:'CFG: control flow',cfgDominators:'CFG: dominators',cfgLoops:'CFG: loops',cfgNormalEdges:'CFG edges: normal',cfgExceptionEdges:'CFG edges: normal + exception',unwindAuto:'Unwind: auto',exceptionEdges:'Exception edges',unwindFrames:'Unwind frames',landingPads:'Landing pads',dominators:'Dominators',immediateDominator:'Immediate dominator',dominanceFrontier:'Dominance frontier',backEdges:'Back edges',naturalLoops:'Natural loops',loopDepth:'Loop depth',criticalEdges:'Critical edges',branchPredicate:'Branch predicate',tailCalls:'Tail calls',unresolvedTransfers:'Unresolved transfers',reachable:'Reachable',pathFromEntry:'Path from entry',allAddressSpaces:'All address spaces',reachabilityRootTitle:'Reachability analysis root',entry:'Entry',entryTitle:'Fit the component reachable from the entrypoint',fitAll:'Fit all',fitAllTitle:'Fit all nodes, including detached nodes',labels:'Labels',auto:'auto',yes:'yes',no:'no',
     legendFamily:'color = symbol family',legendAddress:'┄ address ref.',legendData:'·· data ref.',legendRelocation:'·· relocation',legendCrossFile:'╌ cross-file call',legendResolve:'·· dynamic resolves-to',legendBridge:'╌ bridge across hidden nodes',loadObjdump:'Load assembly / objdump',loadObjdumpSub:'File, drag & drop, or direct paste.',ready:'Ready.',pasteAsm:'Paste assembly / objdump',pastePlaceholder:'Paste the complete content here…',cancel:'Cancel',load:'Load',
     symbolFamilies:'Symbol families',codeSections:'Code sections',bridgeHidden:'automatically connect through hidden functions',matchDynamic:'match loaded dynamic implementations',addressSpace:'Address space',binarySection:'Binary section',sectionKind:'Section kind',range:'Range',bytes:'Bytes',references:'References',relocations:'Relocations',relocation:'Relocation',formula:'Formula',target:'Target',provider:'Provider',evidence:'Evidence',flags:'Flags',alignment:'Alignment',fileOffset:'File offset',symbols:'Symbols',binaryIndex:'Symbols / Relocs',symbol:'Symbol',symbolVersion:'Symbol version',definedIn:'Defined in',undefinedSymbol:'Undefined',dynamicSymbol:'Dynamic symbol',dynamicSymbols:'Dynamic symbols',neededLibraries:'Needed libraries',linkageSlots:'Linkage slots',expandSlots:'Expand slots',collapseSlots:'Collapse slots',expandData:'Expand data',collapseData:'Collapse data',gotSlot:'GOT slot',addend:'Addend',nobits:'NOBITS',vma:'VMA',lma:'LMA',segments:'Segments',segment:'Segment',permissions:'Permissions',memorySize:'Memory size',fileSize:'File size',loadBias:'Load bias',dataObjects:'Data objects',dataObject:'Data object',stringObject:'String',hexViewer:'Hex / data',decodedText:'Decoded text',openHex:'Open hex',firstReference:'First reference',referencedBy:'Referenced by',runtimeFormula:'Runtime mapping',dynamicMatch:'Dynamic match',pltEntry:'PLT / import stub',implementation:'Implementation',resolvesTo:'resolves to',hiddenLines:'hidden lines',instructionsLower:'instructions',analyzing:'Analyzing ASM…',loadedOk:'ASM loaded. Ctrl+click follows calls; Alt+← returns to the origin.',loadedNoFunctions:'Loaded. No function boundaries were detected.',
     visibleFunctions:'visible functions',directRefs:'direct refs',addressRefs:'address refs',indirectRefs:'indirect refs',reachable:'reachable',noPath:'no path',root:'root',functionsReachable:'reachable functions',noPathFromRoot:'no path from root',noPreviousOrigin:'No previous origin.',origin:'origin',
@@ -576,7 +581,7 @@ function setLanguage(lang,{persist=true}={}){
   }else if(state.lines?.length)els.formatBadge.textContent=t('objdumpInput');
   if(state.editMode)els.editBtn.textContent=t('inspect');
   if(els.binaryScope.options.length)els.binaryScope.options[0].textContent=t('allAddressSpaces');
-  els.dataflowFilter.value=state.dataflowFilter||'important';els.binaryScope.style.display=state.mode==='binary'?'inline-flex':'none';els.dataflowFilter.style.display=state.mode==='dataflow'?'inline-flex':'none';els.dataflowFocus.style.display=state.mode==='dataflow'?'inline-flex':'none';els.viewMode.style.display=state.mode==='calls'?'inline-flex':'none';els.entrySelect.style.display=state.mode==='calls'?'inline-flex':'none';els.entryBtn.style.display=state.mode==='calls'?'inline-flex':'none';
+  els.dataflowFilter.value=state.dataflowFilter||'important';els.unwindSource.value=state.unwindSource||'auto';els.unwindSource.style.display=workspaceHasUnwind()?'inline-flex':'none';els.binaryScope.style.display=state.mode==='binary'?'inline-flex':'none';els.dataflowFilter.style.display=state.mode==='dataflow'?'inline-flex':'none';els.dataflowFocus.style.display=state.mode==='dataflow'?'inline-flex':'none';els.viewMode.style.display=state.mode==='calls'?'inline-flex':'none';els.entrySelect.style.display=state.mode==='calls'?'inline-flex':'none';els.entryBtn.style.display=state.mode==='calls'?'inline-flex':'none';
   renderWorkspaceFiles();
   state.dirty=true;state.traceDirty=true;
 }
@@ -668,7 +673,7 @@ const state = {
   visibleRows:[], rowOfLine:null, familyInfo:new Map(), familyVisibility:new Map(), sectionVisibility:new Map(),
   originGroups:new Map(), originVisibility:new Map(), expandedOriginGroups:new Set(), functionRepresentative:new Map(),
   groupViewStack:[],
-  viewMode:'boundaries', cfgView:'control', cfgEdgeMode:'normal', cfgPathStartId:null, cfgPathBlockIds:[], dataflowFilter:'important', dataflowFocus:'', dwarf:null, projectRoots:[], selectedOriginGroupId:null,
+  viewMode:'boundaries', cfgView:'control', cfgEdgeMode:'normal', unwindSource:'auto', cfgPathStartId:null, cfgPathBlockIds:[], dataflowFilter:'important', dataflowFocus:'', dwarf:null, projectRoots:[], selectedOriginGroupId:null,
   inputKind:'objdump', inputMeta:null, explicitEntrySymbols:[],
   editMode:false, editTimer:null, editRevision:0,
   workspaceFiles:new Map(), workspaceOrder:[], activeFileId:null, workspaceRevision:0,
@@ -690,6 +695,7 @@ const decoder = new TextDecoder();
 
 function setStatus(msg){ els.status.textContent = msg; }
 function safeHex(n){ return Number.isFinite(n) ? '0x'+n.toString(16) : '—'; }
+function workspaceHasUnwind(){return [...state.workspaceFiles.values()].some(r=>r?.parsed?.unwind?.available)}
 function clamp(v,a,b){ return Math.max(a,Math.min(b,v)); }
 function escapeHtml(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
@@ -1514,6 +1520,11 @@ function dwarfRegisterName(reg,architecture='x86-64'){
       'xmm0','xmm1','xmm2','xmm3','xmm4','xmm5','xmm6','xmm7','xmm8','xmm9','xmm10','xmm11','xmm12','xmm13','xmm14','xmm15'];
     if(Number.isInteger(reg)&&reg>=0&&reg<names.length)return names[reg];
   }
+  if(architecture==='x86-32'){
+    const names=['eax','ecx','edx','ebx','esp','ebp','esi','edi','eip','eflags','st0','st1','st2','st3','st4','st5','st6','st7',
+      'xmm0','xmm1','xmm2','xmm3','xmm4','xmm5','xmm6','xmm7'];
+    if(Number.isInteger(reg)&&reg>=0&&reg<names.length)return names[reg];
+  }
   return `DWREG${reg}`;
 }
 const DW_OP={
@@ -1645,6 +1656,18 @@ function cfiRuleKey(rule){
 function cfiStateKey(state){
   return `${cfiRuleKey(state?.cfa)}|${[...(state?.registerRules||new Map())].sort((a,b)=>a[0]-b[0]).map(([r,v])=>`${r}=${cfiRuleKey(v)}`).join(';')}|args:${state?.argsSize??''}|ra:${state?.raState?1:0}`;
 }
+function cfiStateMutation(before,after){
+  const changes=[];
+  if(cfiRuleKey(before?.cfa)!==cfiRuleKey(after?.cfa))changes.push(`CFA ${cfiRuleKey(before?.cfa)} → ${cfiRuleKey(after?.cfa)}`);
+  const regs=new Set([...(before?.registerRules||new Map()).keys(),...(after?.registerRules||new Map()).keys()]);
+  for(const reg of [...regs].sort((a,b)=>a-b)){
+    const a=cfiRuleKey(before?.registerRules?.get(reg)),b=cfiRuleKey(after?.registerRules?.get(reg));
+    if(a!==b)changes.push(`r${reg}: ${a} → ${b}`);
+  }
+  if((before?.argsSize??null)!==(after?.argsSize??null))changes.push(`args ${before?.argsSize??'—'} → ${after?.argsSize??'—'}`);
+  if(!!before?.raState!==!!after?.raState)changes.push(`RA state ${before?.raState?'on':'off'} → ${after?.raState?'on':'off'}`);
+  return changes;
+}
 function cfiRuleDisplay(rule,architecture='x86-64',isCfa=false){
   if(!rule)return isCfa?'unknown':'same value';
   const rn=r=>dwarfRegisterName(r,architecture),signed=n=>`${n>=0?'+':''}${n}`;
@@ -1682,7 +1705,7 @@ function decodeDwarfCfiProgram(bytes,{cie,startAddress=0,endAddress=null,ptrSize
   const diag=(offset,opcode,reason,severity='warning')=>diagnostics.push({offset,opcode,address:Number.isFinite(startAddress)?startAddress:0,pc,reason,severity});
   try{
     while(r.pos<r.end){
-      const opOffset=r.pos,opcode=r.u8(),primary=opcode&0xc0,operand=opcode&0x3f,pcBefore=pc;
+      const opOffset=r.pos,opcode=r.u8(),primary=opcode&0xc0,operand=opcode&0x3f,pcBefore=pc,beforeState=cloneCfiState(state);
       let name='',detail='';
       if(primary===0x40){name='DW_CFA_advance_loc';advance(operand);detail=`+${operand} * ${codeAlignment}`}
       else if(primary===0x80){name='DW_CFA_offset';const fact=r.uleb(),off=fact*dataAlignment;state.registerRules.set(operand,{kind:'offset',offset:off,factor:fact});detail=`${operand} @ CFA ${off>=0?'+':''}${off}`}
@@ -1716,7 +1739,8 @@ function decodeDwarfCfiProgram(bytes,{cie,startAddress=0,endAddress=null,ptrSize
         default:
           name=`DW_CFA_0x${opcode.toString(16)}`;diag(opOffset,opcode,`unsupported CFI opcode 0x${opcode.toString(16)}; remaining program bytes cannot be decoded safely`,'error');parseComplete=false;r.pos=r.end;break;
       }
-      operations.push({offset:opOffset,opcode,name,detail,pcBefore,pcAfter:pc});
+      const mutation=cfiStateMutation(beforeState,state);
+      operations.push({offset:opOffset,opcode,name,detail,pcBefore,pcAfter:pc,mutation,stateChanged:mutation.length>0});
     }
   }catch(err){diag(r.pos,null,String(err?.message||err),'error');parseComplete=false}
   if(emitRows&&Number.isFinite(endAddress)&&pc<endAddress)emitUntil(endAddress);
@@ -1732,14 +1756,20 @@ function decodeEhFrameCfi(frame,{ptrSize=8,littleEndian=frame?.littleEndian!==fa
   const diagnostics=[];
   for(const cie of frame.cies||[]){
     const decoded=decodeDwarfCfiProgram(cie.instructions,{cie,ptrSize,littleEndian,initialState:{registerRules:new Map()},restoreState:{registerRules:new Map()},emitRows:false});
-    cie.initialCfiState=decoded.finalState;cie.cfiOperations=decoded.operations.map(op=>({...op,byteAddress:Number.isFinite(cie.instructionsAddress)?cie.instructionsAddress+op.offset:null}));
+    cie.initialCfiState=decoded.finalState;cie.cfiOperations=decoded.operations.map((op,i,ops)=>({...op,
+      byteAddress:Number.isFinite(cie.instructionsAddress)?cie.instructionsAddress+op.offset:null,
+      byteEnd:Number.isFinite(cie.instructionsAddress)?cie.instructionsAddress+(ops[i+1]?.offset??cie.instructions.length):null
+    }));
     cie.cfiDiagnostics=decoded.diagnostics.map(d=>({...d,byteStart:Number.isFinite(cie.instructionsAddress)?cie.instructionsAddress+d.offset:null,byteEnd:Number.isFinite(cie.instructionsAddress)?cie.instructionsAddress+d.offset+1:null}));cie.cfiParseComplete=decoded.parseComplete;
     for(const d of cie.cfiDiagnostics)diagnostics.push({...d,cie,entryAddress:cie.address});
   }
   for(const fde of frame.fdes||[]){
     const base=fde.cie?.initialCfiState||{registerRules:new Map()};
     const decoded=decodeDwarfCfiProgram(fde.instructions,{cie:fde.cie,ptrSize,littleEndian,startAddress:fde.startAddress,endAddress:fde.endAddress,initialState:base,restoreState:base,emitRows:true});
-    fde.unwindRows=decoded.rows;fde.cfiOperations=decoded.operations.map(op=>({...op,byteAddress:Number.isFinite(fde.instructionsAddress)?fde.instructionsAddress+op.offset:null}));
+    fde.unwindRows=decoded.rows;fde.cfiOperations=decoded.operations.map((op,i,ops)=>({...op,
+      byteAddress:Number.isFinite(fde.instructionsAddress)?fde.instructionsAddress+op.offset:null,
+      byteEnd:Number.isFinite(fde.instructionsAddress)?fde.instructionsAddress+(ops[i+1]?.offset??fde.instructions.length):null
+    }));
     fde.cfiDiagnostics=decoded.diagnostics.map(d=>({...d,byteStart:Number.isFinite(fde.instructionsAddress)?fde.instructionsAddress+d.offset:null,byteEnd:Number.isFinite(fde.instructionsAddress)?fde.instructionsAddress+d.offset+1:null}));fde.cfiParseComplete=decoded.parseComplete;
     for(const d of fde.cfiDiagnostics)diagnostics.push({...d,fde,entryAddress:fde.address});
   }
@@ -1881,6 +1911,45 @@ function preferredFdeForPc(unwind,pc,{source='auto'}={}){
     :`${fde.sourceLabel||fde.sourceKind} selected by requested source`;
   return fde;
 }
+function compareUnwindSourcesAtPc(unwind,pc){
+  if(!unwind||!Number.isFinite(pc))return null;
+  const debug=preferredFdeForPc(unwind,pc,{source:'debug_frame'}),eh=preferredFdeForPc(unwind,pc,{source:'eh_frame'});
+  if(!debug||!eh)return {comparable:false,debug,eh,reason:'PC is not covered by both .debug_frame and .eh_frame'};
+  const dr=cfiRowForPc(debug,pc),er=cfiRowForPc(eh,pc);
+  if(!dr||!er)return {comparable:false,debug,eh,debugRow:dr,ehRow:er,reason:'one frame source has no decoded CFI row for this PC'};
+  const dkey=cfiStateKey(dr),ekey=cfiStateKey(er),same=dkey===ekey;
+  return {
+    comparable:true,same,debug,eh,debugRow:dr,ehRow:er,
+    evidence:same?'both frame sources produce the same normalized CFI state at this PC':'frame sources disagree materially at this PC',
+    debugSummary:cfiRowSummary(dr,debug),ehSummary:cfiRowSummary(er,eh)
+  };
+}
+function normalizedUnwindRecipeIr(unwind,pc,{source='auto'}={}){
+  const fde=preferredFdeForPc(unwind,pc,{source});if(!fde)return null;
+  const row=cfiRowForPc(fde,pc);if(!row)return null;
+  const architecture=fdeArchitecture(fde),serializeRule=rule=>{
+    if(!rule)return null;
+    const out={kind:rule.kind||'unknown'};
+    for(const key of ['register','offset','factor'])if(rule[key]!=null)out[key]=rule[key];
+    if(rule.expressionIr)out.expression={
+      bytes:[...(rule.expressionIr.bytes||[])],
+      parseComplete:!!rule.expressionIr.parseComplete,
+      operations:(rule.expressionIr.operations||[]).map(op=>({offset:op.offset,opcode:op.opcode,name:op.name,args:[...(op.args||[])]})),
+      diagnostics:(rule.expressionIr.diagnostics||[]).map(d=>({offset:d.offset,opcode:d.opcode??null,severity:d.severity||'warning',reason:d.reason}))
+    };
+    return out;
+  };
+  return {
+    schema:'asm-graph.unwind-recipe/v1',pc,sourceKind:fde.sourceKind,sourceLabel:fde.sourceLabel,
+    fde:{startAddress:fde.startAddress,endAddress:fde.endAddress,address:fde.address,cieAddress:fde.cieAddress},
+    architecture,pointerSize:fde.cie?.addressSize||unwind.ptrSize||8,littleEndian:unwind.littleEndian!==false,
+    row:{startAddress:row.startAddress,endAddress:row.endAddress,cfa:serializeRule(row.cfa),returnAddressRegister:fde.cie?.returnRegister,
+      returnAddressRule:serializeRule(row.returnAddressRule),
+      registerRules:[...(row.registerRules||new Map())].map(([reg,rule])=>({register:reg,name:dwarfRegisterName(reg,architecture),rule:serializeRule(rule)})),
+      argsSize:row.argsSize??0,raState:!!row.raState},
+    evidence:fde.selectionEvidence||'exact PC coverage'
+  };
+}
 function cfiRuleForRegister(row,reg){return row?.registerRules?.get(reg)||{kind:'same-value'}}
 function evaluateCfiCfa(row,fde,snapshot={}){
   const rule=row?.cfa,architecture=fdeArchitecture(fde),ptrSize=snapshot.ptrSize||fde?.cie?.addressSize||8,littleEndian=snapshot.littleEndian!==false;
@@ -1919,6 +1988,47 @@ function evaluateCfiRegisterRule(rule,reg,row,fde,snapshot,cfa){
     return v==null?{known:false,register:reg,name,kind:rule.kind,location:Number(address),reason:`memory unavailable at 0x${address.toString(16)}`,expression:rule.expressionIr}:{known:true,register:reg,name,kind:rule.kind,location:Number(address),value:v<=BigInt(Number.MAX_SAFE_INTEGER)?Number(v):v,bigint:v,expression:rule.expressionIr};
   }
   return {known:false,register:reg,name,kind:rule.kind,reason:`unsupported register rule ${rule.kind}`};
+}
+function normalizeUnwindSnapshot(snapshot={}){
+  const registers=snapshot.registers instanceof Map?new Map(snapshot.registers):new Map(Object.entries(snapshot.registers||{})),
+        ptrSize=Number(snapshot.ptrSize)||8,littleEndian=snapshot.littleEndian!==false,
+        moduleLoadBias=Number.isFinite(snapshot.moduleLoadBias)?snapshot.moduleLoadBias:0,
+        staticBase=Number.isFinite(snapshot.staticBase)?snapshot.staticBase:0;
+  return {
+    registers,memory:snapshot.memory||null,readMemory:typeof snapshot.readMemory==='function'?snapshot.readMemory:null,
+    ptrSize,littleEndian,moduleLoadBias,staticBase,
+    runtimeToStatic:addr=>Number(addr)-moduleLoadBias+staticBase,
+    staticToRuntime:addr=>Number(addr)-staticBase+moduleLoadBias
+  };
+}
+function serializeUnwindEvaluation(result){
+  if(!result)return null;
+  const regRows=result.registers instanceof Map?[...result.registers.entries()].map(([register,v])=>({
+    register,name:v?.name||'',kind:v?.kind||'',known:!!v?.known,
+    value:typeof v?.value==='bigint'?`0x${v.value.toString(16)}`:v?.value??null,
+    location:Number.isFinite(v?.location)?v.location:null,reason:v?.reason||null
+  })):[];
+  return {
+    schema:'asm-graph.unwind-evaluation/v1',known:!!result.known,pc:result.pc??null,runtimePc:result.runtimePc??null,
+    sourceKind:result.sourceKind||null,sourceLabel:result.sourceLabel||null,
+    cfa:result.cfa?{known:!!result.cfa.known,value:typeof result.cfa.value==='bigint'?`0x${result.cfa.value.toString(16)}`:result.cfa.value??null,reason:result.cfa.reason||null}:null,
+    returnAddress:result.returnAddress?{known:!!result.returnAddress.known,value:typeof result.returnAddress.value==='bigint'?`0x${result.returnAddress.value.toString(16)}`:result.returnAddress.value??null,reason:result.returnAddress.reason||null}:null,
+    registers:regRows,evidence:result.evidence||null,reason:result.reason||null
+  };
+}
+function evaluateUnwindRequest(unwind,request={}){
+  const snapshot=normalizeUnwindSnapshot(request.snapshot||request),runtimePc=Number(request.runtimePc??request.pc);
+  if(!Number.isFinite(runtimePc))return {schema:'asm-graph.unwind-evaluation/v1',known:false,reason:'runtime/static PC is required'};
+  const staticPc=request.runtimePc!=null?snapshot.runtimeToStatic(runtimePc):runtimePc,
+        source=request.source||'auto',
+        result=evaluateStaticUnwindRecipe(unwind,staticPc,snapshot,{source});
+  result.runtimePc=request.runtimePc!=null?runtimePc:snapshot.staticToRuntime(staticPc);
+  result.staticPc=staticPc;result.snapshotContract={
+    schema:'asm-graph.unwind-snapshot/v1',ptrSize:snapshot.ptrSize,littleEndian:snapshot.littleEndian,
+    moduleLoadBias:snapshot.moduleLoadBias,staticBase:snapshot.staticBase,
+    registerFile:'Map<number|string,bigint|number> or object',memory:'readMemory(address,size) or byte/value Map'
+  };
+  return serializeUnwindEvaluation(result);
 }
 function evaluateStaticUnwindRecipe(unwind,pc,snapshot={},options={}){
   const fde=preferredFdeForPc(unwind,pc,options);if(!fde)return {known:false,pc,reason:'no FDE covers PC'};
@@ -3821,6 +3931,7 @@ function configureEntrypoints(){
 }
 
 function updateStats(){
+  els.unwindSource.style.display=workspaceHasUnwind()?'inline-flex':'none';els.unwindSource.value=state.unwindSource||'auto';
   const direct=state.calls.filter(e=>e.to).length,indirect=state.calls.filter(e=>e.indirect).length,addrRefs=state.addressRefs.length,visibleFns=state.functions.filter(functionVisible).length,staticGroups=[...state.originGroups.values()].filter(g=>g.kind==='native-static').length;
   const kinds=new Set(state.workspaceOrder.map(id=>state.workspaceFiles.get(id)?.inputKind).filter(Boolean));
   const mappedLabel=kinds.size>1?'mapped':kinds.has('fasm-source')?t('sourceMapped'):t('dwarfMapped');
@@ -4097,7 +4208,7 @@ function renderHexViewer(force=false){
     const rels=state.relocations.filter(rel=>rel.workspaceFileId===fileId&&Number.isFinite(rel.storageAddress)&&rel.storageAddress>=addr&&rel.storageAddress<rowEnd);
     const unwind=state.workspaceFiles.get(fileId)?.parsed?.unwind||null,
           frameEntries=[...(unwind?.cies||[]),...(unwind?.fdes||[])].filter(x=>x.section===target.section&&Number.isFinite(x.address)&&x.address>=addr&&x.address<rowEnd),
-          cfiOps=(unwind?.fdes||[]).filter(f=>f.section===target.section).flatMap(f=>(f.cfiOperations||[]).map(op=>({op,fde:f}))).filter(x=>Number.isFinite(x.op.byteAddress)&&x.op.byteAddress>=addr&&x.op.byteAddress<rowEnd),
+          cfiOps=(unwind?.fdes||[]).filter(f=>f.section===target.section).flatMap(f=>(f.cfiOperations||[]).map(op=>({op,fde:f}))).filter(x=>Number.isFinite(x.op.byteAddress)&&(x.op.byteEnd??x.op.byteAddress+1)>addr&&x.op.byteAddress<rowEnd),
           lsdaStarts=(unwind?.lsdas||[]).filter(l=>l.section===target.section&&Number.isFinite(l.address)&&l.address>=addr&&l.address<rowEnd),
           lsdaParts=(unwind?.lsdas||[]).filter(l=>l.section===target.section).flatMap(l=>[
             {address:l.callSiteTableAddress,label:'LSDA:call-site'},
@@ -4108,7 +4219,7 @@ function renderHexViewer(force=false){
     if(syms[0])annotations.push(`S:${syms[0].name}`);
     if(rels[0])annotations.push(`R:${rels[0].type} ${rels[0].symbol||''}`);
     for(const e of frameEntries.slice(0,2))annotations.push(`${e.kind}:${e.sourceLabel||e.sourceKind||'frame'}`);
-    for(const x of cfiOps.slice(0,2))annotations.push(`CFI:${x.op.name}`);
+    for(const x of cfiOps.slice(0,2))annotations.push(`CFI:${x.op.name}[${Math.max(1,(x.op.byteEnd??x.op.byteAddress+1)-x.op.byteAddress)}B]`);
     for(const l of lsdaStarts.slice(0,1))annotations.push('LSDA:header');
     for(const part of lsdaParts.slice(0,2))annotations.push(part.label);
     const attrs=objs[0]?` data-hex-object="${escapeHtml(objs[0].id)}"`:rels[0]?` data-hex-reloc="${escapeHtml(rels[0].id)}"`:syms[0]?` data-hex-symbol="${escapeHtml(syms[0].id)}"`:'';
@@ -4226,6 +4337,74 @@ function openBinaryIndex(mode='symbols'){
 
 function dataObjectLabel(obj){return obj?.name||obj?.stringText||obj?.text||obj?.kind||safeHex(obj?.address||0)}
 function objectSize(obj){return Math.max(1,Number(obj?.size)||1)}
+function openCfiTimeline(fde,pc=null){
+  if(!fde){setStatus('No FDE selected');return}
+  const ops=fde.cfiOperations||[],cieOps=fde.cie?.cfiOperations||[],activeRow=Number.isFinite(pc)?cfiRowForPc(fde,pc):null,
+        arch=fdeArchitecture(fde),unwind=state.workspaceFiles.get(fde.section?.workspaceFileId)?.parsed?.unwind||null,
+        conflict=Number.isFinite(pc)?compareUnwindSourcesAtPc(unwind,pc):null,
+        recipe=Number.isFinite(pc)?normalizedUnwindRecipeIr(unwind,pc,{source:state.unwindSource}):null;
+  const opRows=ops.slice(0,240).map((op,i)=>{
+    const active=Number.isFinite(pc)&&Number.isFinite(op.pcBefore)&&pc>=op.pcBefore&&pc<Math.max(op.pcAfter,op.pcBefore+1);
+    return `<div class="dataObjectRow${active?' active':''}">
+      <span>${Number.isFinite(op.byteAddress)?safeHex(op.byteAddress):`+${op.offset}`}${Number.isFinite(op.byteEnd)?`..${safeHex(op.byteEnd)}`:''}</span>
+      <span>${escapeHtml(op.name)}${op.detail?` · ${escapeHtml(op.detail)}`:''}<br><span class="muted">${safeHex(op.pcBefore)} → ${safeHex(op.pcAfter)}${op.mutation?.length?` · ${escapeHtml(op.mutation.join(' · '))}`:' · no rule change'}</span></span>
+      <span><button data-cfi-op-hex="${i}">Hex</button>${Number.isFinite(op.pcAfter)?` <button data-cfi-op-pc="${i}">PC</button>`:''}</span>
+    </div>`;
+  }).join('');
+  els.inspector.innerHTML=`<div class="title">CFI timeline · ${escapeHtml(fde.sourceLabel||fde.sourceKind||'frame')}</div>
+    <div class="meta">
+      <b>FDE</b><span>${safeHex(fde.startAddress)}..${safeHex(fde.endAddress)}</span>
+      <b>CIE</b><span>${safeHex(fde.cieAddress)} · ${escapeHtml(fde.cie?.augmentation||'')}</span>
+      <b>Operations</b><span>${num(ops.length)} FDE · ${num(cieOps.length)} CIE</span>
+      <b>Rows</b><span>${num(fde.unwindRows?.length||0)}</span>
+      <b>Selected source</b><span>${escapeHtml(fde.selectionEvidence||fde.sourceLabel||'exact coverage')}</span>
+      <b>PC</b><span>${Number.isFinite(pc)?safeHex(pc):'—'}</span>
+    </div>
+    ${activeRow?`<div class="path"><b>ACTIVE UNWIND ROW</b><br>${escapeHtml(cfiRowSummary(activeRow,fde))}</div>`:''}
+    ${conflict?.comparable?`<div class="path"><b>FRAME-SOURCE COMPARISON</b><br>${conflict.same?'equivalent':'DIFFERS'} · ${escapeHtml(conflict.evidence)}<br>.debug_frame: ${escapeHtml(conflict.debugSummary)}<br>.eh_frame: ${escapeHtml(conflict.ehSummary)}</div>`:''}
+    ${recipe?`<div class="path"><b>NORMALIZED RECIPE IR</b><br>${escapeHtml(recipe.schema)} · ${escapeHtml(recipe.sourceLabel||recipe.sourceKind||'')} · ${safeHex(recipe.row.startAddress)}..${safeHex(recipe.row.endAddress)}<br>CFA ${escapeHtml(recipe.row.cfa?.kind||'unknown')} · ${num(recipe.row.registerRules.length)} register rules · ptr ${recipe.pointerSize} B · ${recipe.littleEndian?'LE':'BE'}</div>`:''}
+    <div class="actions"><button data-cfi-cie>Open CIE</button>${Number.isFinite(fde.address)?`<button data-cfi-fde-hex>FDE hex</button>`:''}</div>
+    <div class="dataObjectList"><b>DW_CFA_* TIMELINE</b>${opRows}${ops.length>240?`<div class="path">… ${num(ops.length-240)} more operations</div>`:''}</div>`;
+  els.inspector.classList.remove('hidden');
+
+  const goPc=addr=>{
+    const fn=fde.function||state.functions.find(f=>f.addr<=addr&&f.endAddr>=addr);
+    const inst=fn?.instructions?.find(i=>i.addr===addr)||fn?.instructions?.find(i=>i.addr>=addr);
+    if(inst){selectInstruction(inst,{origin:false});scrollToLine(inst.line,true)}
+  };
+  els.inspector.querySelectorAll('[data-cfi-op-hex]').forEach(btn=>btn.addEventListener('click',()=>{
+    const op=ops[Number(btn.dataset.cfiOpHex)];
+    if(op&&fde.section&&Number.isFinite(op.byteAddress))openHexViewer({section:fde.section,address:op.byteAddress,size:Math.max(1,(op.byteEnd??op.byteAddress+1)-op.byteAddress),name:`${op.name} · ${safeHex(op.byteAddress)}`});
+  }));
+  els.inspector.querySelectorAll('[data-cfi-op-pc]').forEach(btn=>btn.addEventListener('click',()=>{
+    const op=ops[Number(btn.dataset.cfiOpPc)];if(op&&Number.isFinite(op.pcAfter))goPc(op.pcAfter);
+  }));
+  els.inspector.querySelector('[data-cfi-fde-hex]')?.addEventListener('click',()=>{
+    if(fde.section&&Number.isFinite(fde.address))openHexViewer({section:fde.section,address:fde.address,size:Math.max(4,(fde.length||0)+4),name:`FDE ${safeHex(fde.address)}`});
+  });
+  els.inspector.querySelector('[data-cfi-cie]')?.addEventListener('click',()=>openCieInspector(fde.cie,fde));
+}
+function openCieInspector(cie,fde=null){
+  if(!cie)return;
+  const ops=cie.cfiOperations||[],arch=fdeArchitecture(fde);
+  els.inspector.innerHTML=`<div class="title">${escapeHtml(cie.sourceLabel||cie.sourceKind||'frame')} CIE · ${safeHex(cie.address)}</div>
+    <div class="meta">
+      <b>Version</b><span>${num(cie.version||0)}</span><b>Augmentation</b><span>${escapeHtml(cie.augmentation||'')}</span>
+      <b>Code alignment</b><span>${cie.codeAlignment}</span><b>Data alignment</b><span>${cie.dataAlignment}</span>
+      <b>Return register</b><span>${dwarfRegisterName(cie.returnRegister,arch)} (${cie.returnRegister})</span>
+      <b>Operations</b><span>${num(ops.length)}</span><b>Source</b><span>${escapeHtml(cie.sourceLabel||cie.sourceKind||'')}</span>
+    </div>
+    <div class="path"><b>INITIAL CFI STATE</b><br>${escapeHtml(cfiStateSummary(cie.initialCfiState,cie.returnRegister,arch))}</div>
+    <div class="actions">${fde?`<button data-cie-back>Back to FDE</button>`:''}<button data-cie-hex>CIE hex</button></div>
+    <div class="dataObjectList"><b>CIE CFI OPERATIONS</b>${ops.slice(0,160).map((op,i)=>`<div class="dataObjectRow"><span>${Number.isFinite(op.byteAddress)?safeHex(op.byteAddress):`+${op.offset}`}</span><span>${escapeHtml(op.name)}${op.detail?` · ${escapeHtml(op.detail)}`:''}</span><button data-cie-op-hex="${i}">Hex</button></div>`).join('')}</div>`;
+  els.inspector.classList.remove('hidden');
+  els.inspector.querySelector('[data-cie-back]')?.addEventListener('click',()=>openCfiTimeline(fde,fde?.startAddress));
+  els.inspector.querySelector('[data-cie-hex]')?.addEventListener('click',()=>cie.section&&openHexViewer({section:cie.section,address:cie.address,size:Math.max(4,(cie.length||0)+4),name:`CIE ${safeHex(cie.address)}`}));
+  els.inspector.querySelectorAll('[data-cie-op-hex]').forEach(btn=>btn.addEventListener('click',()=>{
+    const op=ops[Number(btn.dataset.cieOpHex)];if(op&&cie.section&&Number.isFinite(op.byteAddress))openHexViewer({section:cie.section,address:op.byteAddress,size:Math.max(1,(op.byteEnd??op.byteAddress+1)-op.byteAddress),name:`${op.name} · ${safeHex(op.byteAddress)}`});
+  }));
+}
+
 function updateInspector(item){
   if(!item){els.inspector.classList.add('hidden');return}
   let html='';
@@ -4379,7 +4558,7 @@ function updateInspector(item){
           stackReads=info?.stackReads||[],stackWrites=info?.stackWrites||[],memoryOperands=info?.memoryOperands||[],
           memoryReads=info?.memoryReads||[],memoryWrites=info?.memoryWrites||[],memoryInvalidations=info?.memoryInvalidations||[],
           instUnwind=state.workspaceFiles.get(inst.function?.workspaceFileId)?.parsed?.unwind||null,
-          instFde=preferredFdeForPc(instUnwind,inst.addr),
+          instFde=preferredFdeForPc(instUnwind,inst.addr,{source:state.unwindSource}),
           instCfi=instFde?cfiRowForPc(instFde,inst.addr):null;
     html=`<div class="title">${escapeHtml(`${inst.mnemonic} ${inst.operands}`.trim())}</div><div class="meta">
       <b>${t('function')}</b><span>${escapeHtml(functionDisplayName(inst.function))}</span>
@@ -4400,7 +4579,7 @@ function updateInspector(item){
       <b>${t('defines')}</b><span>${num(defs.length)}</span>
       ${info?.branchOutcome!==undefined?`<b>Branch outcome</b><span>${info.branchOutcome?'taken':'not taken'} · ${escapeHtml(info.branchEvidence||'static')}</span>`:''}
     </div>
-    ${instCfi?`<div class="path"><b>CFI / STACK UNWIND @ INSTRUCTION</b><br>${escapeHtml(cfiRowSummary(instCfi,instFde))}${instCfi.cfa?.expressionIr?`<br>CFA expression: ${escapeHtml(dwarfExpressionSummary(instCfi.cfa.expressionIr,fdeArchitecture(instFde)))}`:''}</div>`:''}
+    ${instCfi?`<div class="path"><b>CFI / STACK UNWIND @ INSTRUCTION</b><br>${escapeHtml(cfiRowSummary(instCfi,instFde))}${instCfi.cfa?.expressionIr?`<br>CFA expression: ${escapeHtml(dwarfExpressionSummary(instCfi.cfa.expressionIr,fdeArchitecture(instFde)))}`:''}<br><button data-action="cfi-timeline">CFI timeline</button> <button data-action="cfi-cie">CIE</button></div>`:''}
     ${uses.length?`<div class="dataObjectList"><b>${t('uses')}</b>${uses.map(u=>`<div class="dataObjectRow"><span>${escapeHtml(u.role)}</span><span>${escapeHtml(valueDisplay(u.value))}</span><button data-flow-value="${escapeHtml(u.value.id)}">→</button></div>`).join('')}</div>`:''}
     ${defs.length?`<div class="dataObjectList"><b>${t('defines')}</b>${defs.map(d=>`<div class="dataObjectRow"><span>${escapeHtml(d.role)}</span><span>${escapeHtml(valueDisplay(d.value))}</span><button data-flow-value="${escapeHtml(d.value.id)}">→</button></div>`).join('')}</div>`:''}
     ${stackReads.length?`<div class="path"><b>STACK READS</b><br>${stackReads.map(x=>`${escapeHtml(x.slot.label)} ← ${escapeHtml(valueDisplay(x.value))}`).join('<br>')}</div>`:''}
@@ -4480,7 +4659,7 @@ function updateInspector(item){
           exceptionOut=db?(advanced?.exceptionEdges||[]).filter(e=>e.from===db):[],
           exceptionIn=db?(advanced?.exceptionEdges||[]).filter(e=>e.to===db):[],
           blockPc=Number.isFinite(item.startAddr)?item.startAddr:item.instructions?.[0]?.addr,
-          blockFde=preferredFdeForPc(advanced?.unwind,blockPc),
+          blockFde=preferredFdeForPc(advanced?.unwind,blockPc,{source:state.unwindSource}),
           blockCfi=blockFde?cfiRowForPc(blockFde,blockPc):null;
     html=`<div class="title">${escapeHtml(item.label)}</div><div class="meta">
       <b>${t('function')}</b><span>${escapeHtml(functionDisplayName(item.function))}</span>
@@ -4541,7 +4720,7 @@ function updateInspector(item){
     ${item.dynamicMatchedBy?.length?`<div class="path"><b>${t('dynamicMatch')}</b><br>${item.dynamicMatchedBy.map(x=>`${escapeHtml(x.name)} · ${safeHex(x.addr)} · ${escapeHtml(x.addressSpaceLabel||'')}`).join('<br>')}</div>`:''}
     ${df?`<div class="path"><b>STATIC ANALYSIS SUMMARY</b><br>${escapeHtml(df.architecture||'unknown')} · ${escapeHtml(df.adapter?.id||'unsupported')} · ${num(df.values?.length||0)} values · ${num(df.phiValues?.length||0)} phi · ${num(df.values?.filter(v=>v.kind==='memory-version').length||0)} memory versions · ${num(df.values?.filter(v=>v.kind==='memory-slice'||v.kind==='memory-composite').length||0)} memory slices/composites · ${num(df.values?.filter(v=>v.kind==='memory-clobber').length||0)} memory clobbers · memory cells peak ${num(df.memoryCellPeak||0)}/${num(df.memoryCellBudget||0)}${df.memoryFragmentCollapses?` · ${num(df.memoryFragmentCollapses)} fragmentation collapses`:''} · ${num(df.analysisBarriers?.length||0)} barriers<br>value FP ${df.fixedPointConverged?'converged':'partial'} (${num(df.fixedPointIterations||0)}) · full-state FP ${df.stateFixedPointConverged?'converged':'partial'} (${num(df.stateFixedPointIterations||0)}/${num(df.stateFixedPointBudget||0)}) · loop headers ${num(df.loopBlocks?.length||0)}${df.stateDomainConvergence?`<br>${Object.entries(df.stateDomainConvergence).map(([k,v])=>`${escapeHtml(k)}=${v.converged?'ok':'partial'}@${num(v.iterations||0)}`).join(' · ')}`:''}</div>`:''}
     ${cfg?`<div class="path"><b>ADVANCED CFG</b><br>${num(cfg.blocks.length)} blocks · ${num(cfg.reachable.size)} reachable${cfg.exceptionOnlyReachable?.size?` (${num(cfg.exceptionOnlyReachable.size)} exception-only)`:''} · dominators ${num(cfg.domIterations)} iterations · ${num(cfg.backEdges.length)} back edges · ${num(cfg.loops.length)} natural loops · ${num(cfg.irreducibleRegions?.length||0)} irreducible SCCs · ${num(cfg.criticalEdges.length)} critical edges · ${num(cfg.functionFdes?.length||0)} unwind FDEs · ${num(cfg.exceptionEdges?.length||0)} exception edges · ${num(cfg.jumpTables.length)} jump-table candidates · ${num(cfg.indirectCallCandidates?.length||0)} indirect calls · ${num(cfg.indirectJumpCandidates?.length||0)} indirect jumps · ${num(cfg.tailCalls.length)} tail calls · ${num(cfg.unresolvedTransfers.length)} unresolved transfers · noreturn ${cfg.structuralNoReturn?'structurally proven':'not proven'}${cfg.loops.length?`<br>${cfg.loops.slice(0,8).map(l=>`loop depth ${l.depth}: header ${escapeHtml(cfgBlockTitle(l.header,item))} · ${num(l.nodes.size)} blocks`).join('<br>')}`:''}</div>`:''}
-    ${cfg?.functionFdes?.length?`<div class="path"><b>UNWIND / .eh_frame + .debug_frame / CFI</b><br>${cfg.functionFdes.slice(0,24).map(f=>`${escapeHtml(f.sourceLabel||f.sourceKind||'frame')} · ${safeHex(f.startAddress)}..${safeHex(f.endAddress)} · ${num(f.unwindRows?.length||0)} CFI rows · CIE ${safeHex(f.cieAddress)} · aug ${escapeHtml(f.cie?.augmentation||'')} · FDE encoding 0x${(f.cie?.fdeEncoding??0).toString(16)}${Number.isFinite(f.lsdaAddress)?` · LSDA ${safeHex(f.lsdaAddress)}`:''}${f.cfiDiagnostics?.length?` · ${num(f.cfiDiagnostics.length)} CFI diagnostics`:''}${f.unwindRows?.length?`<br>${f.unwindRows.slice(0,6).map(r=>`&nbsp;&nbsp;${escapeHtml(cfiRowSummary(r,f))}`).join('<br>')}${f.unwindRows.length>6?`<br>&nbsp;&nbsp;… ${num(f.unwindRows.length-6)} more rows`:''}`:''}`).join('<br><br>')}${cfg.functionFdes.length>24?'<br>…':''}${cfg.unwind?.errors?.length||cfg.unwind?.cfiDiagnostics?.length?`<br>${num((cfg.unwind?.errors?.length||0)+(cfg.unwind?.cfiDiagnostics?.length||0))} unwind/CFI diagnostics`:''}</div>`:''}
+    ${cfg?.functionFdes?.length?`<div class="path"><b>UNWIND / .eh_frame + .debug_frame / CFI</b><br>${cfg.functionFdes.slice(0,24).map((f,fi)=>`${escapeHtml(f.sourceLabel||f.sourceKind||'frame')} · ${safeHex(f.startAddress)}..${safeHex(f.endAddress)} · ${num(f.unwindRows?.length||0)} CFI rows · CIE ${safeHex(f.cieAddress)} · aug ${escapeHtml(f.cie?.augmentation||'')} · FDE encoding 0x${(f.cie?.fdeEncoding??0).toString(16)}${Number.isFinite(f.lsdaAddress)?` · LSDA ${safeHex(f.lsdaAddress)}`:''}${f.cfiDiagnostics?.length?` · ${num(f.cfiDiagnostics.length)} CFI diagnostics`:''}<br><button data-fde-timeline="${fi}">Timeline</button> <button data-fde-cie="${fi}">CIE</button>${f.unwindRows?.length?`<br>${f.unwindRows.slice(0,6).map(r=>`&nbsp;&nbsp;${escapeHtml(cfiRowSummary(r,f))}`).join('<br>')}${f.unwindRows.length>6?`<br>&nbsp;&nbsp;… ${num(f.unwindRows.length-6)} more rows`:''}`:''}`).join('<br><br>')}${cfg.functionFdes.length>24?'<br>…':''}${cfg.unwind?.errors?.length||cfg.unwind?.cfiDiagnostics?.length?`<br>${num((cfg.unwind?.errors?.length||0)+(cfg.unwind?.cfiDiagnostics?.length||0))} unwind/CFI diagnostics`:''}</div>`:''}
     ${cfg?.exceptionEdges?.length?`<div class="path"><b>EXCEPTION / LANDING-PAD EDGES</b><br>${cfg.exceptionEdges.slice(0,24).map(e=>`${escapeHtml(cfgBlockTitle(e.from,item))} ⇢ ${escapeHtml(cfgBlockTitle(e.to,item))} · ${escapeHtml(e.exceptionSite?.kind||'exception')} · ${safeHex(e.exceptionSite?.startAddress)}..${safeHex(e.exceptionSite?.endAddress)}`).join('<br>')}${cfg.exceptionEdges.length>24?'<br>…':''}<br>analysis edge set: ${escapeHtml(state.cfgEdgeMode)}</div>`:''}
     ${cfg?.noreturnProof?`<div class="path"><b>STRUCTURAL NORETURN PROOF</b><br>${escapeHtml(cfg.noreturnProof.evidence)} · confidence ${escapeHtml(cfg.noreturnProof.confidence)}</div>`:''}
     ${cfg?.irreducibleRegions?.length?`<div class="path"><b>IRREDUCIBLE CFG REGIONS</b><br>${cfg.irreducibleRegions.slice(0,12).map(r=>`${num(r.blocks.length)} blocks · ${num(r.entryNodes.length)} entries: ${r.entryNodes.map(b=>escapeHtml(cfgBlockTitle(b,item))).join(', ')}`).join('<br>')}</div>`:''}
@@ -4638,6 +4817,26 @@ function updateInspector(item){
   els.inspector.querySelector('[data-action="flow-definition"]')?.addEventListener('click',()=>item.value?.defInst&&goToFlowInstruction(item.value.defInst));
   els.inspector.querySelector('[data-action="flow-data"]')?.addEventListener('click',()=>item.value?.dataObject&&selectDataObject(item.value.dataObject,{center:true}));
   els.inspector.querySelector('[data-action="flow-function"]')?.addEventListener('click',()=>item.instruction?.function&&updateInspector(item.instruction.function));
+  els.inspector.querySelector('[data-action="cfi-timeline"]')?.addEventListener('click',()=>{
+    const inst=item.instruction,unwind=state.workspaceFiles.get(inst?.function?.workspaceFileId)?.parsed?.unwind||null,
+          fde=preferredFdeForPc(unwind,inst?.addr,{source:state.unwindSource});
+    if(fde)openCfiTimeline(fde,inst.addr);
+  });
+  els.inspector.querySelector('[data-action="cfi-cie"]')?.addEventListener('click',()=>{
+    const inst=item.instruction,unwind=state.workspaceFiles.get(inst?.function?.workspaceFileId)?.parsed?.unwind||null,
+          fde=preferredFdeForPc(unwind,inst?.addr,{source:state.unwindSource});
+    if(fde?.cie)openCieInspector(fde.cie,fde);
+  });
+  els.inspector.querySelectorAll('[data-fde-timeline]').forEach(btn=>btn.addEventListener('click',()=>{
+    if(item?.kind==='function')return;
+    const cfg=analyzeAdvancedCfg(item),fdes=cfg?.functionFdes||[],fde=fdes[Number(btn.dataset.fdeTimeline)];
+    if(fde)openCfiTimeline(fde,item.addr);
+  }));
+  els.inspector.querySelectorAll('[data-fde-cie]').forEach(btn=>btn.addEventListener('click',()=>{
+    if(item?.kind==='function')return;
+    const cfg=analyzeAdvancedCfg(item),fdes=cfg?.functionFdes||[],fde=fdes[Number(btn.dataset.fdeCie)];
+    if(fde?.cie)openCieInspector(fde.cie,fde);
+  }));
   const selectCfgBlock=db=>{
     if(!db)return;
     let node=state.graphNodes.find(n=>n.kind==='block'&&n.dataflowBlock===db);
@@ -8716,6 +8915,7 @@ els.graphMode.addEventListener('change',()=>{
   els.entryBtn.disabled=!calls;
   els.cfgView.style.display=cfg?'inline-flex':'none';
   els.cfgEdgeMode.style.display=cfg?'inline-flex':'none';
+  els.unwindSource.style.display=workspaceHasUnwind()?'inline-flex':'none';
   els.binaryScope.style.display=binary?'inline-flex':'none';
   els.dataflowFilter.style.display=dataflow?'inline-flex':'none';
   els.dataflowFocus.style.display=dataflow?'inline-flex':'none';
@@ -8728,6 +8928,12 @@ els.graphMode.addEventListener('change',()=>{
     const a=analyzeAdvancedCfg(state.selectedFunction);
     setStatus(`CFG: ${functionDisplayName(state.selectedFunction)} · ${num(a?.loops.length||0)} loops · ${num(a?.backEdges.length||0)} back edges · ${num(a?.criticalEdges.length||0)} critical edges · ${num(a?.exceptionEdges?.length||0)} exception edges · ${state.cfgView} · ${state.cfgEdgeMode}`);
   }
+});
+els.unwindSource.addEventListener('change',()=>{
+  state.unwindSource=els.unwindSource.value||'auto';state.dirty=true;
+  const item=state.selectedInstruction?{kind:'instruction',instruction:state.selectedInstruction}:state.selectedBlock||state.selectedFunction;
+  updateInspector(item);
+  setStatus(`Unwind source: ${state.unwindSource==='auto'?'auto':'.'+state.unwindSource.replace('_','.')}`);
 });
 els.cfgView.addEventListener('change',()=>{state.cfgView=els.cfgView.value||'control';if(state.mode==='cfg'){buildGraph();fitGraph(false);updateStats();updateInspector(state.selectedBlock||state.selectedFunction)}});
 els.cfgEdgeMode.addEventListener('change',()=>{state.cfgEdgeMode=els.cfgEdgeMode.value||'normal';if(state.mode==='cfg'){buildGraph();fitGraph(false);updateStats();updateInspector(state.selectedBlock||state.selectedFunction);const a=state.selectedFunction?analyzeAdvancedCfg(state.selectedFunction):null;setStatus(`CFG edge set: ${state.cfgEdgeMode} · ${num(a?.exceptionEdges?.length||0)} exception edges available`)}});
@@ -8841,8 +9047,8 @@ new ResizeObserver(()=>{resizeCanvas();resizeTraceCanvas();renderCode(true);stat
 // not depend on it; explicit load entry points exist only for harnesses.
 Object.defineProperty(window,'asmInspectorDebug',{value:{
   get state(){return state}, functionDataflow, analyzeAdvancedCfg, buildGraph, buildCfgGraph, buildDataflowGraph, fitGraph, resizeCanvas, groupAnalysisBarriers,
-  decodeDwarfCfiProgram, decodeDwarfExpression, evaluateDwarfExpression, parseDebugFrameSection, preferredFdeForPc, evaluateStaticUnwindRecipe, cfiRowForPc, cfiStateSummary,
-  openHexViewer, selectFunction, selectGraphNode, valueDisplay, dataflowUnknownReason,
+  decodeDwarfCfiProgram, decodeDwarfExpression, evaluateDwarfExpression, parseDebugFrameSection, preferredFdeForPc, compareUnwindSourcesAtPc, normalizedUnwindRecipeIr, normalizeUnwindSnapshot, evaluateUnwindRequest, evaluateStaticUnwindRecipe, cfiRowForPc, cfiStateSummary,
+  openCfiTimeline, openCieInspector, openHexViewer, selectFunction, selectGraphNode, valueDisplay, dataflowUnknownReason,
   // Explicit regression-harness entry points; normal UI code does not depend on them.
   addWorkspaceText, loadText
 },configurable:false,enumerable:false});
