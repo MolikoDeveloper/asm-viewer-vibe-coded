@@ -744,13 +744,15 @@ function extractObjdumpSectionBytes(lines,wanted){
 }
 
 class DwarfReader{
-  constructor(data,pos=0,end=data?.length||0){this.data=data||new Uint8Array();this.pos=pos;this.end=end}
+  constructor(data,pos=0,end=data?.length||0,littleEndian=true){this.data=data||new Uint8Array();this.pos=pos;this.end=end;this.littleEndian=littleEndian!==false}
   ensure(n){if(this.pos+n>this.end)throw new Error('DWARF truncated')}
   u8(){this.ensure(1);return this.data[this.pos++]}
   i8(){const v=this.u8();return v&0x80?v-0x100:v}
-  u16(){this.ensure(2);const p=this.pos;this.pos+=2;return this.data[p]|this.data[p+1]<<8}
-  u32(){this.ensure(4);const p=this.pos;this.pos+=4;return (this.data[p]|this.data[p+1]<<8|this.data[p+2]<<16|this.data[p+3]<<24)>>>0}
-  u64(){const lo=this.u32(),hi=this.u32();return hi*0x100000000+lo}
+  u16(){this.ensure(2);const p=this.pos;this.pos+=2;return this.littleEndian?(this.data[p]|this.data[p+1]<<8):(this.data[p]<<8|this.data[p+1])}
+  u32(){this.ensure(4);const p=this.pos;this.pos+=4;if(this.littleEndian)return (this.data[p]|this.data[p+1]<<8|this.data[p+2]<<16|this.data[p+3]<<24)>>>0;return (this.data[p]*0x1000000+(this.data[p+1]<<16)+(this.data[p+2]<<8)+this.data[p+3])>>>0}
+  u64(){if(this.littleEndian){const lo=this.u32(),hi=this.u32();return hi*0x100000000+lo}const hi=this.u32(),lo=this.u32();return hi*0x100000000+lo}
+  i16(){return signedN(this.u16(),16)}
+  i32(){return signedN(this.u32(),32)}
   bytes(n){this.ensure(n);const p=this.pos;this.pos+=n;return this.data.subarray(p,p+n)}
   uleb(){let r=0,s=0;for(let i=0;i<10;i++){const b=this.u8();r+=(b&0x7f)*2**s;if(!(b&0x80))return r;s+=7}return r}
   sleb(){let r=0,s=0,b=0;for(let i=0;i<10;i++){b=this.u8();r+=(b&0x7f)*2**s;s+=7;if(!(b&0x80))break}if(s<53&&(b&0x40))r-=2**s;return r}
@@ -1514,7 +1516,118 @@ function dwarfRegisterName(reg,architecture='x86-64'){
   }
   return `DWREG${reg}`;
 }
-function cloneCfiRule(rule){return rule?{...rule,expression:rule.expression?[...rule.expression]:undefined}:null}
+const DW_OP={
+  addr:0x03,deref:0x06,const1u:0x08,const1s:0x09,const2u:0x0a,const2s:0x0b,const4u:0x0c,const4s:0x0d,const8u:0x0e,const8s:0x0f,
+  constu:0x10,consts:0x11,dup:0x12,drop:0x13,over:0x14,pick:0x15,swap:0x16,rot:0x17,abs:0x19,and:0x1a,div:0x1b,minus:0x1c,
+  mod:0x1d,mul:0x1e,neg:0x1f,not:0x20,or:0x21,plus:0x22,plus_uconst:0x23,shl:0x24,shr:0x25,shra:0x26,xor:0x27,bra:0x28,
+  eq:0x29,ge:0x2a,gt:0x2b,le:0x2c,lt:0x2d,ne:0x2e,skip:0x2f,fbreg:0x91,deref_size:0x94,call_frame_cfa:0x9c,stack_value:0x9f
+};
+function dwarfExpressionOpcodeName(op){
+  if(op>=0x30&&op<=0x4f)return `DW_OP_lit${op-0x30}`;
+  if(op>=0x50&&op<=0x6f)return `DW_OP_reg${op-0x50}`;
+  if(op>=0x70&&op<=0x8f)return `DW_OP_breg${op-0x70}`;
+  const found=Object.entries(DW_OP).find(([,v])=>v===op);return found?`DW_OP_${found[0]}`:`DW_OP_0x${op.toString(16)}`;
+}
+function decodeDwarfExpression(bytes,{ptrSize=8,littleEndian=true}={}){
+  const data=new Uint8Array(bytes||[]),r=new DwarfReader(data,0,data.length,littleEndian),operations=[],diagnostics=[];let parseComplete=true;
+  const emit=(offset,opcode,args=[],extra={})=>operations.push({offset,opcode,name:dwarfExpressionOpcodeName(opcode),args,...extra});
+  try{
+    while(r.pos<r.end){
+      const offset=r.pos,op=r.u8();
+      if(op>=0x30&&op<=0x4f){emit(offset,op,[op-0x30]);continue}
+      if(op>=0x50&&op<=0x6f){emit(offset,op,[op-0x50],{register:op-0x50});continue}
+      if(op>=0x70&&op<=0x8f){const off=r.sleb();emit(offset,op,[op-0x70,off],{register:op-0x70,offsetValue:off});continue}
+      switch(op){
+        case DW_OP.addr:emit(offset,op,[ptrSize===8?r.u64():r.u32()]);break;
+        case DW_OP.deref:case DW_OP.dup:case DW_OP.drop:case DW_OP.over:case DW_OP.swap:case DW_OP.rot:
+        case DW_OP.abs:case DW_OP.and:case DW_OP.div:case DW_OP.minus:case DW_OP.mod:case DW_OP.mul:case DW_OP.neg:case DW_OP.not:
+        case DW_OP.or:case DW_OP.plus:case DW_OP.shl:case DW_OP.shr:case DW_OP.shra:case DW_OP.xor:
+        case DW_OP.eq:case DW_OP.ge:case DW_OP.gt:case DW_OP.le:case DW_OP.lt:case DW_OP.ne:
+        case DW_OP.call_frame_cfa:case DW_OP.stack_value:emit(offset,op);break;
+        case DW_OP.const1u:emit(offset,op,[r.u8()]);break;case DW_OP.const1s:emit(offset,op,[r.i8()]);break;
+        case DW_OP.const2u:emit(offset,op,[r.u16()]);break;case DW_OP.const2s:emit(offset,op,[r.i16()]);break;
+        case DW_OP.const4u:emit(offset,op,[r.u32()]);break;case DW_OP.const4s:emit(offset,op,[r.i32()]);break;
+        case DW_OP.const8u:emit(offset,op,[r.u64()]);break;case DW_OP.const8s:{const u=r.u64();emit(offset,op,[u>=2**63?u-2**64:u]);break}
+        case DW_OP.constu:emit(offset,op,[r.uleb()]);break;case DW_OP.consts:emit(offset,op,[r.sleb()]);break;
+        case DW_OP.pick:emit(offset,op,[r.u8()]);break;case DW_OP.plus_uconst:emit(offset,op,[r.uleb()]);break;
+        case DW_OP.bra:emit(offset,op,[r.i16()]);break;case DW_OP.skip:emit(offset,op,[r.i16()]);break;
+        case DW_OP.fbreg:emit(offset,op,[r.sleb()]);break;case DW_OP.deref_size:emit(offset,op,[r.u8()]);break;
+        default:diagnostics.push({offset,opcode:op,severity:'warning',reason:`unsupported ${dwarfExpressionOpcodeName(op)}; remaining bytes not decoded`});parseComplete=false;r.pos=r.end;break;
+      }
+    }
+  }catch(err){diagnostics.push({offset:r.pos,severity:'error',reason:String(err?.message||err)});parseComplete=false}
+  return {bytes:[...data],operations,diagnostics,parseComplete,ptrSize,littleEndian};
+}
+function dwarfExpressionSummary(ir,architecture='x86-64'){
+  if(!ir)return 'unparsed expression';
+  const parts=ir.operations.slice(0,8).map(op=>Number.isInteger(op.register)
+    ?`${op.name}(${dwarfRegisterName(op.register,architecture)}${Number.isFinite(op.offsetValue)?`${op.offsetValue>=0?'+':''}${op.offsetValue}`:''})`
+    :(op.args?.length?`${op.name}(${op.args.join(',')})`:op.name));
+  return parts.join(' · ')+(ir.operations.length>8?` · … ${ir.operations.length-8} more`:ir.parseComplete?'':' · unsupported');
+}
+function dwarfSnapshotRegister(snapshot,reg,architecture='x86-64'){
+  const regs=snapshot?.registers,name=dwarfRegisterName(reg,architecture);if(!regs)return null;
+  let v;if(regs instanceof Map){v=regs.get(reg);if(v==null)v=regs.get(name)}else{v=regs[reg];if(v==null)v=regs[name]}
+  if(typeof v==='bigint')return v;if(Number.isFinite(v))return BigInt(Math.trunc(v));return null;
+}
+function dwarfReadMemoryValue(snapshot,address,width,littleEndian=true){
+  const addr=typeof address==='bigint'?address:BigInt(address),memory=snapshot?.memory;
+  if(typeof snapshot?.readMemory==='function'){
+    const got=snapshot.readMemory(Number(addr),width);
+    if(typeof got==='bigint')return got;if(Number.isFinite(got))return BigInt(Math.trunc(got));
+    if(got instanceof Uint8Array||Array.isArray(got)){let v=0n;const b=[...got];if(b.length<width)return null;for(let i=0;i<width;i++)v=littleEndian?v|(BigInt(b[i])<<(8n*BigInt(i))):(v<<8n)|BigInt(b[i]);return v}
+  }
+  if(memory instanceof Map){
+    const direct=memory.get(Number(addr))??memory.get(addr)??memory.get(`0x${addr.toString(16)}`);
+    if(typeof direct==='bigint')return direct;if(Number.isFinite(direct))return BigInt(Math.trunc(direct));
+    let v=0n;for(let i=0;i<width;i++){const b=memory.get(Number(addr)+i)??memory.get(addr+BigInt(i));if(!Number.isFinite(b))return null;v=littleEndian?v|(BigInt(b&255)<<(8n*BigInt(i))):(v<<8n)|BigInt(b&255)}return v;
+  }
+  return null;
+}
+function evaluateDwarfExpression(ir,snapshot={},ctx={}){
+  if(!ir?.parseComplete)return {known:false,reason:ir?.diagnostics?.[0]?.reason||'expression unavailable'};
+  const stack=[],architecture=ctx.architecture||'x86-64',ptrSize=ctx.ptrSize||ir.ptrSize||8,littleEndian=ctx.littleEndian!==false;let ip=0,steps=0,stackValue=false;
+  const pop=()=>stack.length?stack.pop():null,push=v=>stack.push(typeof v==='bigint'?v:BigInt(Math.trunc(v))),binary=fn=>{const b=pop(),a=pop();if(a==null||b==null)throw new Error('DWARF expression stack underflow');push(fn(a,b))};
+  try{
+    while(ip<ir.operations.length&&steps++<256){
+      const op=ir.operations[ip],code=op.opcode;let jumped=false;
+      if(code>=0x30&&code<=0x4f)push(code-0x30);
+      else if(code>=0x50&&code<=0x6f){const v=dwarfSnapshotRegister(snapshot,code-0x50,architecture);if(v==null)return {known:false,reason:`register ${dwarfRegisterName(code-0x50,architecture)} unavailable`};push(v)}
+      else if(code>=0x70&&code<=0x8f){const v=dwarfSnapshotRegister(snapshot,code-0x70,architecture);if(v==null)return {known:false,reason:`register ${dwarfRegisterName(code-0x70,architecture)} unavailable`};push(v+BigInt(op.args[1]||0))}
+      else switch(code){
+        case DW_OP.addr:case DW_OP.const1u:case DW_OP.const1s:case DW_OP.const2u:case DW_OP.const2s:case DW_OP.const4u:case DW_OP.const4s:case DW_OP.const8u:case DW_OP.const8s:case DW_OP.constu:case DW_OP.consts:push(op.args[0]);break;
+        case DW_OP.deref:{const a=pop(),v=a==null?null:dwarfReadMemoryValue(snapshot,a,ptrSize,littleEndian);if(v==null)return {known:false,reason:'memory unavailable for DW_OP_deref'};push(v);break}
+        case DW_OP.deref_size:{const a=pop(),v=a==null?null:dwarfReadMemoryValue(snapshot,a,op.args[0],littleEndian);if(v==null)return {known:false,reason:'memory unavailable for DW_OP_deref_size'};push(v);break}
+        case DW_OP.dup:if(!stack.length)throw new Error('DW_OP_dup underflow');push(stack.at(-1));break;
+        case DW_OP.drop:if(pop()==null)throw new Error('DW_OP_drop underflow');break;
+        case DW_OP.over:if(stack.length<2)throw new Error('DW_OP_over underflow');push(stack.at(-2));break;
+        case DW_OP.pick:if(stack.length<=op.args[0])throw new Error('DW_OP_pick underflow');push(stack.at(-1-op.args[0]));break;
+        case DW_OP.swap:if(stack.length<2)throw new Error('DW_OP_swap underflow');[stack[stack.length-1],stack[stack.length-2]]=[stack[stack.length-2],stack[stack.length-1]];break;
+        case DW_OP.rot:if(stack.length<3)throw new Error('DW_OP_rot underflow');stack.push(stack.splice(stack.length-3,1)[0]);break;
+        case DW_OP.abs:{const a=pop();if(a==null)throw new Error('DW_OP_abs underflow');push(a<0n?-a:a);break}
+        case DW_OP.and:binary((a,b)=>a&b);break;case DW_OP.or:binary((a,b)=>a|b);break;case DW_OP.xor:binary((a,b)=>a^b);break;
+        case DW_OP.plus:binary((a,b)=>a+b);break;case DW_OP.minus:binary((a,b)=>a-b);break;case DW_OP.mul:binary((a,b)=>a*b);break;
+        case DW_OP.div:binary((a,b)=>b===0n?0n:a/b);break;case DW_OP.mod:binary((a,b)=>b===0n?0n:a%b);break;
+        case DW_OP.neg:{const a=pop();if(a==null)throw new Error('DW_OP_neg underflow');push(-a);break}case DW_OP.not:{const a=pop();if(a==null)throw new Error('DW_OP_not underflow');push(~a);break}
+        case DW_OP.plus_uconst:{const a=pop();if(a==null)throw new Error('DW_OP_plus_uconst underflow');push(a+BigInt(op.args[0]));break}
+        case DW_OP.shl:binary((a,b)=>a<<b);break;case DW_OP.shr:case DW_OP.shra:binary((a,b)=>a>>b);break;
+        case DW_OP.eq:binary((a,b)=>a===b?1n:0n);break;case DW_OP.ne:binary((a,b)=>a!==b?1n:0n);break;case DW_OP.ge:binary((a,b)=>a>=b?1n:0n);break;case DW_OP.gt:binary((a,b)=>a>b?1n:0n);break;case DW_OP.le:binary((a,b)=>a<=b?1n:0n);break;case DW_OP.lt:binary((a,b)=>a<b?1n:0n);break;
+        case DW_OP.call_frame_cfa:if(ctx.cfa==null)return {known:false,reason:'DW_OP_call_frame_cfa requires known CFA'};push(ctx.cfa);break;
+        case DW_OP.fbreg:if(ctx.frameBase==null)return {known:false,reason:'DW_OP_fbreg requires frame base'};push(BigInt(ctx.frameBase)+BigInt(op.args[0]));break;
+        case DW_OP.stack_value:stackValue=true;break;
+        case DW_OP.bra:{const c=pop();if(c==null)throw new Error('DW_OP_bra underflow');if(c!==0n){const off=op.offset+3+op.args[0],n=ir.operations.findIndex(x=>x.offset===off);if(n<0)return {known:false,reason:'DW_OP_bra target invalid'};ip=n;jumped=true}break}
+        case DW_OP.skip:{const off=op.offset+3+op.args[0],n=ir.operations.findIndex(x=>x.offset===off);if(n<0)return {known:false,reason:'DW_OP_skip target invalid'};ip=n;jumped=true;break}
+        default:return {known:false,reason:`unsupported evaluator opcode ${op.name}`};
+      }
+      if(!jumped)ip++;
+    }
+    if(steps>=256)return {known:false,reason:'DWARF expression step budget exceeded'};
+    if(!stack.length)return {known:false,reason:'DWARF expression produced no result'};
+    const bigint=stack.at(-1),value=bigint>=BigInt(Number.MIN_SAFE_INTEGER)&&bigint<=BigInt(Number.MAX_SAFE_INTEGER)?Number(bigint):bigint;
+    return {known:true,value,bigint,stackValue,location:stackValue?'value':'address',expression:ir};
+  }catch(err){return {known:false,reason:String(err?.message||err),expression:ir}}
+}
+function cloneCfiRule(rule){return rule?{...rule,expression:rule.expression?[...rule.expression]:undefined,expressionIr:rule.expressionIr?{...rule.expressionIr,operations:[...(rule.expressionIr.operations||[])],diagnostics:[...(rule.expressionIr.diagnostics||[])]}:undefined}:null}
 function cloneCfiState(state={}){
   return {
     cfa:cloneCfiRule(state.cfa),registerRules:new Map([...(state.registerRules||new Map())].map(([reg,rule])=>[reg,cloneCfiRule(rule)])),
@@ -1526,7 +1639,7 @@ function cfiRuleKey(rule){
   if(rule.kind==='cfa-register-offset')return `cfa:${rule.register}:${rule.offset}`;
   if(rule.kind==='offset'||rule.kind==='val-offset')return `${rule.kind}:${rule.offset}`;
   if(rule.kind==='register')return `reg:${rule.register}`;
-  if(rule.kind==='expression'||rule.kind==='val-expression'||rule.kind==='cfa-expression')return `${rule.kind}:${(rule.expression||[]).join(',')}`;
+  if(rule.kind==='expression'||rule.kind==='val-expression'||rule.kind==='cfa-expression')return `${rule.kind}:${(rule.expression||[]).join(',')}:${rule.expressionIr?.parseComplete?'parsed':'raw'}`;
   return rule.kind||'unknown';
 }
 function cfiStateKey(state){
@@ -1542,9 +1655,9 @@ function cfiRuleDisplay(rule,architecture='x86-64',isCfa=false){
     case 'same-value':return 'same value';
     case 'undefined':return 'undefined';
     case 'register':return rn(rule.register);
-    case 'expression':return `DWARF expr (${rule.expression?.length||0} B)`;
-    case 'val-expression':return `DWARF value expr (${rule.expression?.length||0} B)`;
-    case 'cfa-expression':return `DWARF CFA expr (${rule.expression?.length||0} B)`;
+    case 'expression':return `${dwarfExpressionSummary(rule.expressionIr,architecture)}${rule.expressionIr?.parseComplete?'':' · raw'}`;
+    case 'val-expression':return `value: ${dwarfExpressionSummary(rule.expressionIr,architecture)}${rule.expressionIr?.parseComplete?'':' · raw'}`;
+    case 'cfa-expression':return `${dwarfExpressionSummary(rule.expressionIr,architecture)}${rule.expressionIr?.parseComplete?'':' · raw'}`;
     default:return rule.kind||'unknown';
   }
 }
@@ -1552,8 +1665,8 @@ function cfiStateSummary(state,returnRegister,architecture='x86-64'){
   const cfa=cfiRuleDisplay(state?.cfa,architecture,true),ra=state?.registerRules?.get(returnRegister)||null;
   return `CFA = ${cfa} · ${dwarfRegisterName(returnRegister,architecture)} ← ${cfiRuleDisplay(ra,architecture,false)}`;
 }
-function decodeDwarfCfiProgram(bytes,{cie,startAddress=0,endAddress=null,ptrSize=8,initialState=null,restoreState=null,emitRows=true}={}){
-  const data=new Uint8Array(bytes||[]),r=new DwarfReader(data),diagnostics=[],operations=[],rows=[],remember=[],
+function decodeDwarfCfiProgram(bytes,{cie,startAddress=0,endAddress=null,ptrSize=8,littleEndian=true,initialState=null,restoreState=null,emitRows=true}={}){
+  const data=new Uint8Array(bytes||[]),r=new DwarfReader(data,0,data.length,littleEndian),diagnostics=[],operations=[],rows=[],remember=[],
         codeAlignment=cie?.codeAlignment||1,dataAlignment=cie?.dataAlignment||1,returnRegister=cie?.returnRegister??null;
   let state=cloneCfiState(initialState||{registerRules:new Map()}),pc=Number.isFinite(startAddress)?startAddress:0,parseComplete=true;
   const restoreBase=cloneCfiState(restoreState||initialState||{registerRules:new Map()});
@@ -1564,7 +1677,7 @@ function decodeDwarfCfiProgram(bytes,{cie,startAddress=0,endAddress=null,ptrSize
     rows.push({startAddress:pc,endAddress:hi,cfa:cloneCfiRule(snapshot.cfa),registerRules:snapshot.registerRules,returnAddressRegister:returnRegister,returnAddressRule:raRule,argsSize:snapshot.argsSize,raState:snapshot.raState,stateKey:cfiStateKey(snapshot)});
   };
   const advance=delta=>{const next=pc+delta*codeAlignment;emitUntil(next);pc=next};
-  const expr=()=>{const n=r.uleb();return [...r.bytes(n)]};
+  const expr=()=>{const n=r.uleb(),expression=[...r.bytes(n)];return {expression,expressionIr:decodeDwarfExpression(expression,{ptrSize,littleEndian:r.littleEndian})}};
   const restoreReg=reg=>{const rule=restoreBase.registerRules.get(reg);if(rule)state.registerRules.set(reg,cloneCfiRule(rule));else state.registerRules.delete(reg)};
   const diag=(offset,opcode,reason,severity='warning')=>diagnostics.push({offset,opcode,address:Number.isFinite(startAddress)?startAddress:0,pc,reason,severity});
   try{
@@ -1590,14 +1703,14 @@ function decodeDwarfCfiProgram(bytes,{cie,startAddress=0,endAddress=null,ptrSize
         case DW_CFA.def_cfa:{name='DW_CFA_def_cfa';const reg=r.uleb(),off=r.uleb();state.cfa={kind:'cfa-register-offset',register:reg,offset:off};detail=`${reg} +${off}`;break}
         case DW_CFA.def_cfa_register:{name='DW_CFA_def_cfa_register';const reg=r.uleb();if(state.cfa?.kind==='cfa-register-offset')state.cfa={...state.cfa,register:reg};else{state.cfa={kind:'cfa-register-offset',register:reg,offset:0};diag(opOffset,opcode,'def_cfa_register arrived before a register+offset CFA; offset conservatively reset to 0')}detail=`reg ${reg}`;break}
         case DW_CFA.def_cfa_offset:{name='DW_CFA_def_cfa_offset';const off=r.uleb();if(state.cfa?.kind==='cfa-register-offset')state.cfa={...state.cfa,offset:off};else{state.cfa={kind:'cfa-register-offset',register:null,offset:off};diag(opOffset,opcode,'def_cfa_offset arrived before a CFA register')};detail=`+${off}`;break}
-        case DW_CFA.def_cfa_expression:{name='DW_CFA_def_cfa_expression';const expression=expr();state.cfa={kind:'cfa-expression',expression};detail=`${expression.length} B`;break}
-        case DW_CFA.expression:{name='DW_CFA_expression';const reg=r.uleb(),expression=expr();state.registerRules.set(reg,{kind:'expression',expression});detail=`reg ${reg}, ${expression.length} B`;break}
+        case DW_CFA.def_cfa_expression:{name='DW_CFA_def_cfa_expression';const x=expr();state.cfa={kind:'cfa-expression',...x};detail=`${x.expression.length} B · ${dwarfExpressionSummary(x.expressionIr)}`;break}
+        case DW_CFA.expression:{name='DW_CFA_expression';const reg=r.uleb(),x=expr();state.registerRules.set(reg,{kind:'expression',...x});detail=`reg ${reg}, ${x.expression.length} B · ${dwarfExpressionSummary(x.expressionIr)}`;break}
         case DW_CFA.offset_extended_sf:{name='DW_CFA_offset_extended_sf';const reg=r.uleb(),fact=r.sleb(),off=fact*dataAlignment;state.registerRules.set(reg,{kind:'offset',offset:off,factor:fact});detail=`${reg} @ CFA ${off>=0?'+':''}${off}`;break}
         case DW_CFA.def_cfa_sf:{name='DW_CFA_def_cfa_sf';const reg=r.uleb(),fact=r.sleb(),off=fact*dataAlignment;state.cfa={kind:'cfa-register-offset',register:reg,offset:off};detail=`${reg} ${off>=0?'+':''}${off}`;break}
         case DW_CFA.def_cfa_offset_sf:{name='DW_CFA_def_cfa_offset_sf';const fact=r.sleb(),off=fact*dataAlignment;if(state.cfa?.kind==='cfa-register-offset')state.cfa={...state.cfa,offset:off};else{state.cfa={kind:'cfa-register-offset',register:null,offset:off};diag(opOffset,opcode,'def_cfa_offset_sf arrived before a CFA register')};detail=`${off>=0?'+':''}${off}`;break}
         case DW_CFA.val_offset:{name='DW_CFA_val_offset';const reg=r.uleb(),fact=r.uleb(),off=fact*dataAlignment;state.registerRules.set(reg,{kind:'val-offset',offset:off,factor:fact});detail=`${reg} = CFA ${off>=0?'+':''}${off}`;break}
         case DW_CFA.val_offset_sf:{name='DW_CFA_val_offset_sf';const reg=r.uleb(),fact=r.sleb(),off=fact*dataAlignment;state.registerRules.set(reg,{kind:'val-offset',offset:off,factor:fact});detail=`${reg} = CFA ${off>=0?'+':''}${off}`;break}
-        case DW_CFA.val_expression:{name='DW_CFA_val_expression';const reg=r.uleb(),expression=expr();state.registerRules.set(reg,{kind:'val-expression',expression});detail=`reg ${reg}, ${expression.length} B`;break}
+        case DW_CFA.val_expression:{name='DW_CFA_val_expression';const reg=r.uleb(),x=expr();state.registerRules.set(reg,{kind:'val-expression',...x});detail=`reg ${reg}, ${x.expression.length} B · ${dwarfExpressionSummary(x.expressionIr)}`;break}
         case DW_CFA.gnu_args_size:name='DW_CFA_GNU_args_size';state.argsSize=r.uleb();detail=`${state.argsSize} B`;break;
         case DW_CFA.gnu_negative_offset_extended:{name='DW_CFA_GNU_negative_offset_extended';const reg=r.uleb(),fact=r.uleb(),off=-fact*dataAlignment;state.registerRules.set(reg,{kind:'offset',offset:off,factor:-fact});detail=`${reg} @ CFA ${off>=0?'+':''}${off}`;break}
         default:
@@ -1615,17 +1728,17 @@ function decodeDwarfCfiProgram(bytes,{cie,startAddress=0,endAddress=null,ptrSize
   }
   return {finalState:cloneCfiState(state),rows:compact,operations,diagnostics,parseComplete};
 }
-function decodeEhFrameCfi(frame,{ptrSize=8}={}){
+function decodeEhFrameCfi(frame,{ptrSize=8,littleEndian=frame?.littleEndian!==false}={}){
   const diagnostics=[];
   for(const cie of frame.cies||[]){
-    const decoded=decodeDwarfCfiProgram(cie.instructions,{cie,ptrSize,initialState:{registerRules:new Map()},restoreState:{registerRules:new Map()},emitRows:false});
+    const decoded=decodeDwarfCfiProgram(cie.instructions,{cie,ptrSize,littleEndian,initialState:{registerRules:new Map()},restoreState:{registerRules:new Map()},emitRows:false});
     cie.initialCfiState=decoded.finalState;cie.cfiOperations=decoded.operations.map(op=>({...op,byteAddress:Number.isFinite(cie.instructionsAddress)?cie.instructionsAddress+op.offset:null}));
     cie.cfiDiagnostics=decoded.diagnostics.map(d=>({...d,byteStart:Number.isFinite(cie.instructionsAddress)?cie.instructionsAddress+d.offset:null,byteEnd:Number.isFinite(cie.instructionsAddress)?cie.instructionsAddress+d.offset+1:null}));cie.cfiParseComplete=decoded.parseComplete;
     for(const d of cie.cfiDiagnostics)diagnostics.push({...d,cie,entryAddress:cie.address});
   }
   for(const fde of frame.fdes||[]){
     const base=fde.cie?.initialCfiState||{registerRules:new Map()};
-    const decoded=decodeDwarfCfiProgram(fde.instructions,{cie:fde.cie,ptrSize,startAddress:fde.startAddress,endAddress:fde.endAddress,initialState:base,restoreState:base,emitRows:true});
+    const decoded=decodeDwarfCfiProgram(fde.instructions,{cie:fde.cie,ptrSize,littleEndian,startAddress:fde.startAddress,endAddress:fde.endAddress,initialState:base,restoreState:base,emitRows:true});
     fde.unwindRows=decoded.rows;fde.cfiOperations=decoded.operations.map(op=>({...op,byteAddress:Number.isFinite(fde.instructionsAddress)?fde.instructionsAddress+op.offset:null}));
     fde.cfiDiagnostics=decoded.diagnostics.map(d=>({...d,byteStart:Number.isFinite(fde.instructionsAddress)?fde.instructionsAddress+d.offset:null,byteEnd:Number.isFinite(fde.instructionsAddress)?fde.instructionsAddress+d.offset+1:null}));fde.cfiParseComplete=decoded.parseComplete;
     for(const d of fde.cfiDiagnostics)diagnostics.push({...d,fde,entryAddress:fde.address});
@@ -1647,13 +1760,13 @@ function cfiSavedRuleSummary(row,fde,{limit=8}={}){
 function cfiRowSummary(row,fde){
   if(!row)return 'no decoded CFI row';
   const arch=fdeArchitecture(fde),base=cfiStateSummary(row,fde?.cie?.returnRegister,arch),saved=cfiSavedRuleSummary(row,fde);
-  return `${safeHex(row.startAddress)}..${safeHex(row.endAddress)} · ${base}${saved?` · ${saved}`:''}`;
+  return `${fde?.sourceLabel||fde?.sourceKind||'frame'} · ${safeHex(row.startAddress)}..${safeHex(row.endAddress)} · ${base}${saved?` · ${saved}`:''}`;
 }
 
-function parseEhFrameSection(section,{ptrSize=8,textBase=null,dataBase=null}={}){
+function parseEhFrameSection(section,{ptrSize=8,textBase=null,dataBase=null,littleEndian=true}={}){
   const cies=[],fdes=[],errors=[],cieByAddress=new Map();
   for(const run0 of sectionContiguousRuns(section)){
-    const data=new Uint8Array(run0.bytes),r=new DwarfReader(data),baseAddress=run0.address;
+    const data=new Uint8Array(run0.bytes),r=new DwarfReader(data,0,data.length,littleEndian),baseAddress=run0.address;
     while(r.pos+4<=r.end){
       const entryStartPos=r.pos,entryAddress=baseAddress+entryStartPos;let length=r.u32(),lengthFieldSize=4;
       if(length===0)break;
@@ -1664,7 +1777,7 @@ function parseEhFrameSection(section,{ptrSize=8,textBase=null,dataBase=null}={})
         const idFieldPos=r.pos,idFieldAddress=baseAddress+idFieldPos,ciePointer=r.u32();
         if(ciePointer===0){
           const version=r.u8(),augmentation=r.cstr(),codeAlignment=r.uleb(),dataAlignment=r.sleb(),returnRegister=version===1?r.u8():r.uleb();
-          const cie={id:`cie:${entryAddress.toString(16)}`,kind:'CIE',address:entryAddress,length,version,augmentation,codeAlignment,dataAlignment,returnRegister,
+          const cie={id:`cie:${entryAddress.toString(16)}`,kind:'CIE',sourceKind:'eh_frame',sourceLabel:'.eh_frame',address:entryAddress,length,version,augmentation,codeAlignment,dataAlignment,returnRegister,
             fdeEncoding:DW_EH_PE.absptr,lsdaEncoding:DW_EH_PE.omit,personalityEncoding:DW_EH_PE.omit,personalityAddress:null,signalFrame:false,
             section,sectionId:section.id,instructions:[],parseComplete:true};
           if(augmentation.startsWith('z')){
@@ -1688,7 +1801,7 @@ function parseEhFrameSection(section,{ptrSize=8,textBase=null,dataBase=null}={})
           if(!cie){errors.push({address:entryAddress,reason:`FDE references unknown CIE ${safeHex(cieAddress)}`});r.pos=entryEnd;continue}
           const loc=readEhEncoded(r,cie.fdeEncoding,{ptrSize,baseAddress,textBase,dataBase}),rangeEnc=cie.fdeEncoding&0x0f,
                 range=readEhEncoded(r,rangeEnc,{ptrSize,baseAddress,textBase,dataBase,functionBase:loc.value});
-          const fde={id:`fde:${entryAddress.toString(16)}`,kind:'FDE',address:entryAddress,length,cie,cieAddress,
+          const fde={id:`fde:${entryAddress.toString(16)}`,kind:'FDE',sourceKind:'eh_frame',sourceLabel:'.eh_frame',address:entryAddress,length,cie,cieAddress,
             startAddress:loc.value,addressRange:range.value,endAddress:Number.isFinite(loc.value)&&Number.isFinite(range.value)?loc.value+range.value:null,
             lsdaAddress:null,lsdaIndirect:false,section,sectionId:section.id,instructions:[],parseComplete:true};
           if(cie.augmentation.startsWith('z')){
@@ -1705,7 +1818,118 @@ function parseEhFrameSection(section,{ptrSize=8,textBase=null,dataBase=null}={})
       r.pos=entryEnd;
     }
   }
-  return {section,cies,fdes,errors,ptrSize};
+  return {section,sourceKind:'eh_frame',sourceLabel:'.eh_frame',cies,fdes,errors,ptrSize,littleEndian};
+}
+
+
+function parseDebugFrameSection(section,{ptrSize=8,littleEndian=true}={}){
+  const cies=[],fdes=[],errors=[],cieByOffset=new Map(),sectionBase=section.addressStart??0;
+  for(const run0 of sectionContiguousRuns(section)){
+    const data=new Uint8Array(run0.bytes),r=new DwarfReader(data,0,data.length,littleEndian),baseAddress=run0.address;
+    while(r.pos+4<=r.end){
+      const entryStartPos=r.pos,entryAddress=baseAddress+entryStartPos,sectionOffset=entryAddress-sectionBase;
+      let length=r.u32(),offsetSize=4;
+      if(length===0){continue}
+      if(length===0xffffffff){if(r.pos+8>r.end){errors.push({address:entryAddress,sourceKind:'debug_frame',reason:'truncated extended .debug_frame length'});break}length=r.u64();offsetSize=8}
+      const bodyStart=r.pos,entryEnd=bodyStart+length;
+      if(!Number.isFinite(length)||length<offsetSize||entryEnd>r.end){errors.push({address:entryAddress,sourceKind:'debug_frame',reason:'invalid/truncated .debug_frame entry length'});break}
+      try{
+        const cieId=offsetSize===8?r.u64():r.u32(),isCie=offsetSize===8?cieId>Number.MAX_SAFE_INTEGER:cieId===0xffffffff;
+        if(isCie){
+          const version=r.u8(),augmentation=r.cstr();
+          let addressSize=ptrSize,segmentSelectorSize=0;
+          if(version>=4){addressSize=r.u8();segmentSelectorSize=r.u8()}
+          const codeAlignment=r.uleb(),dataAlignment=r.sleb(),returnRegister=version===1?r.u8():r.uleb(),
+                cie={id:`debug-cie:${entryAddress.toString(16)}`,kind:'CIE',sourceKind:'debug_frame',sourceLabel:'.debug_frame',address:entryAddress,sectionOffset,length,offsetSize,
+                  version,augmentation,addressSize,segmentSelectorSize,codeAlignment,dataAlignment,returnRegister,
+                  fdeEncoding:DW_EH_PE.absptr,lsdaEncoding:DW_EH_PE.omit,personalityEncoding:DW_EH_PE.omit,personalityAddress:null,signalFrame:false,
+                  section,sectionId:section.id,instructions:[],parseComplete:true};
+          if(r.pos<entryEnd){cie.instructionsAddress=baseAddress+r.pos;cie.instructionsEndAddress=baseAddress+entryEnd;cie.instructions=[...data.subarray(r.pos,entryEnd)]}
+          cies.push(cie);cieByOffset.set(sectionOffset,cie);
+        }else{
+          const cie=cieByOffset.get(cieId);
+          if(!cie){errors.push({address:entryAddress,sourceKind:'debug_frame',reason:`FDE references unknown .debug_frame CIE offset ${safeHex(cieId)}`});r.pos=entryEnd;continue}
+          const addrSize=cie.addressSize||ptrSize,startAddress=addrSize===8?r.u64():r.u32(),addressRange=addrSize===8?r.u64():r.u32(),
+                fde={id:`debug-fde:${entryAddress.toString(16)}`,kind:'FDE',sourceKind:'debug_frame',sourceLabel:'.debug_frame',address:entryAddress,sectionOffset,length,offsetSize,
+                  cie,cieAddress:cie.address,cieOffset:cieId,startAddress,addressRange,endAddress:Number.isFinite(startAddress)&&Number.isFinite(addressRange)?startAddress+addressRange:null,
+                  lsdaAddress:null,lsdaIndirect:false,section,sectionId:section.id,instructions:[],parseComplete:true};
+          if(r.pos<entryEnd){fde.instructionsAddress=baseAddress+r.pos;fde.instructionsEndAddress=baseAddress+entryEnd;fde.instructions=[...data.subarray(r.pos,entryEnd)]}
+          fdes.push(fde);
+        }
+      }catch(err){errors.push({address:entryAddress,sourceKind:'debug_frame',reason:String(err?.message||err)})}
+      r.pos=entryEnd;
+    }
+  }
+  return {section,sourceKind:'debug_frame',sourceLabel:'.debug_frame',cies,fdes,errors,ptrSize,littleEndian};
+}
+function unwindSourceRank(fde){
+  if(!fde)return -1;
+  const complete=fde.cfiParseComplete!==false&&fde.parseComplete!==false?100:0;
+  // Static debugging prefers .debug_frame when equally complete because it is
+  // debugger-oriented DWARF. Runtime-oriented .eh_frame remains available and
+  // is selected automatically when no exact .debug_frame row covers the PC.
+  return complete+(fde.sourceKind==='debug_frame'?20:fde.sourceKind==='eh_frame'?10:0);
+}
+function preferredFdeForPc(unwind,pc,{source='auto'}={}){
+  if(!unwind||!Number.isFinite(pc))return null;
+  let candidates=(unwind.fdes||[]).filter(f=>pc>=f.startAddress&&pc<f.endAddress);
+  if(source!=='auto')candidates=candidates.filter(f=>f.sourceKind===source||f.sourceLabel===source);
+  candidates.sort((a,b)=>unwindSourceRank(b)-unwindSourceRank(a)||(a.addressRange??Infinity)-(b.addressRange??Infinity));
+  const fde=candidates[0]||null;
+  if(fde)fde.selectionEvidence=source==='auto'
+    ?`${fde.sourceLabel||fde.sourceKind} selected by exact PC coverage + parse completeness + static-debug source priority`
+    :`${fde.sourceLabel||fde.sourceKind} selected by requested source`;
+  return fde;
+}
+function cfiRuleForRegister(row,reg){return row?.registerRules?.get(reg)||{kind:'same-value'}}
+function evaluateCfiCfa(row,fde,snapshot={}){
+  const rule=row?.cfa,architecture=fdeArchitecture(fde),ptrSize=snapshot.ptrSize||fde?.cie?.addressSize||8,littleEndian=snapshot.littleEndian!==false;
+  if(!rule)return {known:false,reason:'CFA rule unavailable'};
+  if(rule.kind==='cfa-register-offset'){
+    if(!Number.isInteger(rule.register))return {known:false,reason:'CFA register unavailable'};
+    const reg=dwarfSnapshotRegister(snapshot,rule.register,architecture);if(reg==null)return {known:false,reason:`register ${dwarfRegisterName(rule.register,architecture)} unavailable`};
+    const bigint=reg+BigInt(rule.offset||0);return {known:true,bigint,value:bigint<=BigInt(Number.MAX_SAFE_INTEGER)?Number(bigint):bigint,rule};
+  }
+  if(rule.kind==='cfa-expression'){
+    const ev=evaluateDwarfExpression(rule.expressionIr,snapshot,{architecture,ptrSize,littleEndian});
+    return ev.known?{...ev,rule}:{...ev,rule};
+  }
+  return {known:false,reason:`unsupported CFA rule ${rule.kind}`,rule};
+}
+function evaluateCfiRegisterRule(rule,reg,row,fde,snapshot,cfa){
+  const architecture=fdeArchitecture(fde),ptrSize=snapshot.ptrSize||fde?.cie?.addressSize||8,littleEndian=snapshot.littleEndian!==false,
+        name=dwarfRegisterName(reg,architecture),cfaBig=typeof cfa?.bigint==='bigint'?cfa.bigint:(Number.isFinite(cfa?.value)?BigInt(cfa.value):null);
+  if(!rule||rule.kind==='same-value'){
+    const v=dwarfSnapshotRegister(snapshot,reg,architecture);return v==null?{known:false,register:reg,name,kind:'same-value',reason:'current register unavailable'}:{known:true,register:reg,name,kind:'same-value',bigint:v,value:v<=BigInt(Number.MAX_SAFE_INTEGER)?Number(v):v};
+  }
+  if(rule.kind==='undefined')return {known:false,register:reg,name,kind:'undefined',reason:'DWARF marks register undefined'};
+  if(rule.kind==='register'){
+    const v=dwarfSnapshotRegister(snapshot,rule.register,architecture);return v==null?{known:false,register:reg,name,kind:'register',reason:`source ${dwarfRegisterName(rule.register,architecture)} unavailable`}:{known:true,register:reg,name,kind:'register',sourceRegister:rule.register,bigint:v,value:v<=BigInt(Number.MAX_SAFE_INTEGER)?Number(v):v};
+  }
+  if((rule.kind==='offset'||rule.kind==='val-offset')&&cfaBig!=null){
+    const location=cfaBig+BigInt(rule.offset||0);
+    if(rule.kind==='val-offset')return {known:true,register:reg,name,kind:rule.kind,location:Number(location),bigint:location,value:Number(location)};
+    const v=dwarfReadMemoryValue(snapshot,location,ptrSize,littleEndian);return v==null?{known:false,register:reg,name,kind:rule.kind,location:Number(location),reason:`memory unavailable at 0x${location.toString(16)}`}:{known:true,register:reg,name,kind:rule.kind,location:Number(location),bigint:v,value:v<=BigInt(Number.MAX_SAFE_INTEGER)?Number(v):v};
+  }
+  if(rule.kind==='expression'||rule.kind==='val-expression'){
+    const ev=evaluateDwarfExpression(rule.expressionIr,snapshot,{architecture,ptrSize,littleEndian,cfa:cfaBig});
+    if(!ev.known)return {known:false,register:reg,name,kind:rule.kind,reason:ev.reason,expression:rule.expressionIr};
+    if(rule.kind==='val-expression'||ev.stackValue)return {known:true,register:reg,name,kind:rule.kind,value:ev.value,bigint:ev.bigint,expression:rule.expressionIr};
+    const address=ev.bigint,v=dwarfReadMemoryValue(snapshot,address,ptrSize,littleEndian);
+    return v==null?{known:false,register:reg,name,kind:rule.kind,location:Number(address),reason:`memory unavailable at 0x${address.toString(16)}`,expression:rule.expressionIr}:{known:true,register:reg,name,kind:rule.kind,location:Number(address),value:v<=BigInt(Number.MAX_SAFE_INTEGER)?Number(v):v,bigint:v,expression:rule.expressionIr};
+  }
+  return {known:false,register:reg,name,kind:rule.kind,reason:`unsupported register rule ${rule.kind}`};
+}
+function evaluateStaticUnwindRecipe(unwind,pc,snapshot={},options={}){
+  const fde=preferredFdeForPc(unwind,pc,options);if(!fde)return {known:false,pc,reason:'no FDE covers PC'};
+  const row=cfiRowForPc(fde,pc);if(!row)return {known:false,pc,fde,reason:'FDE has no decoded row for PC'};
+  const cfa=evaluateCfiCfa(row,fde,snapshot),registers=new Map(),architecture=fdeArchitecture(fde),
+        wanted=new Set([...(row.registerRules?.keys?.()||[])]);
+  if(Number.isInteger(fde.cie?.returnRegister))wanted.add(fde.cie.returnRegister);
+  for(const reg of wanted)registers.set(reg,evaluateCfiRegisterRule(cfiRuleForRegister(row,reg),reg,row,fde,snapshot,cfa));
+  const ra=Number.isInteger(fde.cie?.returnRegister)?registers.get(fde.cie.returnRegister):null;
+  return {known:!!cfa.known,pc,fde,row,sourceKind:fde.sourceKind,sourceLabel:fde.sourceLabel,cfa,registers,returnAddress:ra,architecture,
+    evidence:`${fde.sourceLabel||fde.sourceKind} FDE ${safeHex(fde.startAddress)}..${safeHex(fde.endAddress)} · ${fde.selectionEvidence||'exact PC coverage'}`};
 }
 
 function decodeLsdaTypeReference(section,typeTableAddress,ttypeEncoding,typeFilter,{ptrSize=8,textBase=null,dataBase=null,functionBase=null}={}){
@@ -1806,19 +2030,35 @@ function parseLsdaForFde(fde,section,{ptrSize=8,textBase=null,dataBase=null}={})
   }catch(err){parseError=String(err?.message||err);diagnostics.push({address:fde.lsdaAddress,byteStart:fde.lsdaAddress,byteEnd:baseAddress+r.pos,reason:parseError,severity:'error'});return {id:`lsda:${fde.lsdaAddress.toString(16)}`,address:fde.lsdaAddress,fde,section,callSites:[],diagnostics,parseError,confidence:'unknown'}}
 }
 function parseElfUnwindModel(parsed,record){
-  const eh=(parsed.sections||[]).find(s=>s.name==='.eh_frame');if(!eh)return {available:false,cies:[],fdes:[],lsdas:[],errors:[],exceptionSites:[]};
-  const ptrSize=(record?.bits||64)===32?4:8,text=(parsed.sections||[]).find(s=>s.name==='.text'),data=(parsed.sections||[]).find(s=>s.name==='.data'),
-        frame=parseEhFrameSection(eh,{ptrSize,textBase:text?.addressStart,dataBase:data?.addressStart}),cfiDiagnostics=decodeEhFrameCfi(frame,{ptrSize}),gcc=(parsed.sections||[]).find(s=>s.name==='.gcc_except_table'),lsdas=[];
-  for(const fde of frame.fdes){
+  const sections=parsed.sections||[],eh=sections.find(s=>s.name==='.eh_frame'),debug=sections.find(s=>s.name==='.debug_frame');
+  if(!eh&&!debug)return {available:false,cies:[],fdes:[],lsdas:[],errors:[],exceptionSites:[],frameSources:[]};
+  const ptrSize=(record?.bits||64)===32?4:8,littleEndian=record?.littleEndian!==false,
+        text=sections.find(s=>s.name==='.text'),data=sections.find(s=>s.name==='.data'),gcc=sections.find(s=>s.name==='.gcc_except_table'),
+        frames=[],lsdas=[];
+  if(eh)frames.push(parseEhFrameSection(eh,{ptrSize,textBase:text?.addressStart,dataBase:data?.addressStart,littleEndian}));
+  if(debug)frames.push(parseDebugFrameSection(debug,{ptrSize,littleEndian}));
+  const cfiDiagnostics=[],errors=[];
+  for(const frame of frames){errors.push(...(frame.errors||[]));cfiDiagnostics.push(...decodeEhFrameCfi(frame,{ptrSize,littleEndian}))}
+  const cies=frames.flatMap(f=>f.cies||[]),fdes=frames.flatMap(f=>f.fdes||[]);
+  for(const fde of fdes){
     if(Number.isFinite(fde.startAddress))fde.function=(parsed.functions||[]).find(fn=>fn.addr===fde.startAddress)||(parsed.functions||[]).find(fn=>fn.addr<=fde.startAddress&&fn.endAddr>=fde.startAddress)||null;
-    if(gcc&&Number.isFinite(fde.lsdaAddress)){
+    if(fde.sourceKind==='eh_frame'&&gcc&&Number.isFinite(fde.lsdaAddress)){
       const lsda=parseLsdaForFde(fde,gcc,{ptrSize,textBase:text?.addressStart,dataBase:data?.addressStart});if(lsda){fde.lsda=lsda;lsdas.push(lsda)}
     }
   }
   const exceptionSites=[],lsdaDiagnostics=[];
   for(const lsda of lsdas){lsdaDiagnostics.push(...(lsda.diagnostics||[]));for(const site of lsda.callSites||[])if(site.landingPadAddress){exceptionSites.push({...site,fde:lsda.fde,lsda,function:lsda.fde.function||null})}}
-  return {available:true,section:eh,cies:frame.cies,fdes:frame.fdes,lsdas,errors:frame.errors,cfiDiagnostics,lsdaDiagnostics,exceptionSites,hasLsda:lsdas.length>0,ptrSize,
-    cfiRowCount:frame.fdes.reduce((n,f)=>n+(f.unwindRows?.length||0),0),actionRecordCount:lsdas.reduce((n,l)=>n+(l.callSites||[]).reduce((m,s)=>m+(s.actionChain?.length||0),0),0)};
+  const overlappingCoverage=[];
+  for(const d of fdes.filter(f=>f.sourceKind==='debug_frame'))for(const e of fdes.filter(f=>f.sourceKind==='eh_frame')){
+    const lo=Math.max(d.startAddress,e.startAddress),hi=Math.min(d.endAddress,e.endAddress);
+    if(Number.isFinite(lo)&&Number.isFinite(hi)&&hi>lo)overlappingCoverage.push({startAddress:lo,endAddress:hi,debugFde:d,ehFde:e,
+      selectionPolicy:'auto prefers complete .debug_frame for static debugging; .eh_frame remains runtime-oriented fallback'});
+  }
+  return {available:true,section:eh||debug,ehFrameSection:eh||null,debugFrameSection:debug||null,frameSources:frames,cies,fdes,lsdas,errors,cfiDiagnostics,lsdaDiagnostics,exceptionSites,
+    hasLsda:lsdas.length>0,ptrSize,littleEndian,overlappingCoverage,
+    cfiRowCount:fdes.reduce((n,f)=>n+(f.unwindRows?.length||0),0),
+    expressionRuleCount:fdes.reduce((n,f)=>n+(f.unwindRows||[]).reduce((m,row)=>m+(row.cfa?.expressionIr?1:0)+[...(row.registerRules||new Map()).values()].filter(r=>r?.expressionIr).length,0),0),
+    actionRecordCount:lsdas.reduce((n,l)=>n+(l.callSites||[]).reduce((m,s)=>m+(s.actionChain?.length||0),0),0)};
 }
 
 function discoverSymbolDataObjects(section,symbols){
@@ -3061,12 +3301,13 @@ function detectArtifactIdentity(record){
   else if(/\.a$/i.test(base)||/\.lib$/i.test(base)||archive)kind='static-archive';
   else if(/\.(?:asm|fasm|inc|s)$/i.test(path))kind='source';
 
-  const bits=parseArtifactBitness(text)||record.inputMeta?.bits||0;
+  const bits=parseArtifactBitness(text)||record.inputMeta?.bits||0,format=header?.[2]||'',
+        littleEndian=/big/i.test(format)?false:/little|x86|i386|x86-64|pei?-x86|elf(?:32|64)-x86/i.test(format)?true:true;
   return {
     kind,
     path:candidate,
     label:base,
-    bits,
+    bits,format,littleEndian,
     addressSpaceId:record.id,
     addressSpaceLabel:kind==='source'?`${record.path} · source`:base
   };
@@ -3152,7 +3393,7 @@ function parseWorkspaceRecord(record){
   namespaceParsedWorkspace(record,parsed);
 
   const artifact=detectArtifactIdentity(record);
-  record.artifactKind=artifact.kind;record.artifactLabel=artifact.label;record.artifactPath=artifact.path;record.bits=artifact.bits||parsed.inputMeta?.bits||0;record.addressSpaceId=artifact.addressSpaceId;record.addressSpaceLabel=artifact.addressSpaceLabel;
+  record.artifactKind=artifact.kind;record.artifactLabel=artifact.label;record.artifactPath=artifact.path;record.bits=artifact.bits||parsed.inputMeta?.bits||0;record.format=artifact.format||'';record.littleEndian=artifact.littleEndian!==false;record.addressSpaceId=artifact.addressSpaceId;record.addressSpaceLabel=artifact.addressSpaceLabel;
   const loadSegments=(parsed.segments||[]).filter(seg=>seg.type==='LOAD');
   record.preferredBase=loadSegments.length?Math.min(...loadSegments.map(seg=>seg.vaddr-seg.offset)):null;
   record.runtimeLoadBias=null;
@@ -3854,9 +4095,22 @@ function renderHexViewer(force=false){
     const objs=state.dataObjects.filter(o=>o.workspaceFileId===fileId&&o.address>=addr&&o.address<rowEnd);
     const syms=state.symbols.filter(sym=>sym.workspaceFileId===fileId&&sym.defined&&sym.address>=addr&&sym.address<rowEnd);
     const rels=state.relocations.filter(rel=>rel.workspaceFileId===fileId&&Number.isFinite(rel.storageAddress)&&rel.storageAddress>=addr&&rel.storageAddress<rowEnd);
+    const unwind=state.workspaceFiles.get(fileId)?.parsed?.unwind||null,
+          frameEntries=[...(unwind?.cies||[]),...(unwind?.fdes||[])].filter(x=>x.section===target.section&&Number.isFinite(x.address)&&x.address>=addr&&x.address<rowEnd),
+          cfiOps=(unwind?.fdes||[]).filter(f=>f.section===target.section).flatMap(f=>(f.cfiOperations||[]).map(op=>({op,fde:f}))).filter(x=>Number.isFinite(x.op.byteAddress)&&x.op.byteAddress>=addr&&x.op.byteAddress<rowEnd),
+          lsdaStarts=(unwind?.lsdas||[]).filter(l=>l.section===target.section&&Number.isFinite(l.address)&&l.address>=addr&&l.address<rowEnd),
+          lsdaParts=(unwind?.lsdas||[]).filter(l=>l.section===target.section).flatMap(l=>[
+            {address:l.callSiteTableAddress,label:'LSDA:call-site'},
+            {address:l.actionTableAddress,label:'LSDA:action'},
+            {address:l.typeTableAddress,label:'LSDA:type'}
+          ]).filter(x=>Number.isFinite(x.address)&&x.address>=addr&&x.address<rowEnd);
     if(objs[0])annotations.push(`D:${objs[0].stringText||objs[0].text||objs[0].name||objs[0].kind}`);
     if(syms[0])annotations.push(`S:${syms[0].name}`);
     if(rels[0])annotations.push(`R:${rels[0].type} ${rels[0].symbol||''}`);
+    for(const e of frameEntries.slice(0,2))annotations.push(`${e.kind}:${e.sourceLabel||e.sourceKind||'frame'}`);
+    for(const x of cfiOps.slice(0,2))annotations.push(`CFI:${x.op.name}`);
+    for(const l of lsdaStarts.slice(0,1))annotations.push('LSDA:header');
+    for(const part of lsdaParts.slice(0,2))annotations.push(part.label);
     const attrs=objs[0]?` data-hex-object="${escapeHtml(objs[0].id)}"`:rels[0]?` data-hex-reloc="${escapeHtml(rels[0].id)}"`:syms[0]?` data-hex-symbol="${escapeHtml(syms[0].id)}"`:'';
     html+=`<div class="hexRow"${attrs}><span class="hexAddr">${safeHex(addr)}</span><span class="hexBytes">${hex.join(' ')}</span><span class="hexAscii">${escapeHtml(ascii.join(''))}</span><span class="hexAnnot">${escapeHtml(annotations.join(' · '))}</span></div>`;
   }
@@ -4031,12 +4285,12 @@ function updateInspector(item){
       <b>${t('linkageSlots')}</b><span>${num(slots.length)}</span>
       <b>${t('references')}</b><span>${num(refs.length)}</span>
       <b>${t('relocations')}</b><span>${num(relIn.length+relOut.length)}</span>
-      ${sec.name==='.eh_frame'?`<b>${t('unwindFrames')}</b><span>${num(unwind?.fdes?.length||0)} FDE · ${num(unwind?.cies?.length||0)} CIE · ${num(unwind?.cfiRowCount||0)} CFI rows · ${num((unwind?.errors?.length||0)+(unwind?.cfiDiagnostics?.length||0))} diagnostics</span>`:''}
+      ${sec.name==='.eh_frame'||sec.name==='.debug_frame'?`<b>${t('unwindFrames')}</b><span>${num((unwind?.fdes||[]).filter(f=>f.section===sec).length)} FDE · ${num((unwind?.cies||[]).filter(c=>c.section===sec).length)} CIE · ${num((unwind?.fdes||[]).filter(f=>f.section===sec).reduce((n,f)=>n+(f.unwindRows?.length||0),0))} CFI rows · ${num(unwind?.expressionRuleCount||0)} expression rules</span>`:''}
       ${sec.name==='.gcc_except_table'?`<b>${t('landingPads')}</b><span>${num(unwind?.exceptionSites?.length||0)} call-site entries with landing pads · ${num(unwind?.lsdas?.length||0)} LSDA · ${num(unwind?.actionRecordCount||0)} action records · ${num(unwind?.lsdaDiagnostics?.length||0)} diagnostics</span>`:''}
     </div>${rows.length?`<div class="path"><b>HEX</b><br><span class="linkage">${rows.map(r=>`${safeHex(r.address)}  ${escapeHtml(r.hex)}  ${escapeHtml(r.ascii)}`).join('<br>')}</span></div>`:''}
-    ${sec.name==='.eh_frame'&&unwind?.available?`<div class="path"><b>.eh_frame / CFI MODEL</b><br>${num(unwind.cies.length)} CIE · ${num(unwind.fdes.length)} FDE · ${num(unwind.cfiRowCount||0)} decoded CFI rows${unwind.hasLsda?` · ${num(unwind.lsdas.length)} LSDA`:''}${unwind.errors.length||unwind.cfiDiagnostics?.length?` · ${num((unwind.errors.length||0)+(unwind.cfiDiagnostics?.length||0))} diagnostics`:''}<br>${unwind.fdes.slice(0,12).map(f=>`${safeHex(f.startAddress)}..${safeHex(f.endAddress)} · ${num(f.unwindRows?.length||0)} rows · ${f.unwindRows?.[0]?escapeHtml(cfiStateSummary(f.unwindRows[0],f.cie?.returnRegister,fdeArchitecture(f))):'no CFI row'}${Number.isFinite(f.lsdaAddress)?` · LSDA ${safeHex(f.lsdaAddress)}`:''}${f.cfiDiagnostics?.length?` · ${num(f.cfiDiagnostics.length)} CFI diagnostics`:''}`).join('<br>')}${unwind.fdes.length>12?'<br>…':''}</div>`:''}
+    ${(sec.name==='.eh_frame'||sec.name==='.debug_frame')&&unwind?.available?`<div class="path"><b>${escapeHtml(sec.name)} / CFI MODEL</b><br>${num((unwind.cies||[]).filter(c=>c.section===sec).length)} CIE · ${num((unwind.fdes||[]).filter(f=>f.section===sec).length)} FDE · source ${escapeHtml(sec.name)}${unwind.overlappingCoverage?.length?` · ${num(unwind.overlappingCoverage.length)} overlaps with alternate frame source`:''}<br>${(unwind.fdes||[]).filter(f=>f.section===sec).slice(0,12).map(f=>`${safeHex(f.startAddress)}..${safeHex(f.endAddress)} · ${num(f.unwindRows?.length||0)} rows · ${f.unwindRows?.[0]?escapeHtml(cfiStateSummary(f.unwindRows[0],f.cie?.returnRegister,fdeArchitecture(f))):'no CFI row'}${Number.isFinite(f.lsdaAddress)?` · LSDA ${safeHex(f.lsdaAddress)}`:''}${f.cfiDiagnostics?.length?` · ${num(f.cfiDiagnostics.length)} CFI diagnostics`:''}`).join('<br>')}</div>`:''}
     ${sec.name==='.gcc_except_table'&&unwind?.lsdas?.length?`<div class="path"><b>LSDA CALL-SITE / ACTION TABLES</b><br>${unwind.lsdas.slice(0,12).map(l=>`${safeHex(l.address)} · function ${l.fde?.function?escapeHtml(functionDisplayName(l.fde.function)):safeHex(l.fde?.startAddress)} · ${num(l.callSites?.length||0)} call sites · ${num((l.callSites||[]).reduce((n,x)=>n+(x.actionChain?.length||0),0))} action records${l.diagnostics?.length?` · ${num(l.diagnostics.length)} diagnostics`:''}${l.parseError?` · ${escapeHtml(l.parseError)}`:''}`).join('<br>')}${unwind.lsdas.length>12?'<br>…':''}</div>`:''}
-    ${sec.name==='.eh_frame'&&unwind?.cfiDiagnostics?.length?`<div class="path"><b>CFI DIAGNOSTICS</b><br>${unwind.cfiDiagnostics.slice(0,20).map(d=>`${d.severity||'warning'} · ${Number.isFinite(d.byteStart)?safeHex(d.byteStart):safeHex(d.fde?.startAddress??d.cie?.address??d.entryAddress)} · byte +${num(d.offset||0)} · ${escapeHtml(d.reason)}`).join('<br>')}${unwind.cfiDiagnostics.length>20?'<br>…':''}</div>`:''}
+    ${(sec.name==='.eh_frame'||sec.name==='.debug_frame')&&unwind?.cfiDiagnostics?.length?`<div class="path"><b>CFI DIAGNOSTICS</b><br>${unwind.cfiDiagnostics.filter(d=>d.fde?.section===sec||d.cie?.section===sec).slice(0,20).map(d=>`${d.severity||'warning'} · ${Number.isFinite(d.byteStart)?safeHex(d.byteStart):safeHex(d.fde?.startAddress??d.cie?.address??d.entryAddress)} · byte +${num(d.offset||0)} · ${escapeHtml(d.reason)}`).join('<br>')}</div>`:''}
     ${sec.name==='.gcc_except_table'&&unwind?.lsdaDiagnostics?.length?`<div class="path"><b>LSDA DIAGNOSTICS</b><br>${unwind.lsdaDiagnostics.slice(0,20).map(d=>`${d.severity||'warning'} · ${safeHex(d.byteStart??d.address)}..${safeHex(d.byteEnd??d.address)} · ${escapeHtml(d.reason)}`).join('<br>')}${unwind.lsdaDiagnostics.length>20?'<br>…':''}</div>`:''}
     ${objects.length?`<div class="dataObjectList"><b>${t('dataObjects')}</b>${objects.slice(0,12).map(obj=>`<div class="dataObjectRow"><span>${safeHex(obj.address)}</span><span>${escapeHtml(obj.stringText||obj.text||obj.name||obj.kind)}</span><button data-data-object="${escapeHtml(obj.id)}">→</button></div>`).join('')}${objects.length>12?`<div>… ${num(objects.length-12)} more</div>`:''}</div>`:''}
     ${syms.length?`<div class="dataObjectList"><b>${t('symbols')}</b>${syms.slice(0,10).map((sym,i)=>`<div class="dataObjectRow"><span>${sym.defined?safeHex(sym.address):'UND'}</span><span>${escapeHtml(sym.name)}</span><button data-section-symbol="${i}">→</button></div>`).join('')}${syms.length>10?`<div>… ${num(syms.length-10)} more</div>`:''}</div>`:''}
@@ -4125,7 +4379,7 @@ function updateInspector(item){
           stackReads=info?.stackReads||[],stackWrites=info?.stackWrites||[],memoryOperands=info?.memoryOperands||[],
           memoryReads=info?.memoryReads||[],memoryWrites=info?.memoryWrites||[],memoryInvalidations=info?.memoryInvalidations||[],
           instUnwind=state.workspaceFiles.get(inst.function?.workspaceFileId)?.parsed?.unwind||null,
-          instFde=(instUnwind?.fdes||[]).find(f=>Number.isFinite(inst.addr)&&inst.addr>=f.startAddress&&inst.addr<f.endAddress)||null,
+          instFde=preferredFdeForPc(instUnwind,inst.addr),
           instCfi=instFde?cfiRowForPc(instFde,inst.addr):null;
     html=`<div class="title">${escapeHtml(`${inst.mnemonic} ${inst.operands}`.trim())}</div><div class="meta">
       <b>${t('function')}</b><span>${escapeHtml(functionDisplayName(inst.function))}</span>
@@ -4140,11 +4394,13 @@ function updateInspector(item){
       <b>RSP Δ</b><span>${Number.isFinite(info?.rspDeltaAfter)?`${info.rspDeltaAfter>=0?'+':''}${info.rspDeltaAfter}`:'unknown'}</span>
       <b>RBP base</b><span>${Number.isFinite(info?.rbpEntryDelta)?`entry RSP ${info.rbpEntryDelta>=0?'+':''}${info.rbpEntryDelta}`:'unknown'}</span>
       <b>CFI unwind</b><span>${instCfi?escapeHtml(cfiStateSummary(instCfi,instFde?.cie?.returnRegister,fdeArchitecture(instFde))):'—'}</span>
+      <b>CFI source</b><span>${instFde?`${escapeHtml(instFde.sourceLabel||instFde.sourceKind||'frame')} · ${escapeHtml(instFde.selectionEvidence||'exact PC coverage')}`:'—'}</span>
+      <b>Recipe evaluator</b><span>${instCfi?'ready for register/memory snapshot':'—'}</span>
       <b>${t('uses')}</b><span>${num(uses.length)}</span>
       <b>${t('defines')}</b><span>${num(defs.length)}</span>
       ${info?.branchOutcome!==undefined?`<b>Branch outcome</b><span>${info.branchOutcome?'taken':'not taken'} · ${escapeHtml(info.branchEvidence||'static')}</span>`:''}
     </div>
-    ${instCfi?`<div class="path"><b>CFI / STACK UNWIND @ INSTRUCTION</b><br>${escapeHtml(cfiRowSummary(instCfi,instFde))}</div>`:''}
+    ${instCfi?`<div class="path"><b>CFI / STACK UNWIND @ INSTRUCTION</b><br>${escapeHtml(cfiRowSummary(instCfi,instFde))}${instCfi.cfa?.expressionIr?`<br>CFA expression: ${escapeHtml(dwarfExpressionSummary(instCfi.cfa.expressionIr,fdeArchitecture(instFde)))}`:''}</div>`:''}
     ${uses.length?`<div class="dataObjectList"><b>${t('uses')}</b>${uses.map(u=>`<div class="dataObjectRow"><span>${escapeHtml(u.role)}</span><span>${escapeHtml(valueDisplay(u.value))}</span><button data-flow-value="${escapeHtml(u.value.id)}">→</button></div>`).join('')}</div>`:''}
     ${defs.length?`<div class="dataObjectList"><b>${t('defines')}</b>${defs.map(d=>`<div class="dataObjectRow"><span>${escapeHtml(d.role)}</span><span>${escapeHtml(valueDisplay(d.value))}</span><button data-flow-value="${escapeHtml(d.value.id)}">→</button></div>`).join('')}</div>`:''}
     ${stackReads.length?`<div class="path"><b>STACK READS</b><br>${stackReads.map(x=>`${escapeHtml(x.slot.label)} ← ${escapeHtml(valueDisplay(x.value))}`).join('<br>')}</div>`:''}
@@ -4224,7 +4480,7 @@ function updateInspector(item){
           exceptionOut=db?(advanced?.exceptionEdges||[]).filter(e=>e.from===db):[],
           exceptionIn=db?(advanced?.exceptionEdges||[]).filter(e=>e.to===db):[],
           blockPc=Number.isFinite(item.startAddr)?item.startAddr:item.instructions?.[0]?.addr,
-          blockFde=(advanced?.functionFdes||[]).find(f=>Number.isFinite(blockPc)&&blockPc>=f.startAddress&&blockPc<f.endAddress)||null,
+          blockFde=preferredFdeForPc(advanced?.unwind,blockPc),
           blockCfi=blockFde?cfiRowForPc(blockFde,blockPc):null;
     html=`<div class="title">${escapeHtml(item.label)}</div><div class="meta">
       <b>${t('function')}</b><span>${escapeHtml(functionDisplayName(item.function))}</span>
@@ -4257,7 +4513,7 @@ function updateInspector(item){
     ${blockCfi?`<div class="path"><b>CFI / STACK UNWIND @ BLOCK ENTRY</b><br>${escapeHtml(cfiRowSummary(blockCfi,blockFde))}${blockFde?.cfiDiagnostics?.length?`<br>${num(blockFde.cfiDiagnostics.length)} CFI diagnostics in this FDE`:''}</div>`:''}
     ${jumpTables.length?`<div class="path"><b>JUMP-TABLE / SWITCH CANDIDATES</b><br>${jumpTables.map((j,ji)=>{
       const table=j.table,bound=j.bound||table?.bound,unresolved=j.unresolvedEntries||[];
-      return `${escapeHtml(dataObjectLabel(table))} · ${escapeHtml(table?.encoding||'pointer-table')} · ${j.confidence} · ${num(j.targets?.length||0)} exact targets${Number.isFinite(table?.address)?` · ${safeHex(table.address)}`:''}${bound?`<br>index bound: ${escapeHtml(bound.evidence)} · cases ${bound.min}..${bound.max}${bound.defaultBlock?` · default → ${escapeHtml(cfgBlockTitle(bound.defaultBlock,item.function))}`:''}`:''}${j.targets?.length?'<br>'+j.targets.map(tg=>`case ${tg.caseValue??tg.index} → ${escapeHtml(cfgBlockTitle(tg.block,item.function))} · ${escapeHtml(tg.evidence||'exact table entry')}`).join('<br>'):''}${unresolved.length?`<br>${num(unresolved.length)} unresolved table entries preserved`:''}${table?.section&&Number.isFinite(table?.address)?`<br><button data-jt-hex="${ji}">Open table hex</button>`:''}`;
+      return `${escapeHtml(dataObjectLabel(table))} · ${escapeHtml(table?.encoding||'pointer-table')} · ${j.confidence} · ${num(j.targets?.length||0)} exact targets${Number.isFinite(table?.address)?` · ${safeHex(table.address)}`:''}${j.lookupTable?`<br>sparse lookup: ${safeHex(j.lookupTable.address)} · ${j.lookupTable.width} B entries · ${escapeHtml(j.lookupTable.encoding)}${j.holes?.length?` · ${num(j.holes.length)} in-range values route to default`:''}`:''}${bound?`<br>index bound: ${escapeHtml(bound.evidence)} · cases ${bound.min}..${bound.max}${bound.defaultBlock?` · default → ${escapeHtml(cfgBlockTitle(bound.defaultBlock,item.function))}`:''}`:''}${j.targets?.length?'<br>'+j.targets.map(tg=>`case ${tg.caseValue??tg.index} → ${escapeHtml(cfgBlockTitle(tg.block,item.function))} · ${escapeHtml(tg.evidence||'exact table entry')}`).join('<br>'):''}${unresolved.length?`<br>${num(unresolved.length)} unresolved table entries preserved`:''}${table?.section&&Number.isFinite(table?.address)?`<br><button data-jt-hex="${ji}">Open target table hex</button>`:''}${j.lookupTable?.section&&Number.isFinite(j.lookupTable.address)?` <button data-jt-lookup="${ji}">Open lookup hex</button>`:''}`;
     }).join('<br><br>')}</div>`:''}
     ${indirectCalls.length?`<div class="path"><b>INDIRECT CALL CANDIDATES</b><br>${indirectCalls.map(c=>`${escapeHtml(c.instruction.mnemonic+' '+c.instruction.operands)} · ${c.confidence} · ${escapeHtml(c.evidence||'')}${c.candidates.length?'<br>'+c.candidates.slice(0,40).map(tg=>tg.kind==='function'?`→ ${escapeHtml(functionDisplayName(tg.function))} · ${safeHex(tg.address)} · ${escapeHtml(tg.evidence)}`:`→ ${escapeHtml(cfgBlockTitle(tg.block,item.function))} · ${escapeHtml(tg.evidence)}`).join('<br>')+(c.candidates.length>40?`<br>… ${num(c.candidates.length-40)} more conservative candidates`:''):' · unresolved'}`).join('<br>')}</div>`:''}
     ${indirectJumps.length?`<div class="path"><b>INDIRECT JUMP CANDIDATES</b><br>${indirectJumps.map(c=>`${escapeHtml(c.instruction.mnemonic+' '+c.instruction.operands)} · ${c.confidence} · ${escapeHtml(c.evidence||'')}${c.candidates.length?'<br>'+c.candidates.slice(0,40).map(tg=>tg.kind==='function'?`→ ${escapeHtml(functionDisplayName(tg.function))} · ${safeHex(tg.address)} · ${escapeHtml(tg.evidence)}`:`→ ${escapeHtml(cfgBlockTitle(tg.block,item.function))} · ${escapeHtml(tg.evidence)}`).join('<br>')+(c.candidates.length>40?`<br>… ${num(c.candidates.length-40)} more conservative candidates`:''):' · unresolved'}`).join('<br>')}</div>`:''}
@@ -4285,7 +4541,7 @@ function updateInspector(item){
     ${item.dynamicMatchedBy?.length?`<div class="path"><b>${t('dynamicMatch')}</b><br>${item.dynamicMatchedBy.map(x=>`${escapeHtml(x.name)} · ${safeHex(x.addr)} · ${escapeHtml(x.addressSpaceLabel||'')}`).join('<br>')}</div>`:''}
     ${df?`<div class="path"><b>STATIC ANALYSIS SUMMARY</b><br>${escapeHtml(df.architecture||'unknown')} · ${escapeHtml(df.adapter?.id||'unsupported')} · ${num(df.values?.length||0)} values · ${num(df.phiValues?.length||0)} phi · ${num(df.values?.filter(v=>v.kind==='memory-version').length||0)} memory versions · ${num(df.values?.filter(v=>v.kind==='memory-slice'||v.kind==='memory-composite').length||0)} memory slices/composites · ${num(df.values?.filter(v=>v.kind==='memory-clobber').length||0)} memory clobbers · memory cells peak ${num(df.memoryCellPeak||0)}/${num(df.memoryCellBudget||0)}${df.memoryFragmentCollapses?` · ${num(df.memoryFragmentCollapses)} fragmentation collapses`:''} · ${num(df.analysisBarriers?.length||0)} barriers<br>value FP ${df.fixedPointConverged?'converged':'partial'} (${num(df.fixedPointIterations||0)}) · full-state FP ${df.stateFixedPointConverged?'converged':'partial'} (${num(df.stateFixedPointIterations||0)}/${num(df.stateFixedPointBudget||0)}) · loop headers ${num(df.loopBlocks?.length||0)}${df.stateDomainConvergence?`<br>${Object.entries(df.stateDomainConvergence).map(([k,v])=>`${escapeHtml(k)}=${v.converged?'ok':'partial'}@${num(v.iterations||0)}`).join(' · ')}`:''}</div>`:''}
     ${cfg?`<div class="path"><b>ADVANCED CFG</b><br>${num(cfg.blocks.length)} blocks · ${num(cfg.reachable.size)} reachable${cfg.exceptionOnlyReachable?.size?` (${num(cfg.exceptionOnlyReachable.size)} exception-only)`:''} · dominators ${num(cfg.domIterations)} iterations · ${num(cfg.backEdges.length)} back edges · ${num(cfg.loops.length)} natural loops · ${num(cfg.irreducibleRegions?.length||0)} irreducible SCCs · ${num(cfg.criticalEdges.length)} critical edges · ${num(cfg.functionFdes?.length||0)} unwind FDEs · ${num(cfg.exceptionEdges?.length||0)} exception edges · ${num(cfg.jumpTables.length)} jump-table candidates · ${num(cfg.indirectCallCandidates?.length||0)} indirect calls · ${num(cfg.indirectJumpCandidates?.length||0)} indirect jumps · ${num(cfg.tailCalls.length)} tail calls · ${num(cfg.unresolvedTransfers.length)} unresolved transfers · noreturn ${cfg.structuralNoReturn?'structurally proven':'not proven'}${cfg.loops.length?`<br>${cfg.loops.slice(0,8).map(l=>`loop depth ${l.depth}: header ${escapeHtml(cfgBlockTitle(l.header,item))} · ${num(l.nodes.size)} blocks`).join('<br>')}`:''}</div>`:''}
-    ${cfg?.functionFdes?.length?`<div class="path"><b>UNWIND / .eh_frame / CFI</b><br>${cfg.functionFdes.slice(0,24).map(f=>`${safeHex(f.startAddress)}..${safeHex(f.endAddress)} · ${num(f.unwindRows?.length||0)} CFI rows · CIE ${safeHex(f.cieAddress)} · aug ${escapeHtml(f.cie?.augmentation||'')} · FDE encoding 0x${(f.cie?.fdeEncoding??0).toString(16)}${Number.isFinite(f.lsdaAddress)?` · LSDA ${safeHex(f.lsdaAddress)}`:''}${f.cfiDiagnostics?.length?` · ${num(f.cfiDiagnostics.length)} CFI diagnostics`:''}${f.unwindRows?.length?`<br>${f.unwindRows.slice(0,6).map(r=>`&nbsp;&nbsp;${escapeHtml(cfiRowSummary(r,f))}`).join('<br>')}${f.unwindRows.length>6?`<br>&nbsp;&nbsp;… ${num(f.unwindRows.length-6)} more rows`:''}`:''}`).join('<br><br>')}${cfg.functionFdes.length>24?'<br>…':''}${cfg.unwind?.errors?.length||cfg.unwind?.cfiDiagnostics?.length?`<br>${num((cfg.unwind?.errors?.length||0)+(cfg.unwind?.cfiDiagnostics?.length||0))} unwind/CFI diagnostics`:''}</div>`:''}
+    ${cfg?.functionFdes?.length?`<div class="path"><b>UNWIND / .eh_frame + .debug_frame / CFI</b><br>${cfg.functionFdes.slice(0,24).map(f=>`${escapeHtml(f.sourceLabel||f.sourceKind||'frame')} · ${safeHex(f.startAddress)}..${safeHex(f.endAddress)} · ${num(f.unwindRows?.length||0)} CFI rows · CIE ${safeHex(f.cieAddress)} · aug ${escapeHtml(f.cie?.augmentation||'')} · FDE encoding 0x${(f.cie?.fdeEncoding??0).toString(16)}${Number.isFinite(f.lsdaAddress)?` · LSDA ${safeHex(f.lsdaAddress)}`:''}${f.cfiDiagnostics?.length?` · ${num(f.cfiDiagnostics.length)} CFI diagnostics`:''}${f.unwindRows?.length?`<br>${f.unwindRows.slice(0,6).map(r=>`&nbsp;&nbsp;${escapeHtml(cfiRowSummary(r,f))}`).join('<br>')}${f.unwindRows.length>6?`<br>&nbsp;&nbsp;… ${num(f.unwindRows.length-6)} more rows`:''}`:''}`).join('<br><br>')}${cfg.functionFdes.length>24?'<br>…':''}${cfg.unwind?.errors?.length||cfg.unwind?.cfiDiagnostics?.length?`<br>${num((cfg.unwind?.errors?.length||0)+(cfg.unwind?.cfiDiagnostics?.length||0))} unwind/CFI diagnostics`:''}</div>`:''}
     ${cfg?.exceptionEdges?.length?`<div class="path"><b>EXCEPTION / LANDING-PAD EDGES</b><br>${cfg.exceptionEdges.slice(0,24).map(e=>`${escapeHtml(cfgBlockTitle(e.from,item))} ⇢ ${escapeHtml(cfgBlockTitle(e.to,item))} · ${escapeHtml(e.exceptionSite?.kind||'exception')} · ${safeHex(e.exceptionSite?.startAddress)}..${safeHex(e.exceptionSite?.endAddress)}`).join('<br>')}${cfg.exceptionEdges.length>24?'<br>…':''}<br>analysis edge set: ${escapeHtml(state.cfgEdgeMode)}</div>`:''}
     ${cfg?.noreturnProof?`<div class="path"><b>STRUCTURAL NORETURN PROOF</b><br>${escapeHtml(cfg.noreturnProof.evidence)} · confidence ${escapeHtml(cfg.noreturnProof.confidence)}</div>`:''}
     ${cfg?.irreducibleRegions?.length?`<div class="path"><b>IRREDUCIBLE CFG REGIONS</b><br>${cfg.irreducibleRegions.slice(0,12).map(r=>`${num(r.blocks.length)} blocks · ${num(r.entryNodes.length)} entries: ${r.entryNodes.map(b=>escapeHtml(cfgBlockTitle(b,item))).join(', ')}`).join('<br>')}</div>`:''}
@@ -4414,6 +4670,11 @@ function updateInspector(item){
     const db=item.dataflowBlock,advanced=item.function?analyzeAdvancedCfg(item.function):null,
           tables=db?(advanced?.jumpTables||[]).filter(x=>x.block===db):[],jt=tables[Number(btn.dataset.jtHex)],table=jt?.table;
     if(table?.section&&Number.isFinite(table.address))openHexViewer({section:table.section,address:table.address,size:Math.max(1,table.size||table.entryWidth||8),name:dataObjectLabel(table)});
+  }));
+  els.inspector.querySelectorAll('[data-jt-lookup]').forEach(btn=>btn.addEventListener('click',()=>{
+    const db=item.dataflowBlock,advanced=item.function?analyzeAdvancedCfg(item.function):null,
+          tables=db?(advanced?.jumpTables||[]).filter(x=>x.block===db):[],jt=tables[Number(btn.dataset.jtLookup)],lookup=jt?.lookupTable;
+    if(lookup?.section&&Number.isFinite(lookup.address))openHexViewer({section:lookup.section,address:lookup.address,size:Math.max(1,(jt?.bound?.count||1)*lookup.width),name:`sparse lookup ${safeHex(lookup.address)}`});
   }));
   const exceptionEdgeByToken=token=>{
     const [dir,raw]=String(token||'').split(':'),idx=Number(raw),db=item.dataflowBlock,advanced=item.function?analyzeAdvancedCfg(item.function):null,
@@ -5089,6 +5350,67 @@ function analyzeAdvancedCfg(fn){
       unresolvedEntries:unresolved,bound,defaultBlock:bound?.defaultBlock||null,confidence:bound&&unresolved.length===0?'exact':'inferred'
     };
   };
+  const recoverSparseLookupSwitch=(block,last,info)=>{
+    const {parts:jumpParts}=df.adapter.normalizeOperands(last),jumpOp=jumpParts[0]||last.operands||'',jumpEa=df.adapter.effectiveAddress?.(jumpOp);
+    if(!jumpEa?.index||!Number.isFinite(jumpEa.scale)||![4,8].includes(jumpEa.scale))return null;
+    const dispatchReg=jumpEa.index,jumpBase=baseAddressFromMemoryInfo(info,jumpEa);
+    if(!Number.isFinite(jumpBase))return null;
+    const jumpSection=sectionAtAddress(jumpBase);if(!jumpSection)return null;
+
+    const meaningful=block.instructions.filter(i=>!df.adapter.noopLike?.(i)),j=meaningful.indexOf(last);
+    if(j<=0)return null;
+    let lookup=null;
+    for(let k=j-1;k>=Math.max(0,j-8);k--){
+      const inst=meaningful[k],mn=inst.mnemonic.toLowerCase(),norm=df.adapter.normalizeOperands(inst),
+            dst=operandRegister(norm.syntax==='att'?norm.parts.at(-1):norm.parts[0])?.canonical,
+            src=norm.syntax==='att'?norm.parts[0]:norm.parts[1],ea=df.adapter.effectiveAddress?.(src);
+      if(dst!==dispatchReg||!ea?.index||ea.base||!Number.isFinite(ea.disp))continue;
+      let width=null,signed=false;
+      if(/movz.*b/.test(mn)){width=1;signed=false}
+      else if(/movz.*w/.test(mn)){width=2;signed=false}
+      else if(/movs.*b/.test(mn)){width=1;signed=true}
+      else if(/movs.*w/.test(mn)){width=2;signed=true}
+      else if(/movs.*l|movslq|movsxd/.test(mn)){width=4;signed=true}
+      if(!width)continue;
+      lookup={instruction:inst,indexReg:ea.index,base:ea.disp,width,signed,ea};break;
+    }
+    if(!lookup)return null;
+    const bound=inferSwitchBound(block,lookup.indexReg);if(!bound||bound.count>4096)return null;
+    const lookupSection=sectionAtAddress(lookup.base);if(!lookupSection)return null;
+
+    const pointerWidth=jumpEa.scale===8?8:4,entries=[],targets=[],unresolved=[],holes=[],dispatchCache=new Map();
+    const readLookup=(addr)=>lookup.signed?readSignedLE(lookupSection,addr,lookup.width):readUnsignedLE(lookupSection,addr,lookup.width);
+    for(let i=0;i<bound.count;i++){
+      const tableIndex=(bound.normalizedMin||0)+i,lookupAddress=lookup.base+tableIndex*lookup.width,rawLookup=readLookup(lookupAddress);
+      if(rawLookup==null){unresolved.push({caseValue:bound.min+i,reason:'lookup bytes unavailable'});continue}
+      const dispatchIndex=Number(rawLookup);if(!Number.isFinite(dispatchIndex)||dispatchIndex<0||dispatchIndex>4095){unresolved.push({caseValue:bound.min+i,reason:'lookup index out of safety range'});continue}
+      let dispatch=dispatchCache.get(dispatchIndex);
+      if(!dispatch){
+        const entryAddress=jumpBase+dispatchIndex*pointerWidth,rawTarget=readUnsignedLE(jumpSection,entryAddress,pointerWidth);
+        if(rawTarget==null||rawTarget>BigInt(Number.MAX_SAFE_INTEGER))dispatch={entryAddress,targetAddress:null,targetBlock:null,rawTarget};
+        else{
+          const targetAddress=Number(rawTarget),targetBlock=blockContainingAddress(targetAddress);
+          dispatch={entryAddress,targetAddress,targetBlock,rawTarget};
+        }
+        dispatchCache.set(dispatchIndex,dispatch);
+      }
+      const caseValue=bound.min+i,entry={index:tableIndex,caseValue,lookupAddress,lookupRaw:rawLookup,dispatchIndex,
+        address:dispatch.entryAddress,targetAddress:dispatch.targetAddress,targetBlock:dispatch.targetBlock,
+        confidence:dispatch.targetBlock?'exact':'unknown',evidence:`lookup[${tableIndex}] → dispatch ${dispatchIndex} → absolute target`};
+      entries.push(entry);
+      if(bound.defaultBlock&&dispatch.targetBlock===bound.defaultBlock)holes.push(entry);
+      else if(dispatch.targetBlock)targets.push({index:tableIndex,caseValue,address:dispatch.targetAddress,block:dispatch.targetBlock,entry,evidence:entry.evidence});
+      else unresolved.push(entry);
+    }
+    if(targets.length<2)return null;
+    const table=makeRecoveredTable('sparse-lookup',jumpBase,pointerWidth,jumpSection,entries,bound,
+      `two-stage sparse dispatch: ${lookup.width}-byte ${lookup.signed?'signed':'unsigned'} lookup table ${safeHex(lookup.base)} indexed by ${lookup.indexReg}, then absolute target table ${safeHex(jumpBase)} indexed by ${dispatchReg}`,
+      {encoding:`sparse-lookup-${lookup.signed?'s':'u'}${lookup.width*8}+absolute`,indexReg:lookup.indexReg,dispatchReg,lookupBase:lookup.base,lookupWidth:lookup.width,lookupSection,holes});
+    return {table,targets,unresolvedEntries:unresolved,holes,bound,defaultBlock:bound.defaultBlock||null,confidence:unresolved.length?'inferred':'exact',
+      lookupTable:{address:lookup.base,width:lookup.width,section:lookupSection,entries,encoding:lookup.signed?`s${lookup.width*8}`:`u${lookup.width*8}`},
+      evidence:table.evidence};
+  };
+
   const candidateTargetsFromValue=(value,seen=new Set(),out=[])=>{
     if(!value||seen.has(value))return out;seen.add(value);
     const abs=value.abstractValue;
@@ -5294,10 +5616,12 @@ function analyzeAdvancedCfg(fn){
       const indirect=!!info?.jumpTargetValue||!Number.isFinite(targetAddr);
       if(indirect){
         let valueCandidates=candidateTargetsFromValue(info?.jumpTargetValue),fallback=false;
-        const recovered=[
-          recoverAbsoluteIndexedJumpTable(b,last,info),
-          recoverRelativeIndexedJumpTable(b,last,info)
-        ].filter(Boolean);
+        const sparseRecovered=recoverSparseLookupSwitch(b,last,info),
+              recovered=[
+                sparseRecovered,
+                sparseRecovered?null:recoverAbsoluteIndexedJumpTable(b,last,info),
+                recoverRelativeIndexedJumpTable(b,last,info)
+              ].filter(Boolean);
         for(const jt of recovered)jumpTables.push({block:b,instruction:last,...jt,evidence:jt.table.evidence});
 
         const exactLocal=valueCandidates.filter(x=>x.kind==='block'&&x.confidence==='exact');
@@ -8517,8 +8841,8 @@ new ResizeObserver(()=>{resizeCanvas();resizeTraceCanvas();renderCode(true);stat
 // not depend on it; explicit load entry points exist only for harnesses.
 Object.defineProperty(window,'asmInspectorDebug',{value:{
   get state(){return state}, functionDataflow, analyzeAdvancedCfg, buildGraph, buildCfgGraph, buildDataflowGraph, fitGraph, resizeCanvas, groupAnalysisBarriers,
-  decodeDwarfCfiProgram, cfiRowForPc, cfiStateSummary,
-  selectFunction, selectGraphNode, valueDisplay, dataflowUnknownReason,
+  decodeDwarfCfiProgram, decodeDwarfExpression, evaluateDwarfExpression, parseDebugFrameSection, preferredFdeForPc, evaluateStaticUnwindRecipe, cfiRowForPc, cfiStateSummary,
+  openHexViewer, selectFunction, selectGraphNode, valueDisplay, dataflowUnknownReason,
   // Explicit regression-harness entry points; normal UI code does not depend on them.
   addWorkspaceText, loadText
 },configurable:false,enumerable:false});
