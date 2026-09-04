@@ -1498,6 +1498,158 @@ function sectionRunReaderAt(section,address){
   }
   return null;
 }
+
+const DW_CFA={
+  nop:0x00,set_loc:0x01,advance_loc1:0x02,advance_loc2:0x03,advance_loc4:0x04,
+  offset_extended:0x05,restore_extended:0x06,undefined:0x07,same_value:0x08,register:0x09,
+  remember_state:0x0a,restore_state:0x0b,def_cfa:0x0c,def_cfa_register:0x0d,def_cfa_offset:0x0e,
+  def_cfa_expression:0x0f,expression:0x10,offset_extended_sf:0x11,def_cfa_sf:0x12,def_cfa_offset_sf:0x13,
+  val_offset:0x14,val_offset_sf:0x15,val_expression:0x16,gnu_args_size:0x2e,gnu_negative_offset_extended:0x2f
+};
+function dwarfRegisterName(reg,architecture='x86-64'){
+  if(architecture==='x86-64'){
+    const names=['rax','rdx','rcx','rbx','rsi','rdi','rbp','rsp','r8','r9','r10','r11','r12','r13','r14','r15','rip',
+      'xmm0','xmm1','xmm2','xmm3','xmm4','xmm5','xmm6','xmm7','xmm8','xmm9','xmm10','xmm11','xmm12','xmm13','xmm14','xmm15'];
+    if(Number.isInteger(reg)&&reg>=0&&reg<names.length)return names[reg];
+  }
+  return `DWREG${reg}`;
+}
+function cloneCfiRule(rule){return rule?{...rule,expression:rule.expression?[...rule.expression]:undefined}:null}
+function cloneCfiState(state={}){
+  return {
+    cfa:cloneCfiRule(state.cfa),registerRules:new Map([...(state.registerRules||new Map())].map(([reg,rule])=>[reg,cloneCfiRule(rule)])),
+    argsSize:Number.isFinite(state.argsSize)?state.argsSize:null,raState:!!state.raState
+  };
+}
+function cfiRuleKey(rule){
+  if(!rule)return 'same';
+  if(rule.kind==='cfa-register-offset')return `cfa:${rule.register}:${rule.offset}`;
+  if(rule.kind==='offset'||rule.kind==='val-offset')return `${rule.kind}:${rule.offset}`;
+  if(rule.kind==='register')return `reg:${rule.register}`;
+  if(rule.kind==='expression'||rule.kind==='val-expression'||rule.kind==='cfa-expression')return `${rule.kind}:${(rule.expression||[]).join(',')}`;
+  return rule.kind||'unknown';
+}
+function cfiStateKey(state){
+  return `${cfiRuleKey(state?.cfa)}|${[...(state?.registerRules||new Map())].sort((a,b)=>a[0]-b[0]).map(([r,v])=>`${r}=${cfiRuleKey(v)}`).join(';')}|args:${state?.argsSize??''}|ra:${state?.raState?1:0}`;
+}
+function cfiRuleDisplay(rule,architecture='x86-64',isCfa=false){
+  if(!rule)return isCfa?'unknown':'same value';
+  const rn=r=>dwarfRegisterName(r,architecture),signed=n=>`${n>=0?'+':''}${n}`;
+  switch(rule.kind){
+    case 'cfa-register-offset':return `${rn(rule.register)} ${signed(rule.offset)}`;
+    case 'offset':return `[CFA ${signed(rule.offset)}]`;
+    case 'val-offset':return `CFA ${signed(rule.offset)}`;
+    case 'same-value':return 'same value';
+    case 'undefined':return 'undefined';
+    case 'register':return rn(rule.register);
+    case 'expression':return `DWARF expr (${rule.expression?.length||0} B)`;
+    case 'val-expression':return `DWARF value expr (${rule.expression?.length||0} B)`;
+    case 'cfa-expression':return `DWARF CFA expr (${rule.expression?.length||0} B)`;
+    default:return rule.kind||'unknown';
+  }
+}
+function cfiStateSummary(state,returnRegister,architecture='x86-64'){
+  const cfa=cfiRuleDisplay(state?.cfa,architecture,true),ra=state?.registerRules?.get(returnRegister)||null;
+  return `CFA = ${cfa} · ${dwarfRegisterName(returnRegister,architecture)} ← ${cfiRuleDisplay(ra,architecture,false)}`;
+}
+function decodeDwarfCfiProgram(bytes,{cie,startAddress=0,endAddress=null,ptrSize=8,initialState=null,restoreState=null,emitRows=true}={}){
+  const data=new Uint8Array(bytes||[]),r=new DwarfReader(data),diagnostics=[],operations=[],rows=[],remember=[],
+        codeAlignment=cie?.codeAlignment||1,dataAlignment=cie?.dataAlignment||1,returnRegister=cie?.returnRegister??null;
+  let state=cloneCfiState(initialState||{registerRules:new Map()}),pc=Number.isFinite(startAddress)?startAddress:0,parseComplete=true;
+  const restoreBase=cloneCfiState(restoreState||initialState||{registerRules:new Map()});
+  const emitUntil=nextPc=>{
+    if(!emitRows||!Number.isFinite(pc)||!Number.isFinite(nextPc)||nextPc<=pc)return;
+    const hi=Number.isFinite(endAddress)?Math.min(nextPc,endAddress):nextPc;if(hi<=pc)return;
+    const snapshot=cloneCfiState(state),raRule=returnRegister!=null?cloneCfiRule(snapshot.registerRules.get(returnRegister)):null;
+    rows.push({startAddress:pc,endAddress:hi,cfa:cloneCfiRule(snapshot.cfa),registerRules:snapshot.registerRules,returnAddressRegister:returnRegister,returnAddressRule:raRule,argsSize:snapshot.argsSize,raState:snapshot.raState,stateKey:cfiStateKey(snapshot)});
+  };
+  const advance=delta=>{const next=pc+delta*codeAlignment;emitUntil(next);pc=next};
+  const expr=()=>{const n=r.uleb();return [...r.bytes(n)]};
+  const restoreReg=reg=>{const rule=restoreBase.registerRules.get(reg);if(rule)state.registerRules.set(reg,cloneCfiRule(rule));else state.registerRules.delete(reg)};
+  const diag=(offset,opcode,reason,severity='warning')=>diagnostics.push({offset,opcode,address:Number.isFinite(startAddress)?startAddress:0,pc,reason,severity});
+  try{
+    while(r.pos<r.end){
+      const opOffset=r.pos,opcode=r.u8(),primary=opcode&0xc0,operand=opcode&0x3f,pcBefore=pc;
+      let name='',detail='';
+      if(primary===0x40){name='DW_CFA_advance_loc';advance(operand);detail=`+${operand} * ${codeAlignment}`}
+      else if(primary===0x80){name='DW_CFA_offset';const fact=r.uleb(),off=fact*dataAlignment;state.registerRules.set(operand,{kind:'offset',offset:off,factor:fact});detail=`${operand} @ CFA ${off>=0?'+':''}${off}`}
+      else if(primary===0xc0){name='DW_CFA_restore';restoreReg(operand);detail=`reg ${operand}`}
+      else switch(opcode){
+        case DW_CFA.nop:name='DW_CFA_nop';break;
+        case DW_CFA.set_loc:{name='DW_CFA_set_loc';const next=ptrSize===8?r.u64():r.u32();emitUntil(next);pc=next;detail=safeHex(next);break}
+        case DW_CFA.advance_loc1:name='DW_CFA_advance_loc1';{const d=r.u8();advance(d);detail=`+${d} * ${codeAlignment}`}break;
+        case DW_CFA.advance_loc2:name='DW_CFA_advance_loc2';{const d=r.u16();advance(d);detail=`+${d} * ${codeAlignment}`}break;
+        case DW_CFA.advance_loc4:name='DW_CFA_advance_loc4';{const d=r.u32();advance(d);detail=`+${d} * ${codeAlignment}`}break;
+        case DW_CFA.offset_extended:{name='DW_CFA_offset_extended';const reg=r.uleb(),fact=r.uleb(),off=fact*dataAlignment;state.registerRules.set(reg,{kind:'offset',offset:off,factor:fact});detail=`${reg} @ CFA ${off>=0?'+':''}${off}`;break}
+        case DW_CFA.restore_extended:{name='DW_CFA_restore_extended';const reg=r.uleb();restoreReg(reg);detail=`reg ${reg}`;break}
+        case DW_CFA.undefined:{name='DW_CFA_undefined';const reg=r.uleb();state.registerRules.set(reg,{kind:'undefined'});detail=`reg ${reg}`;break}
+        case DW_CFA.same_value:{name='DW_CFA_same_value';const reg=r.uleb();state.registerRules.set(reg,{kind:'same-value'});detail=`reg ${reg}`;break}
+        case DW_CFA.register:{name='DW_CFA_register';const reg=r.uleb(),src=r.uleb();state.registerRules.set(reg,{kind:'register',register:src});detail=`${reg} ← ${src}`;break}
+        case DW_CFA.remember_state:name='DW_CFA_remember_state';remember.push(cloneCfiState(state));detail=`depth ${remember.length}`;break;
+        case DW_CFA.restore_state:name='DW_CFA_restore_state';if(remember.length)state=remember.pop();else diag(opOffset,opcode,'DW_CFA_restore_state without matching remember_state');detail=`depth ${remember.length}`;break;
+        case DW_CFA.def_cfa:{name='DW_CFA_def_cfa';const reg=r.uleb(),off=r.uleb();state.cfa={kind:'cfa-register-offset',register:reg,offset:off};detail=`${reg} +${off}`;break}
+        case DW_CFA.def_cfa_register:{name='DW_CFA_def_cfa_register';const reg=r.uleb();if(state.cfa?.kind==='cfa-register-offset')state.cfa={...state.cfa,register:reg};else{state.cfa={kind:'cfa-register-offset',register:reg,offset:0};diag(opOffset,opcode,'def_cfa_register arrived before a register+offset CFA; offset conservatively reset to 0')}detail=`reg ${reg}`;break}
+        case DW_CFA.def_cfa_offset:{name='DW_CFA_def_cfa_offset';const off=r.uleb();if(state.cfa?.kind==='cfa-register-offset')state.cfa={...state.cfa,offset:off};else{state.cfa={kind:'cfa-register-offset',register:null,offset:off};diag(opOffset,opcode,'def_cfa_offset arrived before a CFA register')};detail=`+${off}`;break}
+        case DW_CFA.def_cfa_expression:{name='DW_CFA_def_cfa_expression';const expression=expr();state.cfa={kind:'cfa-expression',expression};detail=`${expression.length} B`;break}
+        case DW_CFA.expression:{name='DW_CFA_expression';const reg=r.uleb(),expression=expr();state.registerRules.set(reg,{kind:'expression',expression});detail=`reg ${reg}, ${expression.length} B`;break}
+        case DW_CFA.offset_extended_sf:{name='DW_CFA_offset_extended_sf';const reg=r.uleb(),fact=r.sleb(),off=fact*dataAlignment;state.registerRules.set(reg,{kind:'offset',offset:off,factor:fact});detail=`${reg} @ CFA ${off>=0?'+':''}${off}`;break}
+        case DW_CFA.def_cfa_sf:{name='DW_CFA_def_cfa_sf';const reg=r.uleb(),fact=r.sleb(),off=fact*dataAlignment;state.cfa={kind:'cfa-register-offset',register:reg,offset:off};detail=`${reg} ${off>=0?'+':''}${off}`;break}
+        case DW_CFA.def_cfa_offset_sf:{name='DW_CFA_def_cfa_offset_sf';const fact=r.sleb(),off=fact*dataAlignment;if(state.cfa?.kind==='cfa-register-offset')state.cfa={...state.cfa,offset:off};else{state.cfa={kind:'cfa-register-offset',register:null,offset:off};diag(opOffset,opcode,'def_cfa_offset_sf arrived before a CFA register')};detail=`${off>=0?'+':''}${off}`;break}
+        case DW_CFA.val_offset:{name='DW_CFA_val_offset';const reg=r.uleb(),fact=r.uleb(),off=fact*dataAlignment;state.registerRules.set(reg,{kind:'val-offset',offset:off,factor:fact});detail=`${reg} = CFA ${off>=0?'+':''}${off}`;break}
+        case DW_CFA.val_offset_sf:{name='DW_CFA_val_offset_sf';const reg=r.uleb(),fact=r.sleb(),off=fact*dataAlignment;state.registerRules.set(reg,{kind:'val-offset',offset:off,factor:fact});detail=`${reg} = CFA ${off>=0?'+':''}${off}`;break}
+        case DW_CFA.val_expression:{name='DW_CFA_val_expression';const reg=r.uleb(),expression=expr();state.registerRules.set(reg,{kind:'val-expression',expression});detail=`reg ${reg}, ${expression.length} B`;break}
+        case DW_CFA.gnu_args_size:name='DW_CFA_GNU_args_size';state.argsSize=r.uleb();detail=`${state.argsSize} B`;break;
+        case DW_CFA.gnu_negative_offset_extended:{name='DW_CFA_GNU_negative_offset_extended';const reg=r.uleb(),fact=r.uleb(),off=-fact*dataAlignment;state.registerRules.set(reg,{kind:'offset',offset:off,factor:-fact});detail=`${reg} @ CFA ${off>=0?'+':''}${off}`;break}
+        default:
+          name=`DW_CFA_0x${opcode.toString(16)}`;diag(opOffset,opcode,`unsupported CFI opcode 0x${opcode.toString(16)}; remaining program bytes cannot be decoded safely`,'error');parseComplete=false;r.pos=r.end;break;
+      }
+      operations.push({offset:opOffset,opcode,name,detail,pcBefore,pcAfter:pc});
+    }
+  }catch(err){diag(r.pos,null,String(err?.message||err),'error');parseComplete=false}
+  if(emitRows&&Number.isFinite(endAddress)&&pc<endAddress)emitUntil(endAddress);
+  const compact=[];
+  for(const row of rows){
+    const prev=compact.at(-1);
+    if(prev&&prev.endAddress===row.startAddress&&prev.stateKey===row.stateKey)prev.endAddress=row.endAddress;
+    else compact.push(row);
+  }
+  return {finalState:cloneCfiState(state),rows:compact,operations,diagnostics,parseComplete};
+}
+function decodeEhFrameCfi(frame,{ptrSize=8}={}){
+  const diagnostics=[];
+  for(const cie of frame.cies||[]){
+    const decoded=decodeDwarfCfiProgram(cie.instructions,{cie,ptrSize,initialState:{registerRules:new Map()},restoreState:{registerRules:new Map()},emitRows:false});
+    cie.initialCfiState=decoded.finalState;cie.cfiOperations=decoded.operations.map(op=>({...op,byteAddress:Number.isFinite(cie.instructionsAddress)?cie.instructionsAddress+op.offset:null}));
+    cie.cfiDiagnostics=decoded.diagnostics.map(d=>({...d,byteStart:Number.isFinite(cie.instructionsAddress)?cie.instructionsAddress+d.offset:null,byteEnd:Number.isFinite(cie.instructionsAddress)?cie.instructionsAddress+d.offset+1:null}));cie.cfiParseComplete=decoded.parseComplete;
+    for(const d of cie.cfiDiagnostics)diagnostics.push({...d,cie,entryAddress:cie.address});
+  }
+  for(const fde of frame.fdes||[]){
+    const base=fde.cie?.initialCfiState||{registerRules:new Map()};
+    const decoded=decodeDwarfCfiProgram(fde.instructions,{cie:fde.cie,ptrSize,startAddress:fde.startAddress,endAddress:fde.endAddress,initialState:base,restoreState:base,emitRows:true});
+    fde.unwindRows=decoded.rows;fde.cfiOperations=decoded.operations.map(op=>({...op,byteAddress:Number.isFinite(fde.instructionsAddress)?fde.instructionsAddress+op.offset:null}));
+    fde.cfiDiagnostics=decoded.diagnostics.map(d=>({...d,byteStart:Number.isFinite(fde.instructionsAddress)?fde.instructionsAddress+d.offset:null,byteEnd:Number.isFinite(fde.instructionsAddress)?fde.instructionsAddress+d.offset+1:null}));fde.cfiParseComplete=decoded.parseComplete;
+    for(const d of fde.cfiDiagnostics)diagnostics.push({...d,fde,entryAddress:fde.address});
+  }
+  return diagnostics;
+}
+function cfiRowForPc(fde,pc){return fde?.unwindRows?.find(r=>Number.isFinite(pc)&&pc>=r.startAddress&&pc<r.endAddress)||null}
+function fdeArchitecture(fde){return fde?.function?detectFunctionArchitecture(fde.function):'unknown'}
+function cfiSavedRuleSummary(row,fde,{limit=8}={}){
+  if(!row)return '';
+  const arch=fdeArchitecture(fde),ra=fde?.cie?.returnRegister,items=[];
+  for(const [reg,rule] of [...(row.registerRules||new Map())].sort((a,b)=>a[0]-b[0])){
+    if(reg===ra)continue;
+    if(!rule||rule.kind==='same-value')continue;
+    items.push(`${dwarfRegisterName(reg,arch)} ← ${cfiRuleDisplay(rule,arch,false)}`);
+  }
+  return items.slice(0,limit).join(' · ')+(items.length>limit?` · … ${items.length-limit} more`:'' );
+}
+function cfiRowSummary(row,fde){
+  if(!row)return 'no decoded CFI row';
+  const arch=fdeArchitecture(fde),base=cfiStateSummary(row,fde?.cie?.returnRegister,arch),saved=cfiSavedRuleSummary(row,fde);
+  return `${safeHex(row.startAddress)}..${safeHex(row.endAddress)} · ${base}${saved?` · ${saved}`:''}`;
+}
+
 function parseEhFrameSection(section,{ptrSize=8,textBase=null,dataBase=null}={}){
   const cies=[],fdes=[],errors=[],cieByAddress=new Map();
   for(const run0 of sectionContiguousRuns(section)){
@@ -1529,7 +1681,7 @@ function parseEhFrameSection(section,{ptrSize=8,textBase=null,dataBase=null}={})
             }
             r.pos=augEnd;
           }
-          if(r.pos<entryEnd)cie.instructions=[...data.subarray(r.pos,entryEnd)];
+          if(r.pos<entryEnd){cie.instructionsAddress=baseAddress+r.pos;cie.instructionsEndAddress=baseAddress+entryEnd;cie.instructions=[...data.subarray(r.pos,entryEnd)]}
           cies.push(cie);cieByAddress.set(entryAddress,cie);
         }else{
           const cieAddress=idFieldAddress-ciePointer,cie=cieByAddress.get(cieAddress);
@@ -1546,7 +1698,7 @@ function parseEhFrameSection(section,{ptrSize=8,textBase=null,dataBase=null}={})
             }
             r.pos=augEnd;
           }
-          if(r.pos<entryEnd)fde.instructions=[...data.subarray(r.pos,entryEnd)];
+          if(r.pos<entryEnd){fde.instructionsAddress=baseAddress+r.pos;fde.instructionsEndAddress=baseAddress+entryEnd;fde.instructions=[...data.subarray(r.pos,entryEnd)]}
           fdes.push(fde);
         }
       }catch(err){errors.push({address:entryAddress,reason:String(err?.message||err)})}
@@ -1555,44 +1707,118 @@ function parseEhFrameSection(section,{ptrSize=8,textBase=null,dataBase=null}={})
   }
   return {section,cies,fdes,errors,ptrSize};
 }
+
+function decodeLsdaTypeReference(section,typeTableAddress,ttypeEncoding,typeFilter,{ptrSize=8,textBase=null,dataBase=null,functionBase=null}={}){
+  if(!section||!Number.isFinite(typeTableAddress)||!Number.isInteger(typeFilter)||typeFilter<=0||ttypeEncoding===DW_EH_PE.omit)return null;
+  const width=ehFormatWidth(ttypeEncoding,ptrSize);if(!width)return {index:typeFilter,encoding:ttypeEncoding,confidence:'unknown',reason:'variable-width type-table encoding cannot be random-indexed safely'};
+  const entryAddress=typeTableAddress-typeFilter*width,source=sectionRunReaderAt(section,entryAddress);
+  if(!source)return {index:typeFilter,entryAddress,encoding:ttypeEncoding,confidence:'unknown',reason:'type-table entry bytes unavailable'};
+  try{
+    const decoded=readEhEncoded(source.reader,ttypeEncoding,{ptrSize,baseAddress:source.baseAddress,textBase,dataBase,functionBase});
+    return {index:typeFilter,entryAddress,width,encoding:ttypeEncoding,value:decoded.value,raw:decoded.raw,indirect:decoded.indirect,confidence:'exact',evidence:'Itanium LSDA positive type filter indexes backward from TType base'};
+  }catch(err){return {index:typeFilter,entryAddress,width,encoding:ttypeEncoding,confidence:'unknown',reason:String(err?.message||err)}}
+}
+
+function parseLsdaActionChain(section,actionTableAddress,actionValue,{limitAddress=null,maxRecords=64}={}){
+  const records=[],diagnostics=[],visited=new Set();
+  if(!section||!Number.isFinite(actionTableAddress)||!Number.isFinite(actionValue)||actionValue<=0)return {records,diagnostics,byteStart:null,byteEnd:null};
+  let address=actionTableAddress+actionValue-1,byteStart=address,byteEnd=address;
+  for(let depth=0;depth<maxRecords;depth++){
+    if(visited.has(address)){diagnostics.push({address,reason:'LSDA action chain cycle detected',severity:'error',byteStart:address,byteEnd:address});break}
+    visited.add(address);
+    if(Number.isFinite(limitAddress)&&address>=limitAddress){diagnostics.push({address,reason:'LSDA action record points beyond action-table limit',severity:'error',byteStart:address,byteEnd:address});break}
+    const source=sectionRunReaderAt(section,address);
+    if(!source){diagnostics.push({address,reason:'LSDA action record bytes unavailable',severity:'error',byteStart:address,byteEnd:address});break}
+    const {reader:r,baseAddress,run}=source,recordStartPos=r.pos,recordStart=baseAddress+recordStartPos;
+    if(Number.isFinite(limitAddress))r.end=Math.min(r.end,Math.max(r.pos,limitAddress-baseAddress));
+    try{
+      const typeFilter=r.sleb(),afterFilter=baseAddress+r.pos,nextOffset=r.sleb(),recordEnd=baseAddress+r.pos;
+      const kind=typeFilter===0?'cleanup':typeFilter>0?'type-filter':'exception-spec/filter';
+      const nextAddress=nextOffset?recordEnd+nextOffset:null;
+      records.push({index:records.length,address:recordStart,byteStart:recordStart,byteEnd:recordEnd,typeFilter,nextOffset,nextAddress,kind,
+        confidence:'exact',evidence:'Itanium/GCC LSDA action record'});
+      byteEnd=Math.max(byteEnd,recordEnd);
+      if(!nextOffset)break;
+      if(!Number.isFinite(nextAddress)||nextAddress<run.address||nextAddress>=run.address+run.bytes.length){
+        diagnostics.push({address:recordStart,reason:`LSDA action displacement leaves available section bytes (${nextOffset>=0?'+':''}${nextOffset})`,severity:'error',byteStart:recordStart,byteEnd:recordEnd});break;
+      }
+      address=nextAddress;
+    }catch(err){
+      diagnostics.push({address:recordStart,reason:String(err?.message||err),severity:'error',byteStart:recordStart,byteEnd:baseAddress+r.pos});byteEnd=Math.max(byteEnd,baseAddress+r.pos);break;
+    }
+  }
+  if(records.length>=maxRecords)diagnostics.push({address,reason:`LSDA action chain exceeded ${maxRecords}-record safety budget`,severity:'warning',byteStart,addressEnd:byteEnd});
+  return {records,diagnostics,byteStart,byteEnd};
+}
+
 function parseLsdaForFde(fde,section,{ptrSize=8,textBase=null,dataBase=null}={}){
   if(!fde||!Number.isFinite(fde.lsdaAddress)||!section)return null;
   const source=sectionRunReaderAt(section,fde.lsdaAddress);if(!source)return null;
-  const {reader:r,baseAddress}=source,startPos=r.pos;let parseError='';
+  const {reader:r,baseAddress}=source,startPos=r.pos;let parseError='';const diagnostics=[];
   try{
-    const lpStartEncoding=r.u8();let lpStart=fde.startAddress;
+    const headerStart=baseAddress+r.pos,lpStartEncoding=r.u8();let lpStart=fde.startAddress;
     if(lpStartEncoding!==DW_EH_PE.omit)lpStart=readEhEncoded(r,lpStartEncoding,{ptrSize,baseAddress,textBase,dataBase,functionBase:fde.startAddress}).value;
-    const ttypeEncoding=r.u8();let typeTableAddress=null;
-    if(ttypeEncoding!==DW_EH_PE.omit){const off=r.uleb();typeTableAddress=baseAddress+r.pos+off}
+    const ttypeEncoding=r.u8();let typeTableAddress=null,typeTableOffset=null;
+    if(ttypeEncoding!==DW_EH_PE.omit){typeTableOffset=r.uleb();typeTableAddress=baseAddress+r.pos+typeTableOffset}
     const callSiteEncoding=r.u8(),callSiteLength=r.uleb(),callSiteStart=r.pos,callSiteEnd=Math.min(r.end,r.pos+callSiteLength),callSites=[];
     let index=0;
     while(r.pos<callSiteEnd){
-      const start=readEhEncoded(r,callSiteEncoding&0x0f,{ptrSize,baseAddress}).value,
-            length=readEhEncoded(r,callSiteEncoding&0x0f,{ptrSize,baseAddress}).value,
-            landing=readEhEncoded(r,callSiteEncoding&0x0f,{ptrSize,baseAddress}).value,
-            action=r.uleb();
-      if(!Number.isFinite(start)||!Number.isFinite(length)||!Number.isFinite(landing))break;
-      callSites.push({index:index++,startOffset:start,length,landingPadOffset:landing,action,
-        startAddress:lpStart+start,endAddress:lpStart+start+length,landingPadAddress:landing?lpStart+landing:null,
-        kind:landing?(action===0?'cleanup':'handler/action'):'none',confidence:'exact',evidence:'LSDA call-site table'});
+      const entryStartPos=r.pos,entryByteStart=baseAddress+entryStartPos;
+      try{
+        const format=callSiteEncoding&0x0f,
+              start=readEhEncoded(r,format,{ptrSize,baseAddress}).value,
+              length=readEhEncoded(r,format,{ptrSize,baseAddress}).value,
+              landing=readEhEncoded(r,format,{ptrSize,baseAddress}).value,
+              action=r.uleb(),entryByteEnd=baseAddress+r.pos;
+        if(!Number.isFinite(start)||!Number.isFinite(length)||!Number.isFinite(landing)){
+          diagnostics.push({address:entryByteStart,byteStart:entryByteStart,byteEnd:entryByteEnd,reason:'LSDA call-site record contains a non-finite offset',severity:'error'});break;
+        }
+        if(r.pos>callSiteEnd){diagnostics.push({address:entryByteStart,byteStart:entryByteStart,byteEnd:entryByteEnd,reason:'LSDA call-site record extends past declared call-site table length',severity:'error'});break}
+        callSites.push({index:index++,startOffset:start,length,landingPadOffset:landing,action,byteStart:entryByteStart,byteEnd:entryByteEnd,
+          startAddress:lpStart+start,endAddress:lpStart+start+length,landingPadAddress:landing?lpStart+landing:null,
+          kind:landing?(action===0?'cleanup':'handler/action'):'none',confidence:'exact',evidence:'LSDA call-site table'});
+      }catch(err){
+        diagnostics.push({address:entryByteStart,byteStart:entryByteStart,byteEnd:baseAddress+r.pos,reason:String(err?.message||err),severity:'error'});break;
+      }
     }
-    return {id:`lsda:${fde.lsdaAddress.toString(16)}`,address:fde.lsdaAddress,fde,section,lpStartEncoding,lpStart,ttypeEncoding,typeTableAddress,callSiteEncoding,
-      callSiteTableAddress:baseAddress+callSiteStart,callSiteTableLength:callSiteLength,callSites,parseError:'',rawStart:baseAddress+startPos};
-  }catch(err){parseError=String(err?.message||err);return {id:`lsda:${fde.lsdaAddress.toString(16)}`,address:fde.lsdaAddress,fde,section,callSites:[],parseError,confidence:'unknown'}}
+    r.pos=callSiteEnd;
+    const actionTableAddress=baseAddress+callSiteEnd,actionLimit=Number.isFinite(typeTableAddress)&&typeTableAddress>actionTableAddress?typeTableAddress:baseAddress+r.end;
+    let actionByteEnd=actionTableAddress;
+    const typeReferences=[];
+    for(const site of callSites){
+      if(site.action>0){
+        const chain=parseLsdaActionChain(section,actionTableAddress,site.action,{limitAddress:actionLimit});
+        site.actionChain=chain.records;site.actionDiagnostics=chain.diagnostics;site.actionByteStart=chain.byteStart;site.actionByteEnd=chain.byteEnd;
+        actionByteEnd=Math.max(actionByteEnd,chain.byteEnd||actionTableAddress);diagnostics.push(...chain.diagnostics);
+        const kinds=[...new Set(chain.records.map(x=>x.kind))];site.actionKinds=kinds;
+        const positive=[...new Set(chain.records.map(x=>x.typeFilter).filter(x=>x>0))];
+        site.typeReferences=positive.map(index=>decodeLsdaTypeReference(section,typeTableAddress,ttypeEncoding,index,{ptrSize,textBase,dataBase,functionBase:fde.startAddress})).filter(Boolean);
+        for(const ref of site.typeReferences)if(!typeReferences.some(x=>x.index===ref.index))typeReferences.push(ref);
+        if(site.landingPadAddress){
+          if(kinds.includes('type-filter')||kinds.includes('exception-spec/filter'))site.kind=kinds.includes('cleanup')?'cleanup+handler':'handler/filter';
+          else if(kinds.includes('cleanup'))site.kind='cleanup';
+        }
+      }else{site.actionChain=[];site.actionDiagnostics=[];site.actionKinds=site.landingPadAddress?['cleanup']:[];site.typeReferences=[]}
+    }
+    return {id:`lsda:${fde.lsdaAddress.toString(16)}`,address:fde.lsdaAddress,fde,section,lpStartEncoding,lpStart,ttypeEncoding,typeTableAddress,typeTableOffset,typeReferences,callSiteEncoding,
+      headerByteStart:headerStart,headerByteEnd:baseAddress+callSiteStart,callSiteTableAddress:baseAddress+callSiteStart,callSiteTableLength:callSiteLength,
+      callSiteTableEnd:baseAddress+callSiteEnd,actionTableAddress,actionTableEnd:actionByteEnd,actionTableLimit:actionLimit,callSites,diagnostics,parseError:'',rawStart:baseAddress+startPos};
+  }catch(err){parseError=String(err?.message||err);diagnostics.push({address:fde.lsdaAddress,byteStart:fde.lsdaAddress,byteEnd:baseAddress+r.pos,reason:parseError,severity:'error'});return {id:`lsda:${fde.lsdaAddress.toString(16)}`,address:fde.lsdaAddress,fde,section,callSites:[],diagnostics,parseError,confidence:'unknown'}}
 }
 function parseElfUnwindModel(parsed,record){
   const eh=(parsed.sections||[]).find(s=>s.name==='.eh_frame');if(!eh)return {available:false,cies:[],fdes:[],lsdas:[],errors:[],exceptionSites:[]};
   const ptrSize=(record?.bits||64)===32?4:8,text=(parsed.sections||[]).find(s=>s.name==='.text'),data=(parsed.sections||[]).find(s=>s.name==='.data'),
-        frame=parseEhFrameSection(eh,{ptrSize,textBase:text?.addressStart,dataBase:data?.addressStart}),gcc=(parsed.sections||[]).find(s=>s.name==='.gcc_except_table'),lsdas=[];
+        frame=parseEhFrameSection(eh,{ptrSize,textBase:text?.addressStart,dataBase:data?.addressStart}),cfiDiagnostics=decodeEhFrameCfi(frame,{ptrSize}),gcc=(parsed.sections||[]).find(s=>s.name==='.gcc_except_table'),lsdas=[];
   for(const fde of frame.fdes){
     if(Number.isFinite(fde.startAddress))fde.function=(parsed.functions||[]).find(fn=>fn.addr===fde.startAddress)||(parsed.functions||[]).find(fn=>fn.addr<=fde.startAddress&&fn.endAddr>=fde.startAddress)||null;
     if(gcc&&Number.isFinite(fde.lsdaAddress)){
       const lsda=parseLsdaForFde(fde,gcc,{ptrSize,textBase:text?.addressStart,dataBase:data?.addressStart});if(lsda){fde.lsda=lsda;lsdas.push(lsda)}
     }
   }
-  const exceptionSites=[];
-  for(const lsda of lsdas)for(const site of lsda.callSites||[])if(site.landingPadAddress){exceptionSites.push({...site,fde:lsda.fde,lsda,function:lsda.fde.function||null})}
-  return {available:true,section:eh,cies:frame.cies,fdes:frame.fdes,lsdas,errors:frame.errors,exceptionSites,hasLsda:lsdas.length>0,ptrSize};
+  const exceptionSites=[],lsdaDiagnostics=[];
+  for(const lsda of lsdas){lsdaDiagnostics.push(...(lsda.diagnostics||[]));for(const site of lsda.callSites||[])if(site.landingPadAddress){exceptionSites.push({...site,fde:lsda.fde,lsda,function:lsda.fde.function||null})}}
+  return {available:true,section:eh,cies:frame.cies,fdes:frame.fdes,lsdas,errors:frame.errors,cfiDiagnostics,lsdaDiagnostics,exceptionSites,hasLsda:lsdas.length>0,ptrSize,
+    cfiRowCount:frame.fdes.reduce((n,f)=>n+(f.unwindRows?.length||0),0),actionRecordCount:lsdas.reduce((n,l)=>n+(l.callSites||[]).reduce((m,s)=>m+(s.actionChain?.length||0),0),0)};
 }
 
 function discoverSymbolDataObjects(section,symbols){
@@ -3805,11 +4031,13 @@ function updateInspector(item){
       <b>${t('linkageSlots')}</b><span>${num(slots.length)}</span>
       <b>${t('references')}</b><span>${num(refs.length)}</span>
       <b>${t('relocations')}</b><span>${num(relIn.length+relOut.length)}</span>
-      ${sec.name==='.eh_frame'?`<b>${t('unwindFrames')}</b><span>${num(unwind?.fdes?.length||0)} FDE · ${num(unwind?.cies?.length||0)} CIE · ${num(unwind?.errors?.length||0)} diagnostics</span>`:''}
-      ${sec.name==='.gcc_except_table'?`<b>${t('landingPads')}</b><span>${num(unwind?.exceptionSites?.length||0)} call-site entries with landing pads · ${num(unwind?.lsdas?.length||0)} LSDA</span>`:''}
+      ${sec.name==='.eh_frame'?`<b>${t('unwindFrames')}</b><span>${num(unwind?.fdes?.length||0)} FDE · ${num(unwind?.cies?.length||0)} CIE · ${num(unwind?.cfiRowCount||0)} CFI rows · ${num((unwind?.errors?.length||0)+(unwind?.cfiDiagnostics?.length||0))} diagnostics</span>`:''}
+      ${sec.name==='.gcc_except_table'?`<b>${t('landingPads')}</b><span>${num(unwind?.exceptionSites?.length||0)} call-site entries with landing pads · ${num(unwind?.lsdas?.length||0)} LSDA · ${num(unwind?.actionRecordCount||0)} action records · ${num(unwind?.lsdaDiagnostics?.length||0)} diagnostics</span>`:''}
     </div>${rows.length?`<div class="path"><b>HEX</b><br><span class="linkage">${rows.map(r=>`${safeHex(r.address)}  ${escapeHtml(r.hex)}  ${escapeHtml(r.ascii)}`).join('<br>')}</span></div>`:''}
-    ${sec.name==='.eh_frame'&&unwind?.available?`<div class="path"><b>.eh_frame MODEL</b><br>${num(unwind.cies.length)} CIE · ${num(unwind.fdes.length)} FDE${unwind.hasLsda?` · ${num(unwind.lsdas.length)} LSDA`:''}${unwind.errors.length?` · ${num(unwind.errors.length)} parse diagnostics`:''}<br>${unwind.fdes.slice(0,12).map(f=>`${safeHex(f.startAddress)}..${safeHex(f.endAddress)} · CIE ${safeHex(f.cieAddress)}${Number.isFinite(f.lsdaAddress)?` · LSDA ${safeHex(f.lsdaAddress)}`:''}`).join('<br>')}${unwind.fdes.length>12?'<br>…':''}</div>`:''}
-    ${sec.name==='.gcc_except_table'&&unwind?.lsdas?.length?`<div class="path"><b>LSDA CALL-SITE TABLES</b><br>${unwind.lsdas.slice(0,12).map(l=>`${safeHex(l.address)} · function ${l.fde?.function?escapeHtml(functionDisplayName(l.fde.function)):safeHex(l.fde?.startAddress)} · ${num(l.callSites?.length||0)} call sites${l.parseError?` · ${escapeHtml(l.parseError)}`:''}`).join('<br>')}${unwind.lsdas.length>12?'<br>…':''}</div>`:''}
+    ${sec.name==='.eh_frame'&&unwind?.available?`<div class="path"><b>.eh_frame / CFI MODEL</b><br>${num(unwind.cies.length)} CIE · ${num(unwind.fdes.length)} FDE · ${num(unwind.cfiRowCount||0)} decoded CFI rows${unwind.hasLsda?` · ${num(unwind.lsdas.length)} LSDA`:''}${unwind.errors.length||unwind.cfiDiagnostics?.length?` · ${num((unwind.errors.length||0)+(unwind.cfiDiagnostics?.length||0))} diagnostics`:''}<br>${unwind.fdes.slice(0,12).map(f=>`${safeHex(f.startAddress)}..${safeHex(f.endAddress)} · ${num(f.unwindRows?.length||0)} rows · ${f.unwindRows?.[0]?escapeHtml(cfiStateSummary(f.unwindRows[0],f.cie?.returnRegister,fdeArchitecture(f))):'no CFI row'}${Number.isFinite(f.lsdaAddress)?` · LSDA ${safeHex(f.lsdaAddress)}`:''}${f.cfiDiagnostics?.length?` · ${num(f.cfiDiagnostics.length)} CFI diagnostics`:''}`).join('<br>')}${unwind.fdes.length>12?'<br>…':''}</div>`:''}
+    ${sec.name==='.gcc_except_table'&&unwind?.lsdas?.length?`<div class="path"><b>LSDA CALL-SITE / ACTION TABLES</b><br>${unwind.lsdas.slice(0,12).map(l=>`${safeHex(l.address)} · function ${l.fde?.function?escapeHtml(functionDisplayName(l.fde.function)):safeHex(l.fde?.startAddress)} · ${num(l.callSites?.length||0)} call sites · ${num((l.callSites||[]).reduce((n,x)=>n+(x.actionChain?.length||0),0))} action records${l.diagnostics?.length?` · ${num(l.diagnostics.length)} diagnostics`:''}${l.parseError?` · ${escapeHtml(l.parseError)}`:''}`).join('<br>')}${unwind.lsdas.length>12?'<br>…':''}</div>`:''}
+    ${sec.name==='.eh_frame'&&unwind?.cfiDiagnostics?.length?`<div class="path"><b>CFI DIAGNOSTICS</b><br>${unwind.cfiDiagnostics.slice(0,20).map(d=>`${d.severity||'warning'} · ${Number.isFinite(d.byteStart)?safeHex(d.byteStart):safeHex(d.fde?.startAddress??d.cie?.address??d.entryAddress)} · byte +${num(d.offset||0)} · ${escapeHtml(d.reason)}`).join('<br>')}${unwind.cfiDiagnostics.length>20?'<br>…':''}</div>`:''}
+    ${sec.name==='.gcc_except_table'&&unwind?.lsdaDiagnostics?.length?`<div class="path"><b>LSDA DIAGNOSTICS</b><br>${unwind.lsdaDiagnostics.slice(0,20).map(d=>`${d.severity||'warning'} · ${safeHex(d.byteStart??d.address)}..${safeHex(d.byteEnd??d.address)} · ${escapeHtml(d.reason)}`).join('<br>')}${unwind.lsdaDiagnostics.length>20?'<br>…':''}</div>`:''}
     ${objects.length?`<div class="dataObjectList"><b>${t('dataObjects')}</b>${objects.slice(0,12).map(obj=>`<div class="dataObjectRow"><span>${safeHex(obj.address)}</span><span>${escapeHtml(obj.stringText||obj.text||obj.name||obj.kind)}</span><button data-data-object="${escapeHtml(obj.id)}">→</button></div>`).join('')}${objects.length>12?`<div>… ${num(objects.length-12)} more</div>`:''}</div>`:''}
     ${syms.length?`<div class="dataObjectList"><b>${t('symbols')}</b>${syms.slice(0,10).map((sym,i)=>`<div class="dataObjectRow"><span>${sym.defined?safeHex(sym.address):'UND'}</span><span>${escapeHtml(sym.name)}</span><button data-section-symbol="${i}">→</button></div>`).join('')}${syms.length>10?`<div>… ${num(syms.length-10)} more</div>`:''}</div>`:''}
     ${(relIn.length+relOut.length)?`<div class="dataObjectList"><b>${t('relocations')}</b>${[...relOut,...relIn].slice(0,10).map((r,i)=>`<div class="dataObjectRow"><span>${safeHex(r.offset)}</span><span>${escapeHtml(r.type)} · ${escapeHtml(r.symbol||r.value)}</span><button data-section-reloc="${i}">→</button></div>`).join('')}</div>`:''}
@@ -3895,7 +4123,10 @@ function updateInspector(item){
     const inst=item.instruction,df=functionDataflow(inst.function),info=df?.instInfo.get(inst),
           uses=info?.uses||[],defs=info?.defs||[],args=info?.callArguments||[],
           stackReads=info?.stackReads||[],stackWrites=info?.stackWrites||[],memoryOperands=info?.memoryOperands||[],
-          memoryReads=info?.memoryReads||[],memoryWrites=info?.memoryWrites||[],memoryInvalidations=info?.memoryInvalidations||[];
+          memoryReads=info?.memoryReads||[],memoryWrites=info?.memoryWrites||[],memoryInvalidations=info?.memoryInvalidations||[],
+          instUnwind=state.workspaceFiles.get(inst.function?.workspaceFileId)?.parsed?.unwind||null,
+          instFde=(instUnwind?.fdes||[]).find(f=>Number.isFinite(inst.addr)&&inst.addr>=f.startAddress&&inst.addr<f.endAddress)||null,
+          instCfi=instFde?cfiRowForPc(instFde,inst.addr):null;
     html=`<div class="title">${escapeHtml(`${inst.mnemonic} ${inst.operands}`.trim())}</div><div class="meta">
       <b>${t('function')}</b><span>${escapeHtml(functionDisplayName(inst.function))}</span>
       <b>${inst.syntheticAddress?t('line'):t('address')}</b><span>${inst.syntheticAddress?num(inst.line+1):safeHex(inst.addr)}</span>
@@ -3908,10 +4139,12 @@ function updateInspector(item){
       <b>Analysis barriers</b><span>${num(info?.analysisBarriers?.length||0)} local · ${num(df?.analysisBarriers?.length||0)} function</span>
       <b>RSP Δ</b><span>${Number.isFinite(info?.rspDeltaAfter)?`${info.rspDeltaAfter>=0?'+':''}${info.rspDeltaAfter}`:'unknown'}</span>
       <b>RBP base</b><span>${Number.isFinite(info?.rbpEntryDelta)?`entry RSP ${info.rbpEntryDelta>=0?'+':''}${info.rbpEntryDelta}`:'unknown'}</span>
+      <b>CFI unwind</b><span>${instCfi?escapeHtml(cfiStateSummary(instCfi,instFde?.cie?.returnRegister,fdeArchitecture(instFde))):'—'}</span>
       <b>${t('uses')}</b><span>${num(uses.length)}</span>
       <b>${t('defines')}</b><span>${num(defs.length)}</span>
       ${info?.branchOutcome!==undefined?`<b>Branch outcome</b><span>${info.branchOutcome?'taken':'not taken'} · ${escapeHtml(info.branchEvidence||'static')}</span>`:''}
     </div>
+    ${instCfi?`<div class="path"><b>CFI / STACK UNWIND @ INSTRUCTION</b><br>${escapeHtml(cfiRowSummary(instCfi,instFde))}</div>`:''}
     ${uses.length?`<div class="dataObjectList"><b>${t('uses')}</b>${uses.map(u=>`<div class="dataObjectRow"><span>${escapeHtml(u.role)}</span><span>${escapeHtml(valueDisplay(u.value))}</span><button data-flow-value="${escapeHtml(u.value.id)}">→</button></div>`).join('')}</div>`:''}
     ${defs.length?`<div class="dataObjectList"><b>${t('defines')}</b>${defs.map(d=>`<div class="dataObjectRow"><span>${escapeHtml(d.role)}</span><span>${escapeHtml(valueDisplay(d.value))}</span><button data-flow-value="${escapeHtml(d.value.id)}">→</button></div>`).join('')}</div>`:''}
     ${stackReads.length?`<div class="path"><b>STACK READS</b><br>${stackReads.map(x=>`${escapeHtml(x.slot.label)} ← ${escapeHtml(valueDisplay(x.value))}`).join('<br>')}</div>`:''}
@@ -3989,7 +4222,10 @@ function updateInspector(item){
           pathStart=state.cfgPathStartId?advanced?.blocks?.find(b=>b.id===state.cfgPathStartId):null,
           customPath=(state.cfgPathBlockIds||[]).map(id=>advanced?.blocks?.find(b=>b.id===id)).filter(Boolean),
           exceptionOut=db?(advanced?.exceptionEdges||[]).filter(e=>e.from===db):[],
-          exceptionIn=db?(advanced?.exceptionEdges||[]).filter(e=>e.to===db):[];
+          exceptionIn=db?(advanced?.exceptionEdges||[]).filter(e=>e.to===db):[],
+          blockPc=Number.isFinite(item.startAddr)?item.startAddr:item.instructions?.[0]?.addr,
+          blockFde=(advanced?.functionFdes||[]).find(f=>Number.isFinite(blockPc)&&blockPc>=f.startAddress&&blockPc<f.endAddress)||null,
+          blockCfi=blockFde?cfiRowForPc(blockFde,blockPc):null;
     html=`<div class="title">${escapeHtml(item.label)}</div><div class="meta">
       <b>${t('function')}</b><span>${escapeHtml(functionDisplayName(item.function))}</span>
       <b>Range</b><span>${item.function?.syntheticAddress?`${t('line')} ${item.startLine+1}–${item.endLine+1}`:`${safeHex(item.startAddr)} – ${safeHex(item.endAddr)}`}</span>
@@ -4007,6 +4243,7 @@ function updateInspector(item){
       <b>Entry state</b><span>${escapeHtml(summarize(entry))}</span>
       <b>Exit state</b><span>${escapeHtml(summarize(exit))}</span>
       <b>State convergence</b><span>${df?.stateFixedPointConverged?'converged':'partial'} · ${num(df?.stateFixedPointIterations||0)} iterations</span>
+      <b>CFI unwind row</b><span>${blockCfi?escapeHtml(cfiStateSummary(blockCfi,blockFde?.cie?.returnRegister,fdeArchitecture(blockFde))):'—'}</span>
     </div>
     ${path.length?`<div class="path"><b>${t('pathFromEntry')}</b><br>${path.map(b=>escapeHtml(cfgBlockTitle(b,item.function))).join(' → ')}</div>`:''}
     ${doms.length?`<div class="path"><b>${t('dominators')}</b><br>${doms.map(b=>`${b===db?'<strong>':''}${escapeHtml(cfgBlockTitle(b,item.function))}${b===db?'</strong>':''}`).join(' → ')}</div>`:''}
@@ -4015,8 +4252,9 @@ function updateInspector(item){
     ${pathStart?`<div class="path"><b>CUSTOM CFG PATH</b><br>start ${escapeHtml(cfgBlockTitle(pathStart,item.function))}${customPath.length>1?`<br>${customPath.map(b=>escapeHtml(cfgBlockTitle(b,item.function))).join(' → ')}`:' · target not selected yet'}</div>`:''}
     ${outFacts.length?`<div class="dataObjectList"><b>CONTROL-FLOW EDGES</b>${outFacts.map((f,i)=>`<div class="dataObjectRow"><span>${escapeHtml(cfgBlockTitle(f.to,item.function))}</span><span>${escapeHtml([f.backEdge?'back-edge':null,f.critical?'critical':null,f.predicate||f.label||null,f.evidence||null].filter(Boolean).join(' · ')||'flow')}</span><button data-cfg-succ="${i}">→</button></div>`).join('')}</div>`:''}
     ${preds.length?`<div class="dataObjectList"><b>PREDECESSORS</b>${preds.map((b,i)=>`<div class="dataObjectRow"><span>${escapeHtml(cfgBlockTitle(b,item.function))}</span><span>${advanced?.edgeFacts?.get(`${b.id}->${db.id}`)?.backEdge?'back-edge':'incoming'}</span><button data-cfg-pred="${i}">→</button></div>`).join('')}</div>`:''}
-    ${exceptionOut.length?`<div class="path"><b>EXCEPTION OUTGOING</b><br>${exceptionOut.map(e=>`${escapeHtml(cfgBlockTitle(e.to,item.function))} · ${escapeHtml(e.exceptionSite?.kind||'exception')} · protected ${safeHex(e.exceptionSite?.startAddress)}..${safeHex(e.exceptionSite?.endAddress)} · landing ${safeHex(e.exceptionSite?.landingPadAddress)}`).join('<br>')}</div>`:''}
-    ${exceptionIn.length?`<div class="path"><b>LANDING PAD / EXCEPTION INCOMING</b><br>${exceptionIn.map(e=>`${escapeHtml(cfgBlockTitle(e.from,item.function))} ⇢ here · ${escapeHtml(e.exceptionSite?.kind||'exception')} · LSDA ${safeHex(e.exceptionSite?.lsda?.address)}`).join('<br>')}</div>`:''}
+    ${exceptionOut.length?`<div class="path"><b>EXCEPTION OUTGOING</b><br>${exceptionOut.map((e,i)=>{const site=e.exceptionSite,actions=site?.actionChain||[];return `${escapeHtml(cfgBlockTitle(e.to,item.function))} · ${escapeHtml(site?.kind||'exception')} · protected ${safeHex(site?.startAddress)}..${safeHex(site?.endAddress)} · landing ${safeHex(site?.landingPadAddress)}${actions.length?` · actions ${actions.map(a=>`${a.typeFilter}:${a.kind}`).join(' → ')}`:''}${site?.typeReferences?.length?` · types ${site.typeReferences.map(r=>`#${r.index}=${Number.isFinite(r.value)?safeHex(r.value):escapeHtml(r.reason||'unresolved')}${r.indirect?' indirect':''}`).join(', ')}`:''}${Number.isFinite(site?.byteStart)?` <button data-exception-site-hex="out:${i}">call-site hex</button>`:''}${Number.isFinite(site?.actionByteStart)?` <button data-exception-action-hex="out:${i}">action hex</button>`:''}`}).join('<br>')}</div>`:''}
+    ${exceptionIn.length?`<div class="path"><b>LANDING PAD / EXCEPTION INCOMING</b><br>${exceptionIn.map((e,i)=>{const site=e.exceptionSite,actions=site?.actionChain||[];return `${escapeHtml(cfgBlockTitle(e.from,item.function))} ⇢ here · ${escapeHtml(site?.kind||'exception')} · LSDA ${safeHex(site?.lsda?.address)}${actions.length?` · actions ${actions.map(a=>`${a.typeFilter}:${a.kind}`).join(' → ')}`:''}${site?.typeReferences?.length?` · types ${site.typeReferences.map(r=>`#${r.index}=${Number.isFinite(r.value)?safeHex(r.value):escapeHtml(r.reason||'unresolved')}${r.indirect?' indirect':''}`).join(', ')}`:''}${Number.isFinite(site?.byteStart)?` <button data-exception-site-hex="in:${i}">call-site hex</button>`:''}${Number.isFinite(site?.actionByteStart)?` <button data-exception-action-hex="in:${i}">action hex</button>`:''}`}).join('<br>')}</div>`:''}
+    ${blockCfi?`<div class="path"><b>CFI / STACK UNWIND @ BLOCK ENTRY</b><br>${escapeHtml(cfiRowSummary(blockCfi,blockFde))}${blockFde?.cfiDiagnostics?.length?`<br>${num(blockFde.cfiDiagnostics.length)} CFI diagnostics in this FDE`:''}</div>`:''}
     ${jumpTables.length?`<div class="path"><b>JUMP-TABLE / SWITCH CANDIDATES</b><br>${jumpTables.map((j,ji)=>{
       const table=j.table,bound=j.bound||table?.bound,unresolved=j.unresolvedEntries||[];
       return `${escapeHtml(dataObjectLabel(table))} · ${escapeHtml(table?.encoding||'pointer-table')} · ${j.confidence} · ${num(j.targets?.length||0)} exact targets${Number.isFinite(table?.address)?` · ${safeHex(table.address)}`:''}${bound?`<br>index bound: ${escapeHtml(bound.evidence)} · cases ${bound.min}..${bound.max}${bound.defaultBlock?` · default → ${escapeHtml(cfgBlockTitle(bound.defaultBlock,item.function))}`:''}`:''}${j.targets?.length?'<br>'+j.targets.map(tg=>`case ${tg.caseValue??tg.index} → ${escapeHtml(cfgBlockTitle(tg.block,item.function))} · ${escapeHtml(tg.evidence||'exact table entry')}`).join('<br>'):''}${unresolved.length?`<br>${num(unresolved.length)} unresolved table entries preserved`:''}${table?.section&&Number.isFinite(table?.address)?`<br><button data-jt-hex="${ji}">Open table hex</button>`:''}`;
@@ -4047,7 +4285,7 @@ function updateInspector(item){
     ${item.dynamicMatchedBy?.length?`<div class="path"><b>${t('dynamicMatch')}</b><br>${item.dynamicMatchedBy.map(x=>`${escapeHtml(x.name)} · ${safeHex(x.addr)} · ${escapeHtml(x.addressSpaceLabel||'')}`).join('<br>')}</div>`:''}
     ${df?`<div class="path"><b>STATIC ANALYSIS SUMMARY</b><br>${escapeHtml(df.architecture||'unknown')} · ${escapeHtml(df.adapter?.id||'unsupported')} · ${num(df.values?.length||0)} values · ${num(df.phiValues?.length||0)} phi · ${num(df.values?.filter(v=>v.kind==='memory-version').length||0)} memory versions · ${num(df.values?.filter(v=>v.kind==='memory-slice'||v.kind==='memory-composite').length||0)} memory slices/composites · ${num(df.values?.filter(v=>v.kind==='memory-clobber').length||0)} memory clobbers · memory cells peak ${num(df.memoryCellPeak||0)}/${num(df.memoryCellBudget||0)}${df.memoryFragmentCollapses?` · ${num(df.memoryFragmentCollapses)} fragmentation collapses`:''} · ${num(df.analysisBarriers?.length||0)} barriers<br>value FP ${df.fixedPointConverged?'converged':'partial'} (${num(df.fixedPointIterations||0)}) · full-state FP ${df.stateFixedPointConverged?'converged':'partial'} (${num(df.stateFixedPointIterations||0)}/${num(df.stateFixedPointBudget||0)}) · loop headers ${num(df.loopBlocks?.length||0)}${df.stateDomainConvergence?`<br>${Object.entries(df.stateDomainConvergence).map(([k,v])=>`${escapeHtml(k)}=${v.converged?'ok':'partial'}@${num(v.iterations||0)}`).join(' · ')}`:''}</div>`:''}
     ${cfg?`<div class="path"><b>ADVANCED CFG</b><br>${num(cfg.blocks.length)} blocks · ${num(cfg.reachable.size)} reachable${cfg.exceptionOnlyReachable?.size?` (${num(cfg.exceptionOnlyReachable.size)} exception-only)`:''} · dominators ${num(cfg.domIterations)} iterations · ${num(cfg.backEdges.length)} back edges · ${num(cfg.loops.length)} natural loops · ${num(cfg.irreducibleRegions?.length||0)} irreducible SCCs · ${num(cfg.criticalEdges.length)} critical edges · ${num(cfg.functionFdes?.length||0)} unwind FDEs · ${num(cfg.exceptionEdges?.length||0)} exception edges · ${num(cfg.jumpTables.length)} jump-table candidates · ${num(cfg.indirectCallCandidates?.length||0)} indirect calls · ${num(cfg.indirectJumpCandidates?.length||0)} indirect jumps · ${num(cfg.tailCalls.length)} tail calls · ${num(cfg.unresolvedTransfers.length)} unresolved transfers · noreturn ${cfg.structuralNoReturn?'structurally proven':'not proven'}${cfg.loops.length?`<br>${cfg.loops.slice(0,8).map(l=>`loop depth ${l.depth}: header ${escapeHtml(cfgBlockTitle(l.header,item))} · ${num(l.nodes.size)} blocks`).join('<br>')}`:''}</div>`:''}
-    ${cfg?.functionFdes?.length?`<div class="path"><b>UNWIND / .eh_frame</b><br>${cfg.functionFdes.slice(0,24).map(f=>`${safeHex(f.startAddress)}..${safeHex(f.endAddress)} · CIE ${safeHex(f.cieAddress)} · aug ${escapeHtml(f.cie?.augmentation||'')} · FDE encoding 0x${(f.cie?.fdeEncoding??0).toString(16)}${Number.isFinite(f.lsdaAddress)?` · LSDA ${safeHex(f.lsdaAddress)}`:''}`).join('<br>')}${cfg.functionFdes.length>24?'<br>…':''}${cfg.unwind?.errors?.length?`<br>${num(cfg.unwind.errors.length)} unwind parse diagnostics`:''}</div>`:''}
+    ${cfg?.functionFdes?.length?`<div class="path"><b>UNWIND / .eh_frame / CFI</b><br>${cfg.functionFdes.slice(0,24).map(f=>`${safeHex(f.startAddress)}..${safeHex(f.endAddress)} · ${num(f.unwindRows?.length||0)} CFI rows · CIE ${safeHex(f.cieAddress)} · aug ${escapeHtml(f.cie?.augmentation||'')} · FDE encoding 0x${(f.cie?.fdeEncoding??0).toString(16)}${Number.isFinite(f.lsdaAddress)?` · LSDA ${safeHex(f.lsdaAddress)}`:''}${f.cfiDiagnostics?.length?` · ${num(f.cfiDiagnostics.length)} CFI diagnostics`:''}${f.unwindRows?.length?`<br>${f.unwindRows.slice(0,6).map(r=>`&nbsp;&nbsp;${escapeHtml(cfiRowSummary(r,f))}`).join('<br>')}${f.unwindRows.length>6?`<br>&nbsp;&nbsp;… ${num(f.unwindRows.length-6)} more rows`:''}`:''}`).join('<br><br>')}${cfg.functionFdes.length>24?'<br>…':''}${cfg.unwind?.errors?.length||cfg.unwind?.cfiDiagnostics?.length?`<br>${num((cfg.unwind?.errors?.length||0)+(cfg.unwind?.cfiDiagnostics?.length||0))} unwind/CFI diagnostics`:''}</div>`:''}
     ${cfg?.exceptionEdges?.length?`<div class="path"><b>EXCEPTION / LANDING-PAD EDGES</b><br>${cfg.exceptionEdges.slice(0,24).map(e=>`${escapeHtml(cfgBlockTitle(e.from,item))} ⇢ ${escapeHtml(cfgBlockTitle(e.to,item))} · ${escapeHtml(e.exceptionSite?.kind||'exception')} · ${safeHex(e.exceptionSite?.startAddress)}..${safeHex(e.exceptionSite?.endAddress)}`).join('<br>')}${cfg.exceptionEdges.length>24?'<br>…':''}<br>analysis edge set: ${escapeHtml(state.cfgEdgeMode)}</div>`:''}
     ${cfg?.noreturnProof?`<div class="path"><b>STRUCTURAL NORETURN PROOF</b><br>${escapeHtml(cfg.noreturnProof.evidence)} · confidence ${escapeHtml(cfg.noreturnProof.confidence)}</div>`:''}
     ${cfg?.irreducibleRegions?.length?`<div class="path"><b>IRREDUCIBLE CFG REGIONS</b><br>${cfg.irreducibleRegions.slice(0,12).map(r=>`${num(r.blocks.length)} blocks · ${num(r.entryNodes.length)} entries: ${r.entryNodes.map(b=>escapeHtml(cfgBlockTitle(b,item))).join(', ')}`).join('<br>')}</div>`:''}
@@ -4176,6 +4414,19 @@ function updateInspector(item){
     const db=item.dataflowBlock,advanced=item.function?analyzeAdvancedCfg(item.function):null,
           tables=db?(advanced?.jumpTables||[]).filter(x=>x.block===db):[],jt=tables[Number(btn.dataset.jtHex)],table=jt?.table;
     if(table?.section&&Number.isFinite(table.address))openHexViewer({section:table.section,address:table.address,size:Math.max(1,table.size||table.entryWidth||8),name:dataObjectLabel(table)});
+  }));
+  const exceptionEdgeByToken=token=>{
+    const [dir,raw]=String(token||'').split(':'),idx=Number(raw),db=item.dataflowBlock,advanced=item.function?analyzeAdvancedCfg(item.function):null,
+          edges=db?(advanced?.exceptionEdges||[]).filter(e=>dir==='in'?e.to===db:e.from===db):[];
+    return edges[idx]||null;
+  };
+  els.inspector.querySelectorAll('[data-exception-site-hex]').forEach(btn=>btn.addEventListener('click',()=>{
+    const edge=exceptionEdgeByToken(btn.dataset.exceptionSiteHex),site=edge?.exceptionSite,section=site?.lsda?.section;
+    if(section&&Number.isFinite(site?.byteStart)&&Number.isFinite(site?.byteEnd))openHexViewer({section,address:site.byteStart,size:Math.max(1,site.byteEnd-site.byteStart),name:'LSDA call-site record'});
+  }));
+  els.inspector.querySelectorAll('[data-exception-action-hex]').forEach(btn=>btn.addEventListener('click',()=>{
+    const edge=exceptionEdgeByToken(btn.dataset.exceptionActionHex),site=edge?.exceptionSite,section=site?.lsda?.section;
+    if(section&&Number.isFinite(site?.actionByteStart)&&Number.isFinite(site?.actionByteEnd))openHexViewer({section,address:site.actionByteStart,size:Math.max(1,site.actionByteEnd-site.actionByteStart),name:'LSDA action chain'});
   }));
   els.inspector.querySelector('[data-action="cfg-path-start"]')?.addEventListener('click',()=>{
     const db=item.dataflowBlock;if(!db)return;
@@ -4638,7 +4889,7 @@ function analyzeAdvancedCfg(fn){
     const {syntax,parts}=df.adapter.normalizeOperands(inst);if(parts.length<2)return null;
     const a=syntax==='att'?parts[1]:parts[0],b=syntax==='att'?parts[0]:parts[1],
           reg=operandRegister(a),imm=immediateValue(b);
-    if(!reg||imm==null||imm<0n||imm>BigInt(Number.MAX_SAFE_INTEGER))return null;
+    if(!reg||imm==null||imm<BigInt(Number.MIN_SAFE_INTEGER)||imm>BigInt(Number.MAX_SAFE_INTEGER))return null;
     return {reg:reg.canonical,imm:Number(imm),instruction:inst};
   };
   const switchIndexBias=(block,indexReg,beforeInst)=>{
@@ -4661,29 +4912,90 @@ function analyzeAdvancedCfg(fn){
     }
     return {caseBase:0,instruction:null,evidence:''};
   };
-  const inferSwitchBound=(tableBlock,indexReg)=>{
-    for(const pred of tableBlock.pred||[]){
-      const branch=pred.instructions?.at(-1),mn=branch?.mnemonic?.toLowerCase().replace(/q$/,'');
-      if(!branch||!/^j(?!mp)/.test(mn))continue;
-      const cmp=[...pred.instructions.slice(0,-1)].reverse().find(i=>/^cmp/.test(i.mnemonic.toLowerCase()));
-      const ci=normalizedCmpRegImm(cmp);if(!ci||ci.reg!==indexReg)continue;
-      const targetBlock=blockContainingAddress(df.adapter.branchTarget(branch)),tableIsTarget=targetBlock===tableBlock,
-            other=(pred.succ||[]).find(x=>x!==tableBlock)||null,bias=switchIndexBias(pred,indexReg,cmp);
-      let normalizedMax=null,relation='';
-      if((mn==='ja'||mn==='jnbe')&&!tableIsTarget){normalizedMax=ci.imm;relation=`${indexReg} <= ${ci.imm}`}
-      else if((mn==='jbe'||mn==='jna')&&tableIsTarget){normalizedMax=ci.imm;relation=`${indexReg} <= ${ci.imm}`}
-      else if((mn==='jae'||mn==='jnb'||mn==='jnc')&&!tableIsTarget&&ci.imm>0){normalizedMax=ci.imm-1;relation=`${indexReg} < ${ci.imm}`}
-      else if((mn==='jb'||mn==='jnae'||mn==='jc')&&tableIsTarget&&ci.imm>0){normalizedMax=ci.imm-1;relation=`${indexReg} < ${ci.imm}`}
-      if(normalizedMax!=null&&normalizedMax>=0&&normalizedMax<4096){
-        const min=bias.caseBase,max=min+normalizedMax;
-        return {
-          min,max,normalizedMin:0,normalizedMax,count:normalizedMax+1,caseBase:bias.caseBase,indexReg,compare:cmp,branch,biasInstruction:bias.instruction,
-          guardBlock:pred,tableBlock,defaultBlock:other,confidence:'exact',
-          evidence:`${cmp.mnemonic} immediate bound + ${mn} control split proves ${relation}${bias.evidence?` · ${bias.evidence}`:''}`
-        };
-      }
+  const guardConstraintForPath=(guardBlock,currentBlock,indexReg)=>{
+    const branch=guardBlock?.instructions?.at(-1),rawMn=branch?.mnemonic?.toLowerCase()||'',mn=/^j[a-z]+q$/.test(rawMn)?rawMn.slice(0,-1):rawMn;
+    if(!branch||!/^j(?!mp)/.test(mn))return null;
+    const cmp=[...guardBlock.instructions.slice(0,-1)].reverse().find(i=>/^cmp/.test(i.mnemonic.toLowerCase())),ci=normalizedCmpRegImm(cmp);
+    if(!ci||ci.reg!==indexReg)return null;
+    const targetBlock=blockContainingAddress(df.adapter.branchTarget(branch)),pathTakesTarget=targetBlock===currentBlock,
+          other=(guardBlock.succ||[]).find(x=>x!==currentBlock)||null,imm=ci.imm;
+    let lower=null,upper=null,signed=false,relation='';
+    const accepted=(targetRelation,fallRelation)=>pathTakesTarget?targetRelation:fallRelation;
+    switch(mn){
+      case 'ja':case 'jnbe':{
+        const r=accepted('>','<=');if(r==='>')lower=imm+1;else{lower=0;upper=imm}relation=`u(${indexReg}) ${r} ${imm}`;break}
+      case 'jbe':case 'jna':{
+        const r=accepted('<=','>');if(r==='<='){lower=0;upper=imm}else lower=imm+1;relation=`u(${indexReg}) ${r} ${imm}`;break}
+      case 'jae':case 'jnb':case 'jnc':{
+        const r=accepted('>=','<');if(r==='>=')lower=imm;else{lower=0;upper=imm-1}relation=`u(${indexReg}) ${r} ${imm}`;break}
+      case 'jb':case 'jnae':case 'jc':{
+        const r=accepted('<','>=');if(r==='<'){lower=0;upper=imm-1}else lower=imm;relation=`u(${indexReg}) ${r} ${imm}`;break}
+      case 'jg':case 'jnle':{signed=true;const r=accepted('>','<=');if(r==='>')lower=imm+1;else upper=imm;relation=`s(${indexReg}) ${r} ${imm}`;break}
+      case 'jge':case 'jnl':{signed=true;const r=accepted('>=','<');if(r==='>=')lower=imm;else upper=imm-1;relation=`s(${indexReg}) ${r} ${imm}`;break}
+      case 'jl':case 'jnge':{signed=true;const r=accepted('<','>=');if(r==='<')upper=imm-1;else lower=imm;relation=`s(${indexReg}) ${r} ${imm}`;break}
+      case 'jle':case 'jng':{signed=true;const r=accepted('<=','>');if(r==='<=')upper=imm;else lower=imm+1;relation=`s(${indexReg}) ${r} ${imm}`;break}
+      default:return null;
     }
-    return null;
+    return {guardBlock,currentBlock,branch,compare:cmp,indexReg,imm,lower,upper,signed,defaultBlock:other,relation,
+      evidence:`${cmp.mnemonic} immediate guard + ${mn} proves path constraint ${relation}`};
+  };
+  const switchGuardChain=(tableBlock,indexReg)=>{
+    const constraints=[],visited=new Set();let current=tableBlock;
+    for(let depth=0;depth<6;depth++){
+      const candidates=(current.pred||[]).filter(p=>!visited.has(p.id)).map(p=>guardConstraintForPath(p,current,indexReg)).filter(Boolean);
+      if(!candidates.length)break;
+      // Prefer the guard that has a distinct rejection/default successor; if
+      // several remain, the chain is structurally ambiguous and we stop.
+      candidates.sort((a,b)=>Number(!!b.defaultBlock)-Number(!!a.defaultBlock));
+      const c=candidates[0];constraints.push(c);visited.add(c.guardBlock.id);current=c.guardBlock;
+      if(candidates.length>1&&candidates[1].defaultBlock!==c.defaultBlock)break;
+    }
+    return constraints;
+  };
+  const switchIndexBiasAcross=(tableBlock,indexReg,beforeInst,constraints)=>{
+    const tableBias=switchIndexBias(tableBlock,indexReg,beforeInst);
+    if(tableBias.instruction)return {...tableBias,domain:'original-constraints'};
+    for(let i=0;i<constraints.length;i++){
+      const c=constraints[i],bias=switchIndexBias(c.guardBlock,indexReg,c.compare);
+      if(!bias.instruction)continue;
+      // constraints are ordered nearest-table -> outward. A bias in the
+      // outermost guard executes before every collected comparison; a bias in
+      // the middle would mix original and normalized domains and is rejected.
+      if(i===constraints.length-1)return {...bias,domain:'normalized-constraints'};
+      return {...bias,domain:'mixed-constraints'};
+    }
+    return {caseBase:0,instruction:null,evidence:'',domain:'identity'};
+  };
+  const inferSwitchBound=(tableBlock,indexReg)=>{
+    const constraints=switchGuardChain(tableBlock,indexReg);if(!constraints.length)return null;
+    let lower=null,upper=null,hasSigned=false;
+    for(const c of constraints){
+      if(Number.isFinite(c.lower))lower=lower==null?c.lower:Math.max(lower,c.lower);
+      if(Number.isFinite(c.upper))upper=upper==null?c.upper:Math.min(upper,c.upper);
+      hasSigned=hasSigned||c.signed;
+    }
+    // Unsigned upper-bound guards prove the table index is non-negative even
+    // when an explicit lower guard is absent. Signed guards require both ends.
+    if(lower==null&&!hasSigned&&upper!=null)lower=0;
+    if(lower==null||upper==null||upper<lower||upper-lower>=4096)return null;
+    const dispatchInst=tableBlock.instructions?.at(-1),bias=switchIndexBiasAcross(tableBlock,indexReg,dispatchInst,constraints);
+    if(bias.domain==='mixed-constraints')return null;
+    let normalizedMin,normalizedMax,min,max;
+    if(bias.domain==='original-constraints'){
+      min=lower;max=upper;normalizedMin=min-bias.caseBase;normalizedMax=max-bias.caseBase;
+    }else{
+      normalizedMin=lower;normalizedMax=upper;min=normalizedMin+bias.caseBase;max=normalizedMax+bias.caseBase;
+    }
+    if(!Number.isFinite(normalizedMin)||!Number.isFinite(normalizedMax)||normalizedMin<0||normalizedMax<normalizedMin||normalizedMax-normalizedMin>=4096)return null;
+    const count=normalizedMax-normalizedMin+1,
+          defaults=[...new Set(constraints.map(c=>c.defaultBlock).filter(Boolean))],defaultBlock=defaults.length===1?defaults[0]:null,
+          guards=constraints.map(c=>c.guardBlock);
+    return {
+      min,max,normalizedMin,normalizedMax,count,caseBase:bias.caseBase,indexReg,
+      compare:constraints[0].compare,branch:constraints[0].branch,biasInstruction:bias.instruction,
+      guardBlock:constraints[0].guardBlock,guardBlocks:guards,tableBlock,defaultBlock,confidence:'exact',signed:hasSigned,
+      evidence:`${constraints.map(c=>c.evidence).join(' · ')}${bias.evidence?` · ${bias.evidence}`:''}`
+    };
   };
   const baseAddressFromMemoryInfo=(info,ea)=>{
     if(!ea)return null;
@@ -4712,10 +5024,11 @@ function analyzeAdvancedCfg(fn){
     const section=sectionAtAddress(base);if(!section||!['read-only data','writable data','other'].includes(section.kind))return null;
     const bound=inferSwitchBound(block,ea.index),count=bound?.count||64,entries=[],unresolved=[];
     for(let i=0;i<count;i++){
-      const raw=readUnsignedLE(section,base+i*entryWidth,entryWidth);if(raw==null)break;
+      const tableIndex=(bound?.normalizedMin||0)+i,entryAddress=base+tableIndex*entryWidth,
+            raw=readUnsignedLE(section,entryAddress,entryWidth);if(raw==null)break;
       if(raw>BigInt(Number.MAX_SAFE_INTEGER)){if(bound)unresolved.push({index:i,reason:'entry exceeds safe address range'});else break;continue}
       const addr=Number(raw),targetBlock=blockContainingAddress(addr),targetFunction=functionAtAddress(addr);
-      const entry={index:i,caseValue:(bound?.min||0)+i,address:base+i*entryWidth,raw,targetAddress:addr,targetBlock,targetFunction,
+      const entry={index:tableIndex,caseValue:(bound?.min??0)+i,address:entryAddress,raw,targetAddress:addr,targetBlock,targetFunction,
         confidence:targetBlock?'exact':'unknown',evidence:'little-endian absolute jump-table entry'};
       entries.push(entry);
       if(!targetBlock){
@@ -4756,9 +5069,10 @@ function analyzeAdvancedCfg(fn){
     if(!section||!['read-only data','writable data','other'].includes(section.kind))return null;
     const bound=inferSwitchBound(block,ea.index),count=bound?.count||64,entries=[],unresolved=[];
     for(let i=0;i<count;i++){
-      const raw=readSignedLE(section,tableBase+i*4,4);if(raw==null)break;
+      const tableIndex=(bound?.normalizedMin||0)+i,entryAddress=tableBase+tableIndex*4,
+            raw=readSignedLE(section,entryAddress,4);if(raw==null)break;
       const targetAddress=base+Number(raw),targetBlock=blockContainingAddress(targetAddress);
-      const entry={index:i,caseValue:(bound?.min||0)+i,address:tableBase+i*4,raw,targetAddress,targetBlock,
+      const entry={index:tableIndex,caseValue:(bound?.min??0)+i,address:entryAddress,raw,targetAddress,targetBlock,
         confidence:targetBlock?'exact':'unknown',evidence:'signed 32-bit relative offset added to proven table base'};
       entries.push(entry);
       if(!targetBlock){unresolved.push(entry);if(!bound)break}
@@ -8203,6 +8517,7 @@ new ResizeObserver(()=>{resizeCanvas();resizeTraceCanvas();renderCode(true);stat
 // not depend on it; explicit load entry points exist only for harnesses.
 Object.defineProperty(window,'asmInspectorDebug',{value:{
   get state(){return state}, functionDataflow, analyzeAdvancedCfg, buildGraph, buildCfgGraph, buildDataflowGraph, fitGraph, resizeCanvas, groupAnalysisBarriers,
+  decodeDwarfCfiProgram, cfiRowForPc, cfiStateSummary,
   selectFunction, selectGraphNode, valueDisplay, dataflowUnknownReason,
   // Explicit regression-harness entry points; normal UI code does not depend on them.
   addWorkspaceText, loadText
