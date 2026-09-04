@@ -664,7 +664,7 @@ const state = {
   visibleRows:[], rowOfLine:null, familyInfo:new Map(), familyVisibility:new Map(), sectionVisibility:new Map(),
   originGroups:new Map(), originVisibility:new Map(), expandedOriginGroups:new Set(), functionRepresentative:new Map(),
   groupViewStack:[],
-  viewMode:'boundaries', cfgView:'control', dataflowFilter:'important', dataflowFocus:'', dwarf:null, projectRoots:[], selectedOriginGroupId:null,
+  viewMode:'boundaries', cfgView:'control', cfgPathStartId:null, cfgPathBlockIds:[], dataflowFilter:'important', dataflowFocus:'', dwarf:null, projectRoots:[], selectedOriginGroupId:null,
   inputKind:'objdump', inputMeta:null, explicitEntrySymbols:[],
   editMode:false, editTimer:null, editRevision:0,
   workspaceFiles:new Map(), workspaceOrder:[], activeFileId:null, workspaceRevision:0,
@@ -3218,7 +3218,7 @@ function updateStats(){
   if(state.mode==='cfg'){
     const fn=state.selectedFunction,a=fn?analyzeAdvancedCfg(fn):null;
     els.stats.textContent=fn
-      ?`${functionDisplayName(fn)} · ${num(a?.blocks.length||0)} blocks · ${num(a?.reachable.size||0)} reachable · ${num(a?.backEdges.length||0)} back edges · ${num(a?.loops.length||0)} natural loops · ${num(a?.criticalEdges.length||0)} critical edges · ${num(a?.jumpTables.length||0)} jump-table candidates · ${num(a?.indirectCallCandidates?.length||0)} indirect calls · ${num(a?.indirectJumpCandidates?.length||0)} indirect jumps · ${num(a?.tailCalls.length||0)} tail calls · ${num(a?.unresolvedTransfers.length||0)} unresolved transfers · ${state.cfgView}`
+      ?`${functionDisplayName(fn)} · ${num(a?.blocks.length||0)} blocks · ${num(a?.reachable.size||0)} reachable · ${num(a?.backEdges.length||0)} back edges · ${num(a?.loops.length||0)} natural loops · ${num(a?.irreducibleRegions?.length||0)} irreducible SCCs · ${num(a?.criticalEdges.length||0)} critical edges · ${num(a?.jumpTables.length||0)} jump-table candidates · ${num(a?.indirectCallCandidates?.length||0)} indirect calls · ${num(a?.indirectJumpCandidates?.length||0)} indirect jumps · ${num(a?.tailCalls.length||0)} tail calls · ${num(a?.unresolvedTransfers.length||0)} unresolved transfers · noreturn ${a?.structuralNoReturn?'proven':'no'} · ${state.cfgView}`
       :`0 CFG blocks · ${t('selectFunctionCfg')}`;
     els.entrySummary.style.display='none';return;
   }
@@ -3248,7 +3248,7 @@ function updateStats(){
 
 function clearAll(){
   state.text='';state.lines=[];state.lineMeta=[];state.functions=[];state.calls=[];state.addressRefs=[];state.dataRefs=[];state.relocations=[];state.sections=[];state.sectionById=new Map();state.segments=[];state.dataObjects=[];state.dataObjectById=new Map();state.symbols=[];state.versionDefinitions=[];state.versionRequirements=[];state.dynamicTags=[];state.neededLibraries=[];state.linkageSlots=[];state.callByLine=new Map();
-  state.functionsByAddr=new Map();state.functionsByName=new Map();state.selectedFunction=null;state.selectedInstruction=null;state.selectedBlock=null;state.cfgView='control';els.cfgView.value='control';els.cfgView.style.display='none';state.selectedSection=null;state.selectedLinkageSlot=null;state.selectedDataObject=null;state.selectedSegment=null;state.selectedAddressSpaceId=null;state.selectedSymbol=null;state.selectedRelocation=null;state.expandedBinarySections=new Set();state.expandedDataSections=new Set();state.hexTarget=null;state.binaryScopeFileId='';state.dataflowFilter='important';state.dataflowFocus='';els.binaryScope.style.display='none';els.dataflowFilter.style.display='none';els.dataflowFocus.style.display='none';els.dataflowFilter.value='important';els.dataflowFocus.value='';els.binaryScope.innerHTML=`<option value="">${t('allAddressSpaces')}</option>`;
+  state.functionsByAddr=new Map();state.functionsByName=new Map();state.selectedFunction=null;state.selectedInstruction=null;state.selectedBlock=null;state.cfgView='control';state.cfgPathStartId=null;state.cfgPathBlockIds=[];els.cfgView.value='control';els.cfgView.style.display='none';state.selectedSection=null;state.selectedLinkageSlot=null;state.selectedDataObject=null;state.selectedSegment=null;state.selectedAddressSpaceId=null;state.selectedSymbol=null;state.selectedRelocation=null;state.expandedBinarySections=new Set();state.expandedDataSections=new Set();state.hexTarget=null;state.binaryScopeFileId='';state.dataflowFilter='important';state.dataflowFocus='';els.binaryScope.style.display='none';els.dataflowFilter.style.display='none';els.dataflowFocus.style.display='none';els.dataflowFilter.value='important';els.dataflowFocus.value='';els.binaryScope.innerHTML=`<option value="">${t('allAddressSpaces')}</option>`;
   state.navStack=[];state.graphSpatial=null;state.graphAdjacency=new Map();state.graphDepths=[];
   state.entryFunction=null;state.elfEntry=null;state.programEntry=null;state.reachableIds=new Set();state.reachParent=new Map();state.depthById=new Map();state.detachedY=null;
   state.graphNodes=[];state.graphEdges=[];state.nodeById=new Map();state.searchHits=[];state.searchIndex=-1;
@@ -3389,6 +3389,7 @@ function selectFunction(fn,{scroll=true,keepMode=true}={}){
   if(!fn)return;
   if(fn.workspaceFileId&&fn.workspaceFileId!==state.activeFileId)activateWorkspaceFile(fn.workspaceFileId);
   state.selectedFunction=fn;state.selectedInstruction=null;state.selectedDataflowValue=null;state.selectedBlock=null;state.selectedOriginGroupId=null;
+  state.cfgPathStartId=null;state.cfgPathBlockIds=[];
   if(state.mode==='calls'&&fn.provenance){
     const g=state.originGroups.get(fn.provenance.groupId);
     if(g&&groupShouldCollapse(g))toggleOriginGroup(g.id,true,{remember:true,fit:false});
@@ -3833,7 +3834,12 @@ function updateInspector(item){
           unresolved=(advanced?.unresolvedTransfers||[]).filter(x=>x.block===db),
           jumpTables=(advanced?.jumpTables||[]).filter(x=>x.block===db),
           indirectCalls=(advanced?.indirectCallCandidates||[]).filter(x=>x.block===db),
-          indirectJumps=(advanced?.indirectJumpCandidates||[]).filter(x=>x.block===db);
+          indirectJumps=(advanced?.indirectJumpCandidates||[]).filter(x=>x.block===db),
+          irreducible=db?(advanced?.blockIrreducible?.get(db.id)||[]):[],
+          preds=db?(advanced?.predecessors?.get(db.id)||db.pred||[]):[],
+          succs=db?(advanced?.successors?.get(db.id)||db.succ||[]):[],
+          pathStart=state.cfgPathStartId?advanced?.blocks?.find(b=>b.id===state.cfgPathStartId):null,
+          customPath=(state.cfgPathBlockIds||[]).map(id=>advanced?.blocks?.find(b=>b.id===id)).filter(Boolean);
     html=`<div class="title">${escapeHtml(item.label)}</div><div class="meta">
       <b>${t('function')}</b><span>${escapeHtml(functionDisplayName(item.function))}</span>
       <b>Range</b><span>${item.function?.syntheticAddress?`${t('line')} ${item.startLine+1}–${item.endLine+1}`:`${safeHex(item.startAddr)} – ${safeHex(item.endAddr)}`}</span>
@@ -3842,8 +3848,9 @@ function updateInspector(item){
       <b>${t('reachable')}</b><span>${db&&advanced?.reachable?.has(db.id)?'yes':'no'}</span>
       <b>Loop header</b><span>${item.loopHeader?'yes':'no'}</span>
       <b>${t('loopDepth')}</b><span>${num(loops.length)}</span>
-      <b>Predecessors</b><span>${num(db?.pred?.length||item.pred?.length||0)}</span>
-      <b>Successors</b><span>${num(db?.succ?.length||item.succ?.length||0)}</span>
+      <b>Irreducible SCC</b><span>${irreducible.length?`yes · ${irreducible.map(r=>`${r.blocks.length} blocks/${r.entryNodes.length} entries`).join(', ')}`:'no'}</span>
+      <b>Predecessors</b><span>${num(preds.length||item.pred?.length||0)}</span>
+      <b>Successors</b><span>${num(succs.length||item.succ?.length||0)}</span>
       <b>${t('dominators')}</b><span>${num(doms.length)}</span>
       <b>${t('immediateDominator')}</b><span>${idom?escapeHtml(cfgBlockTitle(idom,item.function)):'—'}</span>
       <b>${t('dominanceFrontier')}</b><span>${frontier.length?frontier.map(b=>escapeHtml(cfgBlockTitle(b,item.function))).join(', '):'—'}</span>
@@ -3854,16 +3861,21 @@ function updateInspector(item){
     ${path.length?`<div class="path"><b>${t('pathFromEntry')}</b><br>${path.map(b=>escapeHtml(cfgBlockTitle(b,item.function))).join(' → ')}</div>`:''}
     ${doms.length?`<div class="path"><b>${t('dominators')}</b><br>${doms.map(b=>`${b===db?'<strong>':''}${escapeHtml(cfgBlockTitle(b,item.function))}${b===db?'</strong>':''}`).join(' → ')}</div>`:''}
     ${loops.length?`<div class="path"><b>${t('naturalLoops')}</b><br>${loops.map(l=>`depth ${l.depth} · header ${escapeHtml(cfgBlockTitle(l.header,item.function))} · ${num(l.nodes.size)} blocks · ${num(l.backEdges.length)} back edges`).join('<br>')}</div>`:''}
+    ${irreducible.length?`<div class="path"><b>IRREDUCIBLE CONTROL FLOW</b><br>${irreducible.map(r=>`${num(r.blocks.length)} blocks · entries ${r.entryNodes.map(b=>escapeHtml(cfgBlockTitle(b,item.function))).join(', ')} · natural single-header loop model is not sufficient`).join('<br>')}</div>`:''}
+    ${pathStart?`<div class="path"><b>CUSTOM CFG PATH</b><br>start ${escapeHtml(cfgBlockTitle(pathStart,item.function))}${customPath.length>1?`<br>${customPath.map(b=>escapeHtml(cfgBlockTitle(b,item.function))).join(' → ')}`:' · target not selected yet'}</div>`:''}
     ${outFacts.length?`<div class="dataObjectList"><b>CONTROL-FLOW EDGES</b>${outFacts.map((f,i)=>`<div class="dataObjectRow"><span>${escapeHtml(cfgBlockTitle(f.to,item.function))}</span><span>${escapeHtml([f.backEdge?'back-edge':null,f.critical?'critical':null,f.predicate||f.label||null,f.evidence||null].filter(Boolean).join(' · ')||'flow')}</span><button data-cfg-succ="${i}">→</button></div>`).join('')}</div>`:''}
-    ${(db?.pred?.length)?`<div class="dataObjectList"><b>PREDECESSORS</b>${db.pred.map((b,i)=>`<div class="dataObjectRow"><span>${escapeHtml(cfgBlockTitle(b,item.function))}</span><span>${advanced?.edgeFacts?.get(`${b.id}->${db.id}`)?.backEdge?'back-edge':'incoming'}</span><button data-cfg-pred="${i}">→</button></div>`).join('')}</div>`:''}
-    ${jumpTables.length?`<div class="path"><b>JUMP-TABLE / SWITCH CANDIDATES</b><br>${jumpTables.map(j=>`${escapeHtml(dataObjectLabel(j.table))} · ${j.confidence} · ${num(j.targets.length)} exact block targets${j.targets.length?'<br>'+j.targets.map(tg=>`case ${tg.index} → ${escapeHtml(cfgBlockTitle(tg.block,item.function))}`).join('<br>'):''}`).join('<br>')}</div>`:''}
-    ${indirectCalls.length?`<div class="path"><b>INDIRECT CALL CANDIDATES</b><br>${indirectCalls.map(c=>`${escapeHtml(c.instruction.mnemonic+' '+c.instruction.operands)} · ${c.confidence}${c.candidates.length?'<br>'+c.candidates.map(tg=>tg.kind==='function'?`→ ${escapeHtml(functionDisplayName(tg.function))} · ${safeHex(tg.address)} · ${escapeHtml(tg.evidence)}`:`→ ${escapeHtml(cfgBlockTitle(tg.block,item.function))} · ${escapeHtml(tg.evidence)}`).join('<br>'):' · unresolved'}`).join('<br>')}</div>`:''}
-    ${indirectJumps.length?`<div class="path"><b>INDIRECT JUMP CANDIDATES</b><br>${indirectJumps.map(c=>`${escapeHtml(c.instruction.mnemonic+' '+c.instruction.operands)} · ${c.confidence}${c.candidates.length?'<br>'+c.candidates.map(tg=>tg.kind==='function'?`→ ${escapeHtml(functionDisplayName(tg.function))} · ${safeHex(tg.address)} · ${escapeHtml(tg.evidence)}`:`→ ${escapeHtml(cfgBlockTitle(tg.block,item.function))} · ${escapeHtml(tg.evidence)}`).join('<br>'):' · unresolved'}`).join('<br>')}</div>`:''}
+    ${preds.length?`<div class="dataObjectList"><b>PREDECESSORS</b>${preds.map((b,i)=>`<div class="dataObjectRow"><span>${escapeHtml(cfgBlockTitle(b,item.function))}</span><span>${advanced?.edgeFacts?.get(`${b.id}->${db.id}`)?.backEdge?'back-edge':'incoming'}</span><button data-cfg-pred="${i}">→</button></div>`).join('')}</div>`:''}
+    ${jumpTables.length?`<div class="path"><b>JUMP-TABLE / SWITCH CANDIDATES</b><br>${jumpTables.map((j,ji)=>{
+      const table=j.table,bound=j.bound||table?.bound,unresolved=j.unresolvedEntries||[];
+      return `${escapeHtml(dataObjectLabel(table))} · ${escapeHtml(table?.encoding||'pointer-table')} · ${j.confidence} · ${num(j.targets?.length||0)} exact targets${Number.isFinite(table?.address)?` · ${safeHex(table.address)}`:''}${bound?`<br>index bound: ${escapeHtml(bound.evidence)} · cases ${bound.min}..${bound.max}${bound.defaultBlock?` · default → ${escapeHtml(cfgBlockTitle(bound.defaultBlock,item.function))}`:''}`:''}${j.targets?.length?'<br>'+j.targets.map(tg=>`case ${tg.caseValue??tg.index} → ${escapeHtml(cfgBlockTitle(tg.block,item.function))} · ${escapeHtml(tg.evidence||'exact table entry')}`).join('<br>'):''}${unresolved.length?`<br>${num(unresolved.length)} unresolved table entries preserved`:''}${table?.section&&Number.isFinite(table?.address)?`<br><button data-jt-hex="${ji}">Open table hex</button>`:''}`;
+    }).join('<br><br>')}</div>`:''}
+    ${indirectCalls.length?`<div class="path"><b>INDIRECT CALL CANDIDATES</b><br>${indirectCalls.map(c=>`${escapeHtml(c.instruction.mnemonic+' '+c.instruction.operands)} · ${c.confidence} · ${escapeHtml(c.evidence||'')}${c.candidates.length?'<br>'+c.candidates.slice(0,40).map(tg=>tg.kind==='function'?`→ ${escapeHtml(functionDisplayName(tg.function))} · ${safeHex(tg.address)} · ${escapeHtml(tg.evidence)}`:`→ ${escapeHtml(cfgBlockTitle(tg.block,item.function))} · ${escapeHtml(tg.evidence)}`).join('<br>')+(c.candidates.length>40?`<br>… ${num(c.candidates.length-40)} more conservative candidates`:''):' · unresolved'}`).join('<br>')}</div>`:''}
+    ${indirectJumps.length?`<div class="path"><b>INDIRECT JUMP CANDIDATES</b><br>${indirectJumps.map(c=>`${escapeHtml(c.instruction.mnemonic+' '+c.instruction.operands)} · ${c.confidence} · ${escapeHtml(c.evidence||'')}${c.candidates.length?'<br>'+c.candidates.slice(0,40).map(tg=>tg.kind==='function'?`→ ${escapeHtml(functionDisplayName(tg.function))} · ${safeHex(tg.address)} · ${escapeHtml(tg.evidence)}`:`→ ${escapeHtml(cfgBlockTitle(tg.block,item.function))} · ${escapeHtml(tg.evidence)}`).join('<br>')+(c.candidates.length>40?`<br>… ${num(c.candidates.length-40)} more conservative candidates`:''):' · unresolved'}`).join('<br>')}</div>`:''}
     ${tail?`<div class="path"><b>TAIL CALL</b><br>${escapeHtml(functionDisplayName(tail.target))} · ${safeHex(tail.address)} · ${escapeHtml(tail.evidence)}</div>`:''}
     ${unresolved.length?`<div class="path"><b>${t('unresolvedTransfers')}</b><br>${unresolved.map(u=>`${escapeHtml(u.kind)} · ${escapeHtml(u.reason)}${Number.isFinite(u.address)?` · ${safeHex(u.address)}`:''}`).join('<br>')}</div>`:''}
     ${entry?`<div class="path"><b>BLOCK ENTRY STATE</b><br>registers ${num(entry.regs.size)} · stack ${num(entry.stack.size)} · memory ${num(entry.memory.size)} · FLAGS ${entry.flags?escapeHtml(JSON.stringify(entry.flags)):'unknown'} · RBP base ${Number.isFinite(entry.rbpEntryDelta)?entry.rbpEntryDelta:'unknown'}</div>`:''}
     ${exit?`<div class="path"><b>BLOCK EXIT STATE</b><br>registers ${num(exit.regs.size)} · stack ${num(exit.stack.size)} · memory ${num(exit.memory.size)} · FLAGS ${exit.flags?escapeHtml(JSON.stringify(exit.flags)):'unknown'} · RBP base ${Number.isFinite(exit.rbpEntryDelta)?exit.rbpEntryDelta:'unknown'}</div>`:''}
-    <div class="actions"><button data-action="code">${t('goToCode')}</button>${idom?`<button data-action="cfg-idom">${t('immediateDominator')}</button>`:''}${loops[0]?`<button data-action="cfg-loop-header">Loop header</button>`:''}</div>`;
+    <div class="actions"><button data-action="code">${t('goToCode')}</button>${idom?`<button data-action="cfg-idom">${t('immediateDominator')}</button>`:''}${loops[0]?`<button data-action="cfg-loop-header">Loop header</button>`:''}<button data-action="cfg-path-start">Set path start</button>${pathStart&&pathStart!==db?`<button data-action="cfg-path-find">Path from start</button>`:''}${pathStart?`<button data-action="cfg-path-clear">Clear path</button>`:''}</div>`;
   }else{
     const incoming=state.calls.filter(e=>e.to===item).length+state.addressRefs.filter(e=>e.to===item).length,repId=state.functionRepresentative.get(item.id)||item.id,node=state.nodeById.get(repId),isEntry=item===state.entryFunction,isElf=item===state.elfEntry,isProgram=item===state.programEntry,reachable=!!node?.reachable,depth=node?.depth,df=state.dataflowCache.get(item.id)||null,cfg=analyzeAdvancedCfg(item);
     const role=[isElf?'ELF entry':null,isProgram?'program entry':null,isEntry?'reachability root':null].filter(Boolean).join(', ')||'—',reach=isEntry?'ENTRY':reachable?`reachable · depth ${depth}`:'NO PATH FROM ENTRYPOINT',path=reachabilityPath(item),p=item.provenance||makeProvenance('unknown','unknown:unclassified','Unclassified'),g=state.originGroups.get(p.groupId),canCollapse=g&&state.expandedOriginGroups.has(g.id)&&state.viewMode!=='functions';
@@ -3882,7 +3894,10 @@ function updateInspector(item){
     ${item.dynamicMatch?`<div class="path"><b>${t('dynamicMatch')} · ${escapeHtml(item.dynamicMatchConfidence||'inferred')}</b><br>${escapeHtml(item.name)} · ${item.syntheticAddress?t('line')+' '+(item.startLine+1):safeHex(item.addr)}<br>↓ ${t('resolvesTo')}<br>${escapeHtml(functionDisplayName(item.dynamicMatch))} · ${safeHex(item.dynamicMatch.addr)}<br>${escapeHtml(item.dynamicMatch.addressSpaceLabel||'')}</div>`:''}
     ${item.dynamicMatchedBy?.length?`<div class="path"><b>${t('dynamicMatch')}</b><br>${item.dynamicMatchedBy.map(x=>`${escapeHtml(x.name)} · ${safeHex(x.addr)} · ${escapeHtml(x.addressSpaceLabel||'')}`).join('<br>')}</div>`:''}
     ${df?`<div class="path"><b>STATIC ANALYSIS SUMMARY</b><br>${escapeHtml(df.architecture||'unknown')} · ${escapeHtml(df.adapter?.id||'unsupported')} · ${num(df.values?.length||0)} values · ${num(df.phiValues?.length||0)} phi · ${num(df.values?.filter(v=>v.kind==='memory-version').length||0)} memory versions · ${num(df.values?.filter(v=>v.kind==='memory-slice'||v.kind==='memory-composite').length||0)} memory slices/composites · ${num(df.values?.filter(v=>v.kind==='memory-clobber').length||0)} memory clobbers · memory cells peak ${num(df.memoryCellPeak||0)}/${num(df.memoryCellBudget||0)}${df.memoryFragmentCollapses?` · ${num(df.memoryFragmentCollapses)} fragmentation collapses`:''} · ${num(df.analysisBarriers?.length||0)} barriers<br>value FP ${df.fixedPointConverged?'converged':'partial'} (${num(df.fixedPointIterations||0)}) · full-state FP ${df.stateFixedPointConverged?'converged':'partial'} (${num(df.stateFixedPointIterations||0)}/${num(df.stateFixedPointBudget||0)}) · loop headers ${num(df.loopBlocks?.length||0)}${df.stateDomainConvergence?`<br>${Object.entries(df.stateDomainConvergence).map(([k,v])=>`${escapeHtml(k)}=${v.converged?'ok':'partial'}@${num(v.iterations||0)}`).join(' · ')}`:''}</div>`:''}
-    ${cfg?`<div class="path"><b>ADVANCED CFG</b><br>${num(cfg.blocks.length)} blocks · ${num(cfg.reachable.size)} reachable · dominators ${num(cfg.domIterations)} iterations · ${num(cfg.backEdges.length)} back edges · ${num(cfg.loops.length)} natural loops · ${num(cfg.criticalEdges.length)} critical edges · ${num(cfg.jumpTables.length)} jump-table candidates · ${num(cfg.indirectCallCandidates?.length||0)} indirect calls · ${num(cfg.indirectJumpCandidates?.length||0)} indirect jumps · ${num(cfg.tailCalls.length)} tail calls · ${num(cfg.unresolvedTransfers.length)} unresolved transfers${cfg.loops.length?`<br>${cfg.loops.slice(0,8).map(l=>`loop depth ${l.depth}: header ${escapeHtml(cfgBlockTitle(l.header,item))} · ${num(l.nodes.size)} blocks`).join('<br>')}`:''}</div>`:''}
+    ${cfg?`<div class="path"><b>ADVANCED CFG</b><br>${num(cfg.blocks.length)} blocks · ${num(cfg.reachable.size)} reachable · dominators ${num(cfg.domIterations)} iterations · ${num(cfg.backEdges.length)} back edges · ${num(cfg.loops.length)} natural loops · ${num(cfg.irreducibleRegions?.length||0)} irreducible SCCs · ${num(cfg.criticalEdges.length)} critical edges · ${num(cfg.jumpTables.length)} jump-table candidates · ${num(cfg.indirectCallCandidates?.length||0)} indirect calls · ${num(cfg.indirectJumpCandidates?.length||0)} indirect jumps · ${num(cfg.tailCalls.length)} tail calls · ${num(cfg.unresolvedTransfers.length)} unresolved transfers · noreturn ${cfg.structuralNoReturn?'structurally proven':'not proven'}${cfg.loops.length?`<br>${cfg.loops.slice(0,8).map(l=>`loop depth ${l.depth}: header ${escapeHtml(cfgBlockTitle(l.header,item))} · ${num(l.nodes.size)} blocks`).join('<br>')}`:''}</div>`:''}
+    ${cfg?.noreturnProof?`<div class="path"><b>STRUCTURAL NORETURN PROOF</b><br>${escapeHtml(cfg.noreturnProof.evidence)} · confidence ${escapeHtml(cfg.noreturnProof.confidence)}</div>`:''}
+    ${cfg?.irreducibleRegions?.length?`<div class="path"><b>IRREDUCIBLE CFG REGIONS</b><br>${cfg.irreducibleRegions.slice(0,12).map(r=>`${num(r.blocks.length)} blocks · ${num(r.entryNodes.length)} entries: ${r.entryNodes.map(b=>escapeHtml(cfgBlockTitle(b,item))).join(', ')}`).join('<br>')}</div>`:''}
+    ${cfg?.criticalEdges?.length?`<div class="path"><b>CRITICAL EDGES</b><br>${cfg.criticalEdges.slice(0,20).map(e=>`${escapeHtml(cfgBlockTitle(e.from,item))} → ${escapeHtml(cfgBlockTitle(e.to,item))}`).join('<br>')}${cfg.criticalEdges.length>20?'<br>…':''}</div>`:''}
     ${df?.adapter?`<div class="path"><b>ARCHITECTURE ADAPTER</b><br>${escapeHtml(df.adapter.id)} v${escapeHtml(df.adapter.version||'1')} · ${escapeHtml(df.adapter.contractId||'unversioned')}<br>${Object.entries(df.adapter.capabilities||{}).map(([k,v])=>`${escapeHtml(k)}=${escapeHtml(String(v))}`).join(' · ')}</div>`:''}
     ${path.length?`<div class="path"><b>PATH</b><br>${path.map(n=>escapeHtml(n.label)).join(' → ')}</div>`:''}<div class="actions"><button data-action="code">${t('goToCode')}</button><button data-action="center">${t('center')}</button><button data-action="cfg">${t('openCfg')}</button><button data-action="dataflow">${t('openDataflow')}</button>${item.dynamicMatch?`<button data-action="dynamic-match">${t('implementation')}</button>`:''}${item.dynamicMatchedBy?.length?`<button data-action="dynamic-stub">${t('pltEntry')}</button>`:''}${canCollapse?`<button data-action="collapse-group">${t('collapseGroup')}</button>`:''}</div>`;
   }
@@ -3999,8 +4014,31 @@ function updateInspector(item){
     selectCfgBlock(fact?.to);
   }));
   els.inspector.querySelectorAll('[data-cfg-pred]').forEach(btn=>btn.addEventListener('click',()=>{
-    const db=item.dataflowBlock,idx=Number(btn.dataset.cfgPred);selectCfgBlock(db?.pred?.[idx]);
+    const db=item.dataflowBlock,advanced=item.function?analyzeAdvancedCfg(item.function):null,idx=Number(btn.dataset.cfgPred),
+          preds=db?(advanced?.predecessors?.get(db.id)||db.pred||[]):[];
+    selectCfgBlock(preds[idx]);
   }));
+  els.inspector.querySelectorAll('[data-jt-hex]').forEach(btn=>btn.addEventListener('click',()=>{
+    const db=item.dataflowBlock,advanced=item.function?analyzeAdvancedCfg(item.function):null,
+          tables=db?(advanced?.jumpTables||[]).filter(x=>x.block===db):[],jt=tables[Number(btn.dataset.jtHex)],table=jt?.table;
+    if(table?.section&&Number.isFinite(table.address))openHexViewer({section:table.section,address:table.address,size:Math.max(1,table.size||table.entryWidth||8),name:dataObjectLabel(table)});
+  }));
+  els.inspector.querySelector('[data-action="cfg-path-start"]')?.addEventListener('click',()=>{
+    const db=item.dataflowBlock;if(!db)return;
+    state.cfgPathStartId=db.id;state.cfgPathBlockIds=[db.id];state.dirty=true;updateInspector(item);
+    setStatus(`CFG path start: ${cfgBlockTitle(db,item.function)}`);
+  });
+  els.inspector.querySelector('[data-action="cfg-path-find"]')?.addEventListener('click',()=>{
+    const db=item.dataflowBlock,advanced=item.function?analyzeAdvancedCfg(item.function):null,
+          from=advanced?.blocks?.find(b=>b.id===state.cfgPathStartId);
+    if(!db||!from||!advanced)return;
+    const path=advanced.shortestPath(from,db);
+    state.cfgPathBlockIds=path.map(b=>b.id);state.dirty=true;updateInspector(item);
+    setStatus(path.length?`CFG path: ${path.map(b=>cfgBlockTitle(b,item.function)).join(' → ')}`:`No CFG path from ${cfgBlockTitle(from,item.function)} to ${cfgBlockTitle(db,item.function)}`);
+  });
+  els.inspector.querySelector('[data-action="cfg-path-clear"]')?.addEventListener('click',()=>{
+    state.cfgPathStartId=null;state.cfgPathBlockIds=[];state.dirty=true;updateInspector(item);setStatus('CFG path cleared');
+  });
 }
 
 
@@ -4423,6 +4461,141 @@ function analyzeAdvancedCfg(fn){
     const first=b.instructions?.[0],last=b.instructions?.at(-1);return first&&last&&addr>=first.addr&&addr<=last.addr;
   })||null;
   const functionAtAddress=addr=>state.functions.find(f=>f.workspaceFileId===fn.workspaceFileId&&f.addr===addr)||state.functions.find(f=>f.addr===addr)||null;
+  const sectionAtAddress=addr=>state.sections.find(sec=>sec.workspaceFileId===fn.workspaceFileId&&Number.isFinite(sec.addressStart)&&addr>=sec.addressStart&&addr<(sec.addressEnd??sec.addressStart))||null;
+  const exactAddressFromValue=value=>{
+    const abs=value?.abstractValue;
+    if(abs?.kind==='address'&&Number.isFinite(abs.address))return abs.address;
+    if(abs?.kind==='constant'&&typeof abs.value==='bigint'&&abs.value>=0n&&abs.value<=BigInt(Number.MAX_SAFE_INTEGER))return Number(abs.value);
+    if(Number.isFinite(value?.address))return value.address;
+    return null;
+  };
+  const readUnsignedLE=(section,address,width)=>{
+    const read=sectionBytesAt(section,address,width);if(!read||[...read.mask].some(x=>!x))return null;
+    let v=0n;for(let i=0;i<width;i++)v|=BigInt(read.bytes[i])<<(8n*BigInt(i));return v;
+  };
+  const readSignedLE=(section,address,width)=>{
+    const u=readUnsignedLE(section,address,width);if(u==null)return null;
+    const bits=BigInt(width*8),sign=1n<<(bits-1n),mod=1n<<bits;
+    return (u&sign)?u-mod:u;
+  };
+  const normalizedCmpRegImm=inst=>{
+    if(!inst||!/^cmp/.test(inst.mnemonic.toLowerCase()))return null;
+    const {syntax,parts}=df.adapter.normalizeOperands(inst);if(parts.length<2)return null;
+    const a=syntax==='att'?parts[1]:parts[0],b=syntax==='att'?parts[0]:parts[1],
+          reg=operandRegister(a),imm=immediateValue(b);
+    if(!reg||imm==null||imm<0n||imm>BigInt(Number.MAX_SAFE_INTEGER))return null;
+    return {reg:reg.canonical,imm:Number(imm),instruction:inst};
+  };
+  const inferSwitchBound=(tableBlock,indexReg)=>{
+    for(const pred of tableBlock.pred||[]){
+      const branch=pred.instructions?.at(-1),mn=branch?.mnemonic?.toLowerCase().replace(/q$/,'');
+      if(!branch||!/^j(?!mp)/.test(mn))continue;
+      const cmp=[...pred.instructions.slice(0,-1)].reverse().find(i=>/^cmp/.test(i.mnemonic.toLowerCase()));
+      const ci=normalizedCmpRegImm(cmp);if(!ci||ci.reg!==indexReg)continue;
+      const targetBlock=blockContainingAddress(df.adapter.branchTarget(branch)),tableIsTarget=targetBlock===tableBlock,
+            other=(pred.succ||[]).find(x=>x!==tableBlock)||null;
+      let min=0,max=null,relation='';
+      if((mn==='ja'||mn==='jnbe')&&!tableIsTarget){max=ci.imm;relation=`${indexReg} <= ${ci.imm}`}
+      else if((mn==='jbe'||mn==='jna')&&tableIsTarget){max=ci.imm;relation=`${indexReg} <= ${ci.imm}`}
+      else if((mn==='jae'||mn==='jnb'||mn==='jnc')&&!tableIsTarget&&ci.imm>0){max=ci.imm-1;relation=`${indexReg} < ${ci.imm}`}
+      else if((mn==='jb'||mn==='jnae'||mn==='jc')&&tableIsTarget&&ci.imm>0){max=ci.imm-1;relation=`${indexReg} < ${ci.imm}`}
+      if(max!=null&&max>=0&&max<4096)return {
+        min,max,count:max-min+1,indexReg,compare:cmp,branch,guardBlock:pred,tableBlock,defaultBlock:other,
+        confidence:'exact',evidence:`${cmp.mnemonic} immediate bound + ${mn} control split proves ${relation}`
+      };
+    }
+    return null;
+  };
+  const baseAddressFromMemoryInfo=(info,ea)=>{
+    if(!ea)return null;
+    if(!ea.base&&Number.isFinite(ea.disp))return ea.disp;
+    if(ea.base){
+      const mem=(info?.memoryOperands||[]).find(m=>m.registers?.some(r=>r.reg===ea.base));
+      const regValue=mem?.registers?.find(r=>r.reg===ea.base)?.value,
+            base=exactAddressFromValue(regValue);
+      if(Number.isFinite(base))return base+(ea.disp||0);
+    }
+    return null;
+  };
+  const makeRecoveredTable=(kind,base,entryWidth,section,entries,bound,evidence,extra={})=>({
+    id:`cfg-jt:${fn.id}:${base.toString(16)}:${kind}`,kind:'jump-table',name:`${section?.name||'data'} jump table @ ${safeHex(base)}`,
+    address:base,size:entries.length*entryWidth,pointerSize:entryWidth,entryWidth,section,sectionId:section?.id||null,
+    workspaceFileId:fn.workspaceFileId,addressSpaceId:fn.addressSpaceId,addressSpaceLabel:fn.addressSpaceLabel,
+    entries,bound,confidence:bound?'exact':'inferred',evidence,synthetic:true,...extra
+  });
+  const recoverAbsoluteIndexedJumpTable=(block,last,info)=>{
+    const {parts}=df.adapter.normalizeOperands(last),op=parts[0]||last.operands||'',ea=df.adapter.effectiveAddress?.(op);
+    if(!ea?.index)return null;
+    const bits=state.workspaceFiles.get(fn.workspaceFileId)?.bits||64,
+          entryWidth=ea.scale===8?8:(bits===32&&ea.scale===4?4:null);
+    if(!entryWidth)return null;
+    const base=baseAddressFromMemoryInfo(info,ea);if(!Number.isFinite(base))return null;
+    const section=sectionAtAddress(base);if(!section||!['read-only data','writable data','other'].includes(section.kind))return null;
+    const bound=inferSwitchBound(block,ea.index),count=bound?.count||64,entries=[],unresolved=[];
+    for(let i=0;i<count;i++){
+      const raw=readUnsignedLE(section,base+i*entryWidth,entryWidth);if(raw==null)break;
+      if(raw>BigInt(Number.MAX_SAFE_INTEGER)){if(bound)unresolved.push({index:i,reason:'entry exceeds safe address range'});else break;continue}
+      const addr=Number(raw),targetBlock=blockContainingAddress(addr),targetFunction=functionAtAddress(addr);
+      const entry={index:i,caseValue:(bound?.min||0)+i,address:base+i*entryWidth,raw,targetAddress:addr,targetBlock,targetFunction,
+        confidence:targetBlock?'exact':'unknown',evidence:'little-endian absolute jump-table entry'};
+      entries.push(entry);
+      if(!targetBlock){
+        unresolved.push(entry);
+        if(!bound&&entries.filter(e=>e.targetBlock).length<2)break;
+        if(!bound)break;
+      }
+    }
+    const valid=entries.filter(e=>e.targetBlock);
+    if(bound){
+      if(!entries.length||valid.length<Math.min(2,entries.length))return null;
+    }else if(valid.length<2)return null;
+    return {
+      table:makeRecoveredTable('absolute',base,entryWidth,section,entries,bound,
+        `indexed terminal jump uses ${ea.index}*${ea.scale} over ${section.name}; entries decode as absolute code addresses`,
+        {encoding:'absolute-address',indexReg:ea.index}),
+      targets:valid.map(e=>({index:e.index,caseValue:e.caseValue,address:e.targetAddress,block:e.targetBlock,entry:e,evidence:e.evidence})),
+      unresolvedEntries:unresolved,bound,defaultBlock:bound?.defaultBlock||null,confidence:bound&&unresolved.length===0?'exact':'inferred'
+    };
+  };
+  const recoverRelativeIndexedJumpTable=(block,last,info)=>{
+    const {parts:jumpParts}=df.adapter.normalizeOperands(last),jumpReg=operandRegister(jumpParts[0]||'')?.canonical;
+    if(!jumpReg)return null;
+    const meaningful=block.instructions.filter(i=>!df.adapter.noopLike?.(i)),j=meaningful.indexOf(last);
+    if(j<2)return null;
+    const add=meaningful[j-1],load=meaningful[j-2],addMn=add.mnemonic.toLowerCase(),loadMn=load.mnemonic.toLowerCase();
+    if(!/^add/.test(addMn)||!(/^(?:movslq|movsxd|movsx|movs)/.test(loadMn)))return null;
+    const addNorm=df.adapter.normalizeOperands(add),addDst=operandRegister(addNorm.syntax==='att'?addNorm.parts.at(-1):addNorm.parts[0])?.canonical,
+          addSrc=operandRegister(addNorm.syntax==='att'?addNorm.parts[0]:addNorm.parts[1])?.canonical;
+    if(addDst!==jumpReg||!addSrc)return null;
+    const loadNorm=df.adapter.normalizeOperands(load),loadDst=operandRegister(loadNorm.syntax==='att'?loadNorm.parts.at(-1):loadNorm.parts[0])?.canonical,
+          loadSrc=loadNorm.syntax==='att'?loadNorm.parts[0]:loadNorm.parts[1],ea=df.adapter.effectiveAddress?.(loadSrc);
+    if(loadDst!==jumpReg||!ea?.index||ea.scale!==4||ea.base!==addSrc)return null;
+    const loadInfo=df.instInfo.get(load),baseUse=(loadInfo?.uses||[]).map(u=>u.value).find(v=>v?.reg===addSrc),
+          base=exactAddressFromValue(baseUse);
+    if(!Number.isFinite(base))return null;
+    const tableBase=base+(ea.disp||0),section=sectionAtAddress(tableBase);
+    if(!section||!['read-only data','writable data','other'].includes(section.kind))return null;
+    const bound=inferSwitchBound(block,ea.index),count=bound?.count||64,entries=[],unresolved=[];
+    for(let i=0;i<count;i++){
+      const raw=readSignedLE(section,tableBase+i*4,4);if(raw==null)break;
+      const targetAddress=base+Number(raw),targetBlock=blockContainingAddress(targetAddress);
+      const entry={index:i,caseValue:(bound?.min||0)+i,address:tableBase+i*4,raw,targetAddress,targetBlock,
+        confidence:targetBlock?'exact':'unknown',evidence:'signed 32-bit relative offset added to proven table base'};
+      entries.push(entry);
+      if(!targetBlock){unresolved.push(entry);if(!bound)break}
+    }
+    const valid=entries.filter(e=>e.targetBlock);
+    if(bound){
+      if(!entries.length||valid.length<Math.min(2,entries.length))return null;
+    }else if(valid.length<2)return null;
+    return {
+      table:makeRecoveredTable('relative32',tableBase,4,section,entries,bound,
+        `movsx/movslq indexed load + base add + indirect jump proves signed relative jump table`,
+        {encoding:'relative-s32',relativeBase:base,indexReg:ea.index}),
+      targets:valid.map(e=>({index:e.index,caseValue:e.caseValue,address:e.targetAddress,block:e.targetBlock,entry:e,evidence:e.evidence})),
+      unresolvedEntries:unresolved,bound,defaultBlock:bound?.defaultBlock||null,confidence:bound&&unresolved.length===0?'exact':'inferred'
+    };
+  };
   const candidateTargetsFromValue=(value,seen=new Set(),out=[])=>{
     if(!value||seen.has(value))return out;seen.add(value);
     const abs=value.abstractValue;
@@ -4433,6 +4606,13 @@ function analyzeAdvancedCfg(fn){
       const block=blockContainingAddress(exactAddress),targetFn=functionAtAddress(exactAddress);
       if(block&&!out.some(x=>x.block===block))out.push({kind:'block',block,address:exactAddress,confidence:'exact',evidence:abs.kind==='constant'?'exact constant used as control target':'exact abstract target address'});
       else if(targetFn&&targetFn!==fn&&!out.some(x=>x.function===targetFn))out.push({kind:'function',function:targetFn,address:exactAddress,confidence:'exact',evidence:abs.kind==='constant'?'exact constant used as control target':'exact abstract target address'});
+      const slot=state.linkageSlots.find(s=>s.workspaceFileId===fn.workspaceFileId&&s.address===exactAddress);
+      if(slot){
+        const providers=[];
+        for(const rel of slot.relocations||[])for(const f of [rel.providerFunction,rel.toFunction])if(f&&!providers.includes(f))providers.push(f);
+        for(const stub of slot.pltStubs||[])if(stub.dynamicMatch&&!providers.includes(stub.dynamicMatch))providers.push(stub.dynamicMatch);
+        for(const f of providers)if(!out.some(x=>x.function===f))out.push({kind:'function',function:f,address:f.addr,confidence:'exact',evidence:`GOT/linkage slot ${safeHex(slot.address)} resolves through relocation/provider evidence`});
+      }
     }
     for(const obj of cfgValueDataObjects(value)){
       if(!(obj.kind==='pointer-table'||obj.functionPointers||obj.entries?.length))continue;
@@ -4444,6 +4624,15 @@ function analyzeAdvancedCfg(fn){
     }
     for(const input of value.inputs||[])candidateTargetsFromValue(input,seen,out);
     return out;
+  };
+
+  const addressTakenCandidates=()=>{
+    const set=[];
+    for(const edge of state.addressRefs||[]){
+      const f=edge.to;if(!f||f===fn||f.workspaceFileId!==fn.workspaceFileId)continue;
+      if(!set.includes(f))set.push(f);
+    }
+    return set.map(f=>({kind:'function',function:f,address:f.addr,confidence:'inferred',evidence:'function address is taken elsewhere in the same artifact; broad fallback candidate'}));
   };
 
   const reachable=new Set([entry.id]),reachParent=new Map(),queue=[entry];
@@ -4532,14 +4721,47 @@ function analyzeAdvancedCfg(fn){
   const blockLoops=new Map(blocks.map(b=>[b.id,loops.filter(l=>l.nodes.has(b.id)).sort((a,b2)=>a.nodes.size-b2.nodes.size)]));
   for(const b of blocks){b.advancedLoopDepth=blockLoops.get(b.id).length;b.advancedLoopHeader=loops.some(l=>l.header===b)}
 
+  // Strongly-connected regions are analyzed independently from natural loops.
+  // A cyclic SCC with more than one externally-entered node is irreducible
+  // control flow; do not force it into a single-header natural-loop model.
+  let sccIndex=0;const sccStack=[],sccOnStack=new Set(),sccMeta=new Map(),sccs=[];
+  const strongConnect=v=>{
+    const meta={index:sccIndex,low:sccIndex};sccIndex++;sccMeta.set(v.id,meta);sccStack.push(v);sccOnStack.add(v.id);
+    for(const w of v.succ||[]){
+      if(!reachable.has(w.id))continue;
+      if(!sccMeta.has(w.id)){strongConnect(w);meta.low=Math.min(meta.low,sccMeta.get(w.id).low)}
+      else if(sccOnStack.has(w.id))meta.low=Math.min(meta.low,sccMeta.get(w.id).index);
+    }
+    if(meta.low===meta.index){
+      const members=[];let w;
+      do{w=sccStack.pop();sccOnStack.delete(w.id);members.push(w)}while(w!==v&&sccStack.length);
+      sccs.push({id:`scc:${v.id}`,members:new Set(members.map(x=>x.id)),blocks:members});
+    }
+  };
+  for(const b of rblocks)if(!sccMeta.has(b.id))strongConnect(b);
+  const cyclicSccs=sccs.filter(scc=>scc.blocks.length>1||scc.blocks.some(b=>(b.succ||[]).includes(b)));
+  const irreducibleRegions=[];
+  for(const scc of cyclicSccs){
+    const entries=new Set(),incoming=[];
+    for(const b of scc.blocks)for(const pred of b.pred||[])if(!scc.members.has(pred.id)&&reachable.has(pred.id)){entries.add(b.id);incoming.push({from:pred,to:b})}
+    scc.entryNodes=[...entries].map(id=>byId.get(id)).filter(Boolean);scc.incoming=incoming;scc.irreducible=scc.entryNodes.length>1;
+    if(scc.irreducible)irreducibleRegions.push(scc);
+  }
+  const blockIrreducible=new Map(blocks.map(b=>[b.id,irreducibleRegions.filter(r=>r.members.has(b.id))]));
+
   const tailCalls=[],unresolvedTransfers=[],jumpTables=[],indirectCallCandidates=[],indirectJumpCandidates=[];
   const adapter=df?.adapter||architectureAdapterForFunction(fn);
   for(const b of blocks){
     for(const inst of b.instructions||[]){
       const info=df?.instInfo?.get(inst),mn=inst.mnemonic.toLowerCase();
       if(/^call/.test(mn)&&info?.callTargetValue){
-        const candidates=candidateTargetsFromValue(info.callTargetValue);
-        indirectCallCandidates.push({block:b,instruction:inst,value:info.callTargetValue,candidates,confidence:candidates.length===1&&candidates[0].confidence==='exact'?'exact':candidates.length?'inferred-candidates':'unknown'});
+        let candidates=candidateTargetsFromValue(info.callTargetValue),fallback=false;
+        if(!candidates.length){candidates=addressTakenCandidates();fallback=!!candidates.length}
+        indirectCallCandidates.push({
+          block:b,instruction:inst,value:info.callTargetValue,candidates,
+          confidence:candidates.length===1&&candidates[0].confidence==='exact'?'exact':candidates.length?'inferred-candidates':'unknown',
+          fallback,evidence:fallback?'no narrower target evidence; using address-taken functions in the same artifact':'value/linkage/table evidence'
+        });
       }
     }
     const last=b.instructions?.at(-1);if(!last)continue;
@@ -4562,34 +4784,46 @@ function analyzeAdvancedCfg(fn){
     if(/^jmp/.test(mn)){
       const indirect=!!info?.jumpTargetValue||!Number.isFinite(targetAddr);
       if(indirect){
-        const valueCandidates=candidateTargetsFromValue(info?.jumpTargetValue);
-        indirectJumpCandidates.push({block:b,instruction:last,value:info?.jumpTargetValue||null,candidates:valueCandidates,confidence:valueCandidates.length===1&&valueCandidates[0].confidence==='exact'?'exact':valueCandidates.length?'inferred-candidates':'unknown'});
-        const exactLocal=valueCandidates.filter(x=>x.kind==='block');
+        let valueCandidates=candidateTargetsFromValue(info?.jumpTargetValue),fallback=false;
+        const recovered=[
+          recoverAbsoluteIndexedJumpTable(b,last,info),
+          recoverRelativeIndexedJumpTable(b,last,info)
+        ].filter(Boolean);
+        for(const jt of recovered)jumpTables.push({block:b,instruction:last,...jt,evidence:jt.table.evidence});
+
+        const exactLocal=valueCandidates.filter(x=>x.kind==='block'&&x.confidence==='exact');
         for(const candidate of exactLocal){
           const key=edgeKey(b,candidate.block);
           if(!edgeFacts.has(key))edgeFacts.set(key,{from:b,to:candidate.block,key,kind:'indirect-target',backEdge:false,critical:false,label:'indirect target',predicate:'indirect',outcome:null,evidence:candidate.evidence,indirectTarget:true});
         }
-        const exactFunctions=valueCandidates.filter(x=>x.kind==='function');
-        if(exactFunctions.length===1)tailCalls.push({block:b,instruction:last,target:exactFunctions[0].function,address:exactFunctions[0].address,confidence:exactFunctions[0].confidence,evidence:`indirect terminal jump: ${exactFunctions[0].evidence}`});
+        const exactFunctions=valueCandidates.filter(x=>x.kind==='function'&&x.confidence==='exact');
+        if(exactFunctions.length===1)tailCalls.push({block:b,instruction:last,target:exactFunctions[0].function,address:exactFunctions[0].address,confidence:'exact',evidence:`indirect terminal jump: ${exactFunctions[0].evidence}`});
+
         const objects=new Set();
         for(const obj of cfgValueDataObjects(info?.jumpTargetValue))objects.add(obj);
         const dref=state.dataRefs.find(r=>r.workspaceFileId===fn.workspaceFileId&&r.instruction===last);
         if(dref?.toObject)objects.add(dref.toObject);
         const tables=[...objects].filter(obj=>obj.kind==='pointer-table'||obj.functionPointers||obj.entries?.length);
-        if(tables.length){
-          for(const table of tables){
-            const targets=[];
-            (table.entries||[]).forEach((entry,i)=>{
-              const addr=entry.targetFunction?.addr??entry.relocation?.targetAddress;
-              const tb=blockContainingAddress(addr);
-              if(tb&&!targets.some(t=>t.block===tb)){
-                targets.push({index:i,address:addr,block:tb,entry,evidence:entry.relocation?'relocation-backed table entry':'table target'});
-              }
-            });
-            const jt={block:b,instruction:last,table,targets,confidence:targets.length?'exact-targets':'candidate',evidence:'indirect jump references a relocation-backed pointer table'};
-            jumpTables.push(jt);
-          }
-        }else if(!valueCandidates.length)unresolvedTransfers.push({block:b,instruction:last,kind:'indirect-jump',reason:'indirect jump target has no proven table/target set'});
+        for(const table of tables){
+          const targets=[],unresolvedEntries=[];
+          (table.entries||[]).forEach((entry,i)=>{
+            const addr=entry.targetFunction?.addr??entry.relocation?.targetAddress,tb=blockContainingAddress(addr);
+            const target={index:i,caseValue:i,address:addr,block:tb||null,entry,evidence:entry.relocation?'relocation-backed table entry':'table target'};
+            if(tb)targets.push(target);else unresolvedEntries.push(target);
+          });
+          jumpTables.push({block:b,instruction:last,table,targets,unresolvedEntries,confidence:targets.length?'exact-targets':'candidate',evidence:'indirect jump references a relocation-backed pointer table'});
+        }
+
+        if(!valueCandidates.length&&!recovered.length&&!tables.length){
+          const broad=addressTakenCandidates();
+          if(broad.length){valueCandidates=broad;fallback=true}
+        }
+        indirectJumpCandidates.push({
+          block:b,instruction:last,value:info?.jumpTargetValue||null,candidates:valueCandidates,
+          confidence:valueCandidates.length===1&&valueCandidates[0].confidence==='exact'?'exact':valueCandidates.length?'inferred-candidates':'unknown',
+          fallback,evidence:fallback?'no narrower target evidence; using address-taken functions in the same artifact':'value/linkage/table evidence'
+        });
+        if(!valueCandidates.length&&!recovered.length&&!tables.length)unresolvedTransfers.push({block:b,instruction:last,kind:'indirect-jump',reason:'indirect jump target has no proven table/target set'});
       }else if(!targetBlock){
         const targetFn=state.functions.find(f=>f!==fn&&f.workspaceFileId===fn.workspaceFileId&&f.addr===targetAddr)||state.functions.find(f=>f!==fn&&f.addr===targetAddr);
         if(targetFn)tailCalls.push({block:b,instruction:last,target:targetFn,address:targetAddr,confidence:'exact',evidence:'terminal direct jump targets another function'});
@@ -4598,24 +4832,191 @@ function analyzeAdvancedCfg(fn){
     }
   }
 
-  // Exact switch/case edges only when a relocation-backed table entry maps to
-  // a concrete block in the same function.
-  for(const jt of jumpTables)for(const target of jt.targets){
-    const key=edgeKey(jt.block,target.block),existing=edgeFacts.get(key);
-    if(existing){existing.switchCase=true;existing.switchTable=jt.table;existing.caseIndices=[...(existing.caseIndices||[]),target.index]}
-    else edgeFacts.set(key,{from:jt.block,to:target.block,key,kind:'switch-case',backEdge:false,critical:false,label:`case ${target.index}`,predicate:'jump-table',outcome:null,evidence:target.evidence,switchCase:true,switchTable:jt.table,caseIndices:[target.index]});
+  // Switch/case edges are emitted only for entries that decode to an exact
+  // block. Duplicate case values targeting the same block are preserved.
+  for(const jt of jumpTables){
+    for(const target of jt.targets||[]){
+      const key=edgeKey(jt.block,target.block),existing=edgeFacts.get(key),caseValue=target.caseValue??target.index;
+      if(existing){
+        existing.switchCase=true;existing.switchTable=jt.table;
+        existing.caseIndices=[...(existing.caseIndices||[]),target.index];
+        existing.caseValues=[...(existing.caseValues||[]),caseValue];
+        existing.label=`case ${existing.caseValues.join(', ')}`;
+        existing.evidence=[existing.evidence,target.evidence,jt.evidence].filter(Boolean).join(' · ');
+      }else edgeFacts.set(key,{
+        from:jt.block,to:target.block,key,kind:'switch-case',backEdge:false,critical:false,
+        label:`case ${caseValue}`,predicate:'jump-table',outcome:null,evidence:[target.evidence,jt.evidence].filter(Boolean).join(' · '),
+        switchCase:true,switchTable:jt.table,caseIndices:[target.index],caseValues:[caseValue]
+      });
+    }
+    if(jt.defaultBlock){
+      const defaultFrom=jt.bound?.guardBlock||jt.block,key=edgeKey(defaultFrom,jt.defaultBlock),existing=edgeFacts.get(key);
+      if(existing){existing.switchDefault=true;existing.kind='switch-default';existing.label='default';existing.evidence=[existing.evidence,jt.bound?.evidence].filter(Boolean).join(' · ');existing.switchTable=jt.table}
+      else edgeFacts.set(key,{from:defaultFrom,to:jt.defaultBlock,key,kind:'switch-default',backEdge:false,critical:false,label:'default',predicate:'switch-default',outcome:null,evidence:jt.bound?.evidence||'switch bound default edge',switchDefault:true,switchTable:jt.table});
+    }
   }
 
+  // Exact recovered indirect/switch edges must participate in reachability,
+  // dominators and loop analysis. Recompute the structural layer after target
+  // recovery rather than leaving exact switch targets "detached".
+  const computeFinalCfgStructure=()=>{
+    const successors=new Map(blocks.map(b=>[b.id,[]])),predecessors=new Map(blocks.map(b=>[b.id,[]]));
+    for(const fact of edgeFacts.values()){
+      if(!fact?.from||!fact?.to)continue;
+      const out=successors.get(fact.from.id),inc=predecessors.get(fact.to.id);
+      if(out&&!out.includes(fact.to))out.push(fact.to);
+      if(inc&&!inc.includes(fact.from))inc.push(fact.from);
+    }
+    const finalReachable=new Set([entry.id]),finalReachParent=new Map(),q=[entry];
+    for(let i=0;i<q.length;i++)for(const to of successors.get(q[i].id)||[])if(!finalReachable.has(to.id)){
+      finalReachable.add(to.id);finalReachParent.set(to.id,q[i].id);q.push(to);
+    }
+    const finalBlocks=blocks.filter(b=>finalReachable.has(b.id)),allIds=new Set(finalBlocks.map(b=>b.id)),
+          finalDominators=new Map();
+    for(const b of blocks)finalDominators.set(b.id,finalReachable.has(b.id)?(b===entry?new Set([b.id]):new Set(allIds)):new Set([b.id]));
+    let changed=true,iterations=0;
+    while(changed&&iterations++<Math.max(16,blocks.length*4)){
+      changed=false;
+      for(const b of finalBlocks){
+        if(b===entry)continue;
+        const preds=(predecessors.get(b.id)||[]).filter(x=>finalReachable.has(x.id));let next;
+        if(!preds.length)next=new Set([b.id]);
+        else{
+          next=new Set(finalDominators.get(preds[0].id));
+          for(const pred of preds.slice(1))for(const id of [...next])if(!finalDominators.get(pred.id).has(id))next.delete(id);
+          next.add(b.id);
+        }
+        const old=finalDominators.get(b.id);
+        if(old.size!==next.size||[...old].some(id=>!next.has(id))){finalDominators.set(b.id,next);changed=true}
+      }
+    }
+    const finalIdom=new Map([[entry.id,null]]);
+    for(const b of finalBlocks){
+      if(b===entry)continue;
+      const strict=[...finalDominators.get(b.id)].filter(id=>id!==b.id).map(id=>byId.get(id)).filter(Boolean);
+      strict.sort((a,b2)=>(finalDominators.get(b2.id)?.size||0)-(finalDominators.get(a.id)?.size||0));
+      finalIdom.set(b.id,strict[0]||null);
+    }
+    const finalDomDepth=new Map([[entry.id,0]]);
+    const depthOf=b=>{
+      if(!b)return 0;if(finalDomDepth.has(b.id))return finalDomDepth.get(b.id);
+      const parent=finalIdom.get(b.id),depth=parent?depthOf(parent)+1:0;finalDomDepth.set(b.id,depth);return depth;
+    };
+    for(const b of finalBlocks)depthOf(b);
+
+    const finalFrontier=new Map(blocks.map(b=>[b.id,new Set()]));
+    for(const b of finalBlocks){
+      const preds=(predecessors.get(b.id)||[]).filter(x=>finalReachable.has(x.id));if(preds.length<2)continue;
+      for(const pred of preds){
+        let runner=pred,guard=0;
+        while(runner&&runner!==finalIdom.get(b.id)&&guard++<blocks.length+2){
+          finalFrontier.get(runner.id).add(b.id);runner=finalIdom.get(runner.id)||null;
+        }
+      }
+    }
+    const finalBackEdges=[],finalCriticalEdges=[];
+    for(const fact of edgeFacts.values()){
+      if(!fact?.from||!fact?.to)continue;
+      fact.backEdge=finalReachable.has(fact.from.id)&&finalReachable.has(fact.to.id)&&finalDominators.get(fact.from.id)?.has(fact.to.id);
+      fact.critical=(successors.get(fact.from.id)?.length||0)>1&&(predecessors.get(fact.to.id)?.length||0)>1;
+      if(fact.backEdge)finalBackEdges.push(fact);if(fact.critical)finalCriticalEdges.push(fact);
+    }
+    const loopByHeader=new Map();
+    for(const be of finalBackEdges){
+      const header=be.to,tail=be.from,nodes=new Set([header.id,tail.id]),stack=tail===header?[]:[tail];
+      while(stack.length){
+        const n=stack.pop();
+        for(const pred of predecessors.get(n.id)||[]){
+          if(pred===header){nodes.add(header.id);continue}
+          if(!nodes.has(pred.id)){nodes.add(pred.id);stack.push(pred)}
+        }
+      }
+      let loop=loopByHeader.get(header.id);
+      if(!loop){loop={id:`loop:${header.id}`,header,nodes:new Set(),backEdges:[],tails:new Set(),parent:null,children:[],depth:1};loopByHeader.set(header.id,loop)}
+      for(const id of nodes)loop.nodes.add(id);loop.backEdges.push(be);loop.tails.add(tail.id);
+    }
+    const finalLoops=[...loopByHeader.values()];
+    for(const loop of finalLoops){
+      const containers=finalLoops.filter(other=>other!==loop&&[...loop.nodes].every(id=>other.nodes.has(id))).sort((a,b)=>a.nodes.size-b.nodes.size);
+      loop.parent=containers[0]||null;if(loop.parent)loop.parent.children.push(loop);
+    }
+    const loopDepth=l=>l.parent?loopDepth(l.parent)+1:1;
+    for(const l of finalLoops)l.depth=loopDepth(l);
+    const finalBlockLoops=new Map(blocks.map(b=>[b.id,finalLoops.filter(l=>l.nodes.has(b.id)).sort((a,b2)=>a.nodes.size-b2.nodes.size)]));
+
+    let idx=0;const stack=[],onStack=new Set(),meta=new Map(),finalSccs=[];
+    const strong=v=>{
+      const m={index:idx,low:idx};idx++;meta.set(v.id,m);stack.push(v);onStack.add(v.id);
+      for(const w of successors.get(v.id)||[]){
+        if(!finalReachable.has(w.id))continue;
+        if(!meta.has(w.id)){strong(w);m.low=Math.min(m.low,meta.get(w.id).low)}
+        else if(onStack.has(w.id))m.low=Math.min(m.low,meta.get(w.id).index);
+      }
+      if(m.low===m.index){
+        const members=[];let w;do{w=stack.pop();onStack.delete(w.id);members.push(w)}while(w!==v&&stack.length);
+        finalSccs.push({id:`scc:${v.id}`,members:new Set(members.map(x=>x.id)),blocks:members});
+      }
+    };
+    for(const b of finalBlocks)if(!meta.has(b.id))strong(b);
+    const finalCyclicSccs=finalSccs.filter(scc=>scc.blocks.length>1||scc.blocks.some(b=>(successors.get(b.id)||[]).includes(b))),
+          finalIrreducible=[];
+    for(const scc of finalCyclicSccs){
+      const entries=new Set(),incoming=[];
+      for(const b of scc.blocks)for(const pred of predecessors.get(b.id)||[])if(!scc.members.has(pred.id)&&finalReachable.has(pred.id)){entries.add(b.id);incoming.push({from:pred,to:b})}
+      scc.entryNodes=[...entries].map(id=>byId.get(id)).filter(Boolean);scc.incoming=incoming;scc.irreducible=scc.entryNodes.length>1;
+      if(scc.irreducible)finalIrreducible.push(scc);
+    }
+    const finalBlockIrreducible=new Map(blocks.map(b=>[b.id,finalIrreducible.filter(r=>r.members.has(b.id))]));
+    return {
+      successors,predecessors,reachable:finalReachable,reachParent:finalReachParent,rblocks:finalBlocks,
+      dominators:finalDominators,idom:finalIdom,domDepth:finalDomDepth,frontier:finalFrontier,
+      backEdges:finalBackEdges,criticalEdges:finalCriticalEdges,loops:finalLoops,blockLoops:finalBlockLoops,
+      sccs:finalSccs,cyclicSccs:finalCyclicSccs,irreducibleRegions:finalIrreducible,blockIrreducible:finalBlockIrreducible,
+      domIterations:iterations
+    };
+  };
+  const finalStructure=computeFinalCfgStructure();
   const pathFromEntry=block=>{
-    if(!block||!reachable.has(block.id))return [];
+    if(!block||!finalStructure.reachable.has(block.id))return [];
     const path=[block];let cur=block,guard=0;
-    while(cur!==entry&&guard++<blocks.length+2){const pid=reachParent.get(cur.id);cur=pid?byId.get(pid):null;if(!cur)break;path.push(cur)}
+    while(cur!==entry&&guard++<blocks.length+2){const pid=finalStructure.reachParent.get(cur.id);cur=pid?byId.get(pid):null;if(!cur)break;path.push(cur)}
     return path.reverse();
   };
+  const shortestPath=(from,to,{allowIndirect=true}={})=>{
+    if(!from||!to)return [];
+    if(from===to)return [from];
+    const parent=new Map(),seen=new Set([from.id]),q=[from];
+    for(let i=0;i<q.length;i++){
+      const b=q[i],succ=allowIndirect?(finalStructure.successors.get(b.id)||[]):(b.succ||[]);
+      for(const n of succ){
+        if(seen.has(n.id))continue;seen.add(n.id);parent.set(n.id,b.id);
+        if(n===to){
+          const path=[to];let cur=to,guard=0;
+          while(cur!==from&&guard++<blocks.length+8){cur=byId.get(parent.get(cur.id));if(!cur)return [];path.push(cur)}
+          return path.reverse();
+        }
+        q.push(n);
+      }
+    }
+    return [];
+  };
+  const reachableReturns=finalStructure.rblocks.filter(b=>b.instructions?.some(i=>/^ret/.test(i.mnemonic.toLowerCase())));
+  const structuralNoReturn=reachableReturns.length===0&&unresolvedTransfers.length===0&&finalStructure.rblocks.length>0&&finalStructure.rblocks.every(b=>
+    (finalStructure.successors.get(b.id)?.length||0)>0
+  );
+  const noreturnProof=structuralNoReturn?{
+    kind:'structural-closed-cfg',confidence:'exact',
+    evidence:'every structurally reachable block transfers to another block in the function; no reachable RET and no unresolved control-flow escape'
+  }:null;
   const result={
-    workspaceRevision:state.workspaceRevision,function:fn,df,blocks,entry,reachable,reachParent,pathFromEntry,
-    dominators,idom,domDepth,frontier,backEdges,loops,blockLoops,criticalEdges,edgeFacts,
-    tailCalls,unresolvedTransfers,jumpTables,indirectCallCandidates,indirectJumpCandidates,domIterations
+    workspaceRevision:state.workspaceRevision,function:fn,df,blocks,entry,
+    reachable:finalStructure.reachable,reachParent:finalStructure.reachParent,pathFromEntry,
+    successors:finalStructure.successors,predecessors:finalStructure.predecessors,
+    dominators:finalStructure.dominators,idom:finalStructure.idom,domDepth:finalStructure.domDepth,frontier:finalStructure.frontier,
+    backEdges:finalStructure.backEdges,loops:finalStructure.loops,blockLoops:finalStructure.blockLoops,criticalEdges:finalStructure.criticalEdges,edgeFacts,
+    sccs:finalStructure.sccs,cyclicSccs:finalStructure.cyclicSccs,irreducibleRegions:finalStructure.irreducibleRegions,blockIrreducible:finalStructure.blockIrreducible,
+    tailCalls,unresolvedTransfers,jumpTables,indirectCallCandidates,indirectJumpCandidates,
+    shortestPath,structuralNoReturn,noreturnProof,domIterations:finalStructure.domIterations
   };
   state.cfgAnalysisCache.set(fn.id,result);return result;
 }
@@ -4638,7 +5039,10 @@ function buildCfgGraph(){
     n.dominanceFrontier=db?[...(advanced?.frontier?.get(db.id)||[])].map(id=>advanced.blocks.find(b=>b.id===id)).filter(Boolean):[];
     n.reachable=db?advanced?.reachable?.has(db.id):true;
     n.pathFromEntry=db?advanced?.pathFromEntry?.(db)||[]:[];
-    if(n.loopHeader)n.color='#a47fd1';
+    n.irreducibleRegions=db?(advanced?.blockIrreducible?.get(db.id)||[]):[];
+    n.irreducible=!!n.irreducibleRegions.length;
+    if(n.irreducible)n.color='#d56f78';
+    else if(n.loopHeader)n.color='#a47fd1';
     else if(n.loopDepth>1)n.color='#8f75bc';
     else if(n.loopDepth===1)n.color='#6f86b7';
     if(n.loopHeader)n.label=`↻ ${n.label}`;
@@ -4668,7 +5072,7 @@ function buildCfgGraph(){
     const seen=new Set();
     for(const fact of advanced?.edgeFacts?.values?.()||[]){
       const key=fact.key;if(seen.has(key))continue;seen.add(key);
-      let kind=fact.kind==='switch-case'?'switch-case':fact.kind==='indirect-target'?'indirect-target':fact.backEdge?'back-edge':fact.critical?'critical-edge':null;
+      let kind=fact.kind==='switch-case'?'switch-case':fact.kind==='switch-default'?'switch-default':fact.kind==='indirect-target'?'indirect-target':fact.backEdge?'back-edge':fact.critical?'critical-edge':null;
       if(!kind){
         const fromLast=fact.from.instructions?.at(-1),mn=fromLast?.mnemonic?.toLowerCase()||'';
         const targetAddr=df?.adapter?.branchTarget?.(fromLast),isTarget=Number.isFinite(targetAddr)&&fact.to.instructions?.some(i=>i.addr===targetAddr);
@@ -4875,7 +5279,9 @@ function updateGraphLegend(){
       <span style="color:#c281d6">┄ back edge</span>
       <span style="color:#e29c55">─ critical edge</span>
       <span style="color:#78c8a0">─ switch/case</span>
+      <span style="color:#a9b2be">─ switch default</span>
       <span style="color:#69a9d2">┄ indirect target</span>
+      <span style="color:#d56f78">◇ irreducible SCC</span>
       <span style="color:#806a43">─ branch predicate</span>`;
     return;
   }
@@ -5156,6 +5562,22 @@ function renderGraph(){
     }
   }
 
+  if(state.mode==='cfg'&&state.currentCfgAnalysis?.irreducibleRegions?.length){
+    for(const region of state.currentCfgAnalysis.irreducibleRegions){
+      const members=state.graphNodes.filter(n=>n.kind==='block'&&n.dataflowBlock&&region.members.has(n.dataflowBlock.id));
+      if(!members.length)continue;
+      const pad=18/z,minX=Math.min(...members.map(n=>n.x-n.w/2))-pad,maxX=Math.max(...members.map(n=>n.x+n.w/2))+pad,
+            minY=Math.min(...members.map(n=>n.y-n.h/2))-pad,maxY=Math.max(...members.map(n=>n.y+n.h/2))+pad;
+      if(maxX<worldMin.x||minX>worldMax.x||maxY<worldMin.y||minY>worldMax.y)continue;
+      ctx.save();
+      ctx.fillStyle='#4a22252a';ctx.strokeStyle='#d56f78';ctx.lineWidth=1.5/z;ctx.setLineDash([3/z,4/z]);
+      roundRect(ctx,minX,minY,maxX-minX,maxY-minY,10/z);ctx.fill();ctx.stroke();ctx.setLineDash([]);
+      ctx.fillStyle='#e69aa1';ctx.font=`600 ${8.5/z*clamp(z,.72,1)}px ui-monospace,monospace`;ctx.textAlign='left';ctx.textBaseline='bottom';
+      ctx.fillText(`irreducible SCC · ${region.blocks.length} blocks · ${region.entryNodes.length} entries`,minX+7/z,minY-3/z);
+      ctx.restore();
+    }
+  }
+
   const selectedRepId=state.selectedFunction?(state.functionRepresentative.get(state.selectedFunction.id)||state.selectedFunction.id):null;
   const selectedNode=state.mode==='calls'&&selectedRepId?state.nodeById.get(selectedRepId):null;
 
@@ -5166,7 +5588,15 @@ function renderGraph(){
       const e=state.reachParent.get(id);pathEdges.add(e);id=e.from.id;
     }
   }
+  const cfgSelectedDb=state.mode==='cfg'?state.selectedBlock?.dataflowBlock:null,
+        cfgAnalysis=state.mode==='cfg'?state.currentCfgAnalysis:null,
+        cfgEntryPath=cfgSelectedDb?(cfgAnalysis?.pathFromEntry?.(cfgSelectedDb)||[]):[],
+        cfgEntryPathIds=new Set(cfgEntryPath.map(b=>b.id)),
+        cfgEntryPathEdgeKeys=new Set(cfgEntryPath.slice(1).map((b,i)=>`${cfgEntryPath[i].id}->${b.id}`)),
+        cfgCustomPathIds=new Set(state.mode==='cfg'?(state.cfgPathBlockIds||[]):[]),
+        cfgCustomEdgeKeys=new Set((state.mode==='cfg'?(state.cfgPathBlockIds||[]):[]).slice(1).map((id,i)=>`${state.cfgPathBlockIds[i]}->${id}`));
 
+  const cfgEdgeLabelRects=[];
   for(const e of frameEdges){
     const a=e.from,b=e.to;
     let x1,y1,x2,y2;
@@ -5179,7 +5609,10 @@ function renderGraph(){
       x1=a.x-a.w/2;y1=a.y;x2=b.x+b.w/2;y2=b.y;
     }
 
-    const onPath=pathEdges.has(e);
+    const cfgEdgeKey=state.mode==='cfg'&&e.from?.dataflowBlock&&e.to?.dataflowBlock?`${e.from.dataflowBlock.id}->${e.to.dataflowBlock.id}`:'',
+          cfgCustomPath=!!cfgEdgeKey&&cfgCustomEdgeKeys.has(cfgEdgeKey),
+          cfgEntryPathEdge=!!cfgEdgeKey&&cfgEntryPathEdgeKeys.has(cfgEdgeKey),
+          onPath=pathEdges.has(e)||cfgCustomPath||cfgEntryPathEdge;
     const near=selectedNode&&(e.from===selectedNode||e.to===selectedNode);
     const staticallyImpossible=state.mode==='cfg'&&e.staticFeasible===false;
     const dim=(selectedNode&&!near&&!onPath)||staticallyImpossible;
@@ -5200,6 +5633,7 @@ function renderGraph(){
             e.kind==='back-edge'?'#c281d6':
             e.kind==='critical-edge'?'#e29c55':
             e.kind==='switch-case'?'#78c8a0':
+            e.kind==='switch-default'?'#a9b2be':
             e.kind==='indirect-target'?'#69a9d2':
             e.kind==='contains'?'#3f4b56':
             e.crossFile&&e.kind==='call'?'#6fa8d8':
@@ -5209,12 +5643,14 @@ function renderGraph(){
             e.kind==='fallthrough'?'#4e6756':
             e.kind==='branch'?'#806a43':'#66547c';
 
-    if(onPath)col='#d7bd67';
+    if(cfgCustomPath)col='#64d2c2';
+    else if(cfgEntryPathEdge)col='#c7b35c';
+    else if(onPath)col='#d7bd67';
     else if(near)col='#86bff0';
 
     drawArrow(
       ctx,x1,y1,x2,y2,col,
-      Math.max(.75,(onPath?2.2:near?1.6:1)/z*.72),
+      Math.max(.75,(cfgCustomPath?2.8:onPath?2.2:near?1.6:1)/z*.72),
       e.kind==='address'||e.kind==='hidden'||e.crossFile||e.kind==='dynamic-match'||e.kind==='data-ref'||e.kind==='relocation'||e.kind==='phi-input'||e.kind==='memory-phi'||e.kind==='analysis-barrier'||e.kind==='back-edge'||e.kind==='indirect-target',
       staticallyImpossible?.08:dim?.10:(onPath||near?1:.38)
     );
@@ -5238,14 +5674,16 @@ function renderGraph(){
       }
     }
     if(state.mode==='cfg'&&e.label&&z>.42){
-      const mx=(x1+x2)/2,my=(y1+y2)/2;
-      if(mx>=worldMin.x&&mx<=worldMax.x&&my>=worldMin.y&&my<=worldMax.y){
-        ctx.save();ctx.fillStyle=e.kind==='back-edge'?'#d0a0df':e.kind==='switch-case'?'#9bdec0':'#bcae82';
+      const mx=(x1+x2)/2,my=(y1+y2)/2,screenDistance=Math.hypot((x2-x1)*z,(y2-y1)*z);
+      if(mx>=worldMin.x&&mx<=worldMax.x&&my>=worldMin.y&&my<=worldMax.y&&screenDistance>58){
+        ctx.save();ctx.fillStyle=e.kind==='back-edge'?'#d0a0df':e.kind==='switch-case'?'#9bdec0':e.kind==='switch-default'?'#c4cbd3':'#bcae82';
         ctx.font=`${8.2/z*clamp(z,.72,1)}px ui-monospace,monospace`;
         ctx.textAlign='center';ctx.textBaseline='bottom';
-        let label=e.label;if(e.evidence)label+=` · ${e.evidence}`;
-        if(label.length>58)label=label.slice(0,57)+'…';
-        ctx.fillText(label,mx,my-5/z);ctx.restore();
+        let label=e.label;if(label.length>34)label=label.slice(0,33)+'…';
+        const tw=ctx.measureText(label).width,th=12/z,rect={minX:mx-tw/2-4/z,maxX:mx+tw/2+4/z,minY:my-th,maxY:my+2/z};
+        const overlaps=cfgEdgeLabelRects.some(r=>!(rect.maxX<r.minX||rect.minX>r.maxX||rect.maxY<r.minY||rect.minY>r.maxY));
+        if(!overlaps){cfgEdgeLabelRects.push(rect);ctx.fillText(label,mx,my-5/z)}
+        ctx.restore();
       }
     }
   }
@@ -5255,6 +5693,10 @@ function renderGraph(){
     ? new Set(reachabilityPath(state.selectedFunction).map(n=>n.id))
     : new Set();
   const selectedNeighbors=selectedNode?state.graphAdjacency.get(selectedNode.id):null;
+  const cfgDomIds=cfgSelectedDb?new Set([...(cfgAnalysis?.dominators?.get(cfgSelectedDb.id)||[])]):new Set(),
+        cfgFrontierIds=cfgSelectedDb?new Set([...(cfgAnalysis?.frontier?.get(cfgSelectedDb.id)||[])]):new Set(),
+        cfgSelectedHeaderLoop=cfgSelectedDb?(cfgAnalysis?.loops||[]).find(l=>l.header===cfgSelectedDb):null,
+        cfgSelectedLoopIds=new Set(cfgSelectedHeaderLoop?[...cfgSelectedHeaderLoop.nodes]:[]);
 
   for(const n of frameNodes){
     const selected=(n.kind==='function'&&n.function===state.selectedFunction)||(n.kind==='group'&&n.group?.id===state.selectedOriginGroupId)||(n.kind==='block'&&n===state.selectedBlock)||(n.kind==='section'&&n.section===state.selectedSection)||(n.kind==='linkage-slot'&&n.slot===state.selectedLinkageSlot)||(n.kind==='data-object'&&n.object===state.selectedDataObject)||(n.kind==='segment'&&n.segment===state.selectedSegment)||(n.kind==='address-space'&&n.workspaceFileId===state.selectedAddressSpaceId)||(n.kind==='dataflow-value'&&n.value===state.selectedDataflowValue)||(n.kind==='instruction-flow'&&n.instruction===state.selectedInstruction);
@@ -5262,16 +5704,22 @@ function renderGraph(){
     const isEntry=state.mode==='calls'&&((n.function&&n.function===state.entryFunction)||(n.kind==='group'&&state.functionRepresentative.get(state.entryFunction?.id)===n.id));
     const isElf=state.mode==='calls'&&n.function===state.elfEntry;
     const isProgram=state.mode==='calls'&&n.function===state.programEntry;
-    const pathNode=selectedPath.has(n.id);
-    const col=n.kind==='block'?familyColor(n.function?.family||'block'):(n.color||provenanceColor(n.provenance?.kind));
+    const pathNode=selectedPath.has(n.id),
+          cfgDb=n.kind==='block'?n.dataflowBlock:null,
+          cfgCustomNode=!!cfgDb&&cfgCustomPathIds.has(cfgDb.id),
+          cfgEntryNode=!!cfgDb&&cfgEntryPathIds.has(cfgDb.id),
+          cfgDomNode=!!cfgDb&&cfgDomIds.has(cfgDb.id),
+          cfgFrontierNode=!!cfgDb&&cfgFrontierIds.has(cfgDb.id),
+          cfgLoopNode=!!cfgDb&&cfgSelectedLoopIds.has(cfgDb.id);
+    const col=n.kind==='block'?(n.color||familyColor(n.function?.family||'block')):(n.color||provenanceColor(n.provenance?.kind));
     const near=!!selectedNeighbors?.has(n.id);
     const dim=state.mode==='calls'&&selectedNode&&!selected&&!pathNode&&!near;
 
     ctx.save();
     ctx.globalAlpha=dim?.48:1;
-    ctx.fillStyle=selected?'#1b2d42':isEntry?'#2a2517':'#121820';
-    ctx.strokeStyle=hovered?'#eef5fc':isEntry?'#e4c662':pathNode?'#b9a456':col;
-    ctx.lineWidth=(isEntry?3.2:selected?2.4:n.kind==='group'?2:pathNode?2:1.2)/z;
+    ctx.fillStyle=selected?'#1b2d42':cfgLoopNode?'#211a2c':cfgCustomNode?'#152725':isEntry?'#2a2517':'#121820';
+    ctx.strokeStyle=hovered?'#eef5fc':selected?'#9bc8f0':cfgCustomNode?'#64d2c2':cfgFrontierNode?'#e29c55':cfgLoopNode?'#b288da':cfgDomNode?'#5aa5d8':cfgEntryNode?'#c7b35c':isEntry?'#e4c662':pathNode?'#b9a456':col;
+    ctx.lineWidth=(isEntry?3.2:selected?2.8:cfgCustomNode?2.8:cfgFrontierNode||cfgLoopNode?2.3:n.kind==='group'?2:pathNode||cfgDomNode||cfgEntryNode?2:1.2)/z;
 
     roundRect(ctx,n.x-n.w/2,n.y-n.h/2,n.w,n.h,(n.kind==='group'?10:6)/z);
     ctx.fill();ctx.stroke();
@@ -5576,7 +6024,7 @@ function x86AttAbsoluteMemoryOperand(op,inst){
   return instructionSyntax(inst)==='att'&&!raw.startsWith('$')&&/^[-+]?(?:0x[0-9a-f]+|\d+)$/i.test(raw);
 }
 function operandRegister(op){
-  const raw=String(op||'').trim();
+  const raw=String(op||'').trim().replace(/^\*/,'').trim();
   if(/[\[\(]/.test(raw))return null;
   return x86RegInfo(raw);
 }
@@ -5629,7 +6077,7 @@ function parseRipRelativeOperand(op,inst){
 }
 
 function parseX86EffectiveAddress(op){
-  let raw=String(op||'').trim().toLowerCase();
+  let raw=String(op||'').trim().toLowerCase().replace(/^\*/,'').trim();
   raw=raw.replace(/^(?:byte|word|dword|qword|xmmword|oword|ymmword|zmmword)\s+(?:ptr\s+)?/i,'').trim();
   let m;
   if(/^[-+]?(?:0x[0-9a-f]+|\d+)$/i.test(raw)){const n=parseSignedDisp(raw);return n==null?null:{base:null,index:null,scale:1,disp:0,absolute:n,syntax:'absolute'}}
