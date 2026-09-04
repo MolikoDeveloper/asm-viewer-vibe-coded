@@ -384,6 +384,10 @@ dialog::backdrop{background:#0009}
           <option value="dominators" data-i18n="cfgDominators">CFG: dominators</option>
           <option value="loops" data-i18n="cfgLoops">CFG: loops</option>
         </select>
+        <select id="cfgEdgeMode" class="viewMode" style="display:none" title="CFG edge set">
+          <option value="normal" data-i18n="cfgNormalEdges">CFG edges: normal</option>
+          <option value="exception" data-i18n="cfgExceptionEdges">CFG edges: normal + exception</option>
+        </select>
         <select id="binaryScope" class="viewMode" style="display:none" title="Binary address-space focus">
           <option value="" data-i18n="allAddressSpaces">All address spaces</option>
         </select>
@@ -487,7 +491,7 @@ const els = {
   traceToggle:$('#traceToggle'), tracePane:$('#tracePane'),
   traceTitle:$('#traceTitle'), traceFit:$('#traceFit'), traceCanvas:$('#traceCanvas'), traceCanvasWrap:$('#traceCanvasWrap'), traceEmpty:$('#traceEmpty'),
   graph:$('#graph'), graphPanel:$('#graphPanel'),
-  graphMode:$('#graphMode'), cfgView:$('#cfgView'), binaryScope:$('#binaryScope'), dataflowFilter:$('#dataflowFilter'), dataflowFocus:$('#dataflowFocus'), viewMode:$('#viewMode'), entrySelect:$('#entrySelect'), entryBtn:$('#entryBtn'), fitBtn:$('#fitBtn'), labelsBtn:$('#labelsBtn'),
+  graphMode:$('#graphMode'), cfgView:$('#cfgView'), cfgEdgeMode:$('#cfgEdgeMode'), binaryScope:$('#binaryScope'), dataflowFilter:$('#dataflowFilter'), dataflowFocus:$('#dataflowFocus'), viewMode:$('#viewMode'), entrySelect:$('#entrySelect'), entryBtn:$('#entryBtn'), fitBtn:$('#fitBtn'), labelsBtn:$('#labelsBtn'),
   entrySummary:$('#entrySummary'), inspector:$('#inspector'), legend:$('#legend'), emptyGraph:$('#emptyGraph'), status:$('#status'), stats:$('#stats'),
   zoomInfo:$('#zoomInfo'), divider:$('#divider'), codePanel:$('#codePanel'), workspace:$('#workspace'),
   pasteDialog:$('#pasteDialog'), pasteArea:$('#pasteArea'), pasteCancel:$('#pasteCancel'), pasteLoad:$('#pasteLoad'),
@@ -501,7 +505,7 @@ const I18N = {
     foldTitle:'Structural ASM folding',folding:'Folding…',collapseFunctions:'− Functions',expandFunctions:'+ Functions',collapseContents:'− Contents',expandContents:'+ Contents',collapseSections:'− Sections',expandSections:'+ Sections',
     groups:'Groups',groupsTitle:'Filter symbol families and sections',flow:'Flow',hideFlow:'Hide flow',flowTitle:'Show/hide flow below ASM',edit:'Edit',inspect:'Inspect',save:'Save',liveParsing:'Live parsing…',liveUpdated:'Graph updated',visibleGroups:'Visible groups',all:'All',none:'None',filterGroups:'Filter groups…',
     dropAsm:'Drop the ASM dump here',dropAsmSub:'It will be loaded as text, without validation.',selectFunctionInstruction:'Select a function or instruction',staticHeuristic:'static · x86-64 dataflow',fit:'Fit',noFlow:'No flow selected',selectCodeOrNode:'Select code or a graph node.',
-    globalCallGraph:'Global call graph',selectedCfg:'Selected function CFG',selectedDataflow:'Selected function dataflow',binaryMap:'Binary map',cfgControl:'CFG: control flow',cfgDominators:'CFG: dominators',cfgLoops:'CFG: loops',dominators:'Dominators',immediateDominator:'Immediate dominator',dominanceFrontier:'Dominance frontier',backEdges:'Back edges',naturalLoops:'Natural loops',loopDepth:'Loop depth',criticalEdges:'Critical edges',branchPredicate:'Branch predicate',tailCalls:'Tail calls',unresolvedTransfers:'Unresolved transfers',reachable:'Reachable',pathFromEntry:'Path from entry',allAddressSpaces:'All address spaces',reachabilityRootTitle:'Reachability analysis root',entry:'Entry',entryTitle:'Fit the component reachable from the entrypoint',fitAll:'Fit all',fitAllTitle:'Fit all nodes, including detached nodes',labels:'Labels',auto:'auto',yes:'yes',no:'no',
+    globalCallGraph:'Global call graph',selectedCfg:'Selected function CFG',selectedDataflow:'Selected function dataflow',binaryMap:'Binary map',cfgControl:'CFG: control flow',cfgDominators:'CFG: dominators',cfgLoops:'CFG: loops',cfgNormalEdges:'CFG edges: normal',cfgExceptionEdges:'CFG edges: normal + exception',exceptionEdges:'Exception edges',unwindFrames:'Unwind frames',landingPads:'Landing pads',dominators:'Dominators',immediateDominator:'Immediate dominator',dominanceFrontier:'Dominance frontier',backEdges:'Back edges',naturalLoops:'Natural loops',loopDepth:'Loop depth',criticalEdges:'Critical edges',branchPredicate:'Branch predicate',tailCalls:'Tail calls',unresolvedTransfers:'Unresolved transfers',reachable:'Reachable',pathFromEntry:'Path from entry',allAddressSpaces:'All address spaces',reachabilityRootTitle:'Reachability analysis root',entry:'Entry',entryTitle:'Fit the component reachable from the entrypoint',fitAll:'Fit all',fitAllTitle:'Fit all nodes, including detached nodes',labels:'Labels',auto:'auto',yes:'yes',no:'no',
     legendFamily:'color = symbol family',legendAddress:'┄ address ref.',legendData:'·· data ref.',legendRelocation:'·· relocation',legendCrossFile:'╌ cross-file call',legendResolve:'·· dynamic resolves-to',legendBridge:'╌ bridge across hidden nodes',loadObjdump:'Load assembly / objdump',loadObjdumpSub:'File, drag & drop, or direct paste.',ready:'Ready.',pasteAsm:'Paste assembly / objdump',pastePlaceholder:'Paste the complete content here…',cancel:'Cancel',load:'Load',
     symbolFamilies:'Symbol families',codeSections:'Code sections',bridgeHidden:'automatically connect through hidden functions',matchDynamic:'match loaded dynamic implementations',addressSpace:'Address space',binarySection:'Binary section',sectionKind:'Section kind',range:'Range',bytes:'Bytes',references:'References',relocations:'Relocations',relocation:'Relocation',formula:'Formula',target:'Target',provider:'Provider',evidence:'Evidence',flags:'Flags',alignment:'Alignment',fileOffset:'File offset',symbols:'Symbols',binaryIndex:'Symbols / Relocs',symbol:'Symbol',symbolVersion:'Symbol version',definedIn:'Defined in',undefinedSymbol:'Undefined',dynamicSymbol:'Dynamic symbol',dynamicSymbols:'Dynamic symbols',neededLibraries:'Needed libraries',linkageSlots:'Linkage slots',expandSlots:'Expand slots',collapseSlots:'Collapse slots',expandData:'Expand data',collapseData:'Collapse data',gotSlot:'GOT slot',addend:'Addend',nobits:'NOBITS',vma:'VMA',lma:'LMA',segments:'Segments',segment:'Segment',permissions:'Permissions',memorySize:'Memory size',fileSize:'File size',loadBias:'Load bias',dataObjects:'Data objects',dataObject:'Data object',stringObject:'String',hexViewer:'Hex / data',decodedText:'Decoded text',openHex:'Open hex',firstReference:'First reference',referencedBy:'Referenced by',runtimeFormula:'Runtime mapping',dynamicMatch:'Dynamic match',pltEntry:'PLT / import stub',implementation:'Implementation',resolvesTo:'resolves to',hiddenLines:'hidden lines',instructionsLower:'instructions',analyzing:'Analyzing ASM…',loadedOk:'ASM loaded. Ctrl+click follows calls; Alt+← returns to the origin.',loadedNoFunctions:'Loaded. No function boundaries were detected.',
     visibleFunctions:'visible functions',directRefs:'direct refs',addressRefs:'address refs',indirectRefs:'indirect refs',reachable:'reachable',noPath:'no path',root:'root',functionsReachable:'reachable functions',noPathFromRoot:'no path from root',noPreviousOrigin:'No previous origin.',origin:'origin',
@@ -520,7 +524,7 @@ const I18N = {
     foldTitle:'קיפול מבני של ASM',folding:'קיפול…',collapseFunctions:'− פונקציות',expandFunctions:'+ פונקציות',collapseContents:'− Contents',expandContents:'+ Contents',collapseSections:'− מקטעים',expandSections:'+ מקטעים',
     groups:'קבוצות',groupsTitle:'סינון משפחות סמלים ומקטעים',flow:'זרימה',hideFlow:'הסתר זרימה',flowTitle:'הצג/הסתר זרימה מתחת ל-ASM',edit:'עריכה',inspect:'תצוגה',save:'שמור',liveParsing:'מנתח בזמן אמת…',liveUpdated:'הגרף עודכן',visibleGroups:'קבוצות גלויות',all:'הכל',none:'ללא',filterGroups:'סינון קבוצות…',
     dropAsm:'גרור לכאן dump של ASM',dropAsmSub:'ייטען כטקסט, ללא אימות.',selectFunctionInstruction:'בחר פונקציה או הוראה',staticHeuristic:'סטטי · x86-64 dataflow',fit:'התאם',noFlow:'לא נבחרה זרימה',selectCodeOrNode:'בחר קוד או צומת בגרף.',
-    globalCallGraph:'גרף קריאות גלובלי',selectedCfg:'CFG של הפונקציה שנבחרה',selectedDataflow:'Dataflow של הפונקציה שנבחרה',binaryMap:'מפת בינארי',cfgControl:'CFG: זרימת בקרה',cfgDominators:'CFG: Dominators',cfgLoops:'CFG: לולאות',dominators:'Dominators',immediateDominator:'Immediate dominator',dominanceFrontier:'Dominance frontier',backEdges:'Back edges',naturalLoops:'Natural loops',loopDepth:'Loop depth',criticalEdges:'Critical edges',branchPredicate:'Branch predicate',tailCalls:'Tail calls',unresolvedTransfers:'Unresolved transfers',reachable:'נגיש',pathFromEntry:'נתיב מהכניסה',allAddressSpaces:'כל מרחבי הכתובות',reachabilityRootTitle:'שורש ניתוח הנגישות',entry:'כניסה',entryTitle:'התאם את הרכיב הנגיש מנקודת הכניסה',fitAll:'התאם הכל',fitAllTitle:'התאם את כל הצמתים, כולל צמתים מנותקים',labels:'תוויות',auto:'אוטומטי',yes:'כן',no:'לא',
+    globalCallGraph:'גרף קריאות גלובלי',selectedCfg:'CFG של הפונקציה שנבחרה',selectedDataflow:'Dataflow של הפונקציה שנבחרה',binaryMap:'מפת בינארי',cfgControl:'CFG: זרימת בקרה',cfgDominators:'CFG: Dominators',cfgLoops:'CFG: לולאות',cfgNormalEdges:'CFG edges: normal',cfgExceptionEdges:'CFG edges: normal + exception',exceptionEdges:'Exception edges',unwindFrames:'Unwind frames',landingPads:'Landing pads',dominators:'Dominators',immediateDominator:'Immediate dominator',dominanceFrontier:'Dominance frontier',backEdges:'Back edges',naturalLoops:'Natural loops',loopDepth:'Loop depth',criticalEdges:'Critical edges',branchPredicate:'Branch predicate',tailCalls:'Tail calls',unresolvedTransfers:'Unresolved transfers',reachable:'נגיש',pathFromEntry:'נתיב מהכניסה',allAddressSpaces:'כל מרחבי הכתובות',reachabilityRootTitle:'שורש ניתוח הנגישות',entry:'כניסה',entryTitle:'התאם את הרכיב הנגיש מנקודת הכניסה',fitAll:'התאם הכל',fitAllTitle:'התאם את כל הצמתים, כולל צמתים מנותקים',labels:'תוויות',auto:'אוטומטי',yes:'כן',no:'לא',
     legendFamily:'צבע = משפחת סמלים',legendAddress:'┄ הפניה לכתובת',legendData:'·· הפניית נתונים',legendRelocation:'·· relocation',legendCrossFile:'╌ קריאה בין קבצים',legendResolve:'·· קישור דינמי resolves-to',legendBridge:'╌ גישור מעל צמתים מוסתרים',loadObjdump:'טען אסמבלי / objdump',loadObjdumpSub:'קובץ, גרירה ושחרור, או הדבקה ישירה.',ready:'מוכן.',pasteAsm:'הדבק אסמבלי / objdump',pastePlaceholder:'הדבק כאן את התוכן המלא…',cancel:'ביטול',load:'טען',
     symbolFamilies:'משפחות סמלים',codeSections:'מקטעי קוד',bridgeHidden:'חבר אוטומטית דרך פונקציות מוסתרות',matchDynamic:'התאם מימושים דינמיים שנטענו',addressSpace:'מרחב כתובות',binarySection:'מקטע בינארי',sectionKind:'סוג מקטע',range:'טווח',bytes:'בתים',references:'הפניות',relocations:'Relocations',relocation:'Relocation',formula:'נוסחה',target:'יעד',provider:'Provider',evidence:'Evidence',flags:'דגלים',alignment:'יישור',fileOffset:'היסט קובץ',symbols:'סמלים',binaryIndex:'סמלים / Relocations',symbol:'סמל',symbolVersion:'גרסת סמל',definedIn:'מוגדר ב',undefinedSymbol:'לא מוגדר',dynamicSymbol:'סמל דינמי',dynamicSymbols:'סמלים דינמיים',neededLibraries:'ספריות נדרשות',linkageSlots:'חריצי קישור',expandSlots:'הרחב חריצים',collapseSlots:'כווץ חריצים',expandData:'הרחב נתונים',collapseData:'כווץ נתונים',gotSlot:'חריץ GOT',addend:'Addend',nobits:'NOBITS',vma:'VMA',lma:'LMA',segments:'מקטעי טעינה',segment:'מקטע טעינה',permissions:'הרשאות',memorySize:'גודל זיכרון',fileSize:'גודל קובץ',loadBias:'Load bias',dataObjects:'אובייקטי נתונים',dataObject:'אובייקט נתונים',stringObject:'מחרוזת',hexViewer:'Hex / data',decodedText:'טקסט מפוענח',openHex:'פתח Hex',firstReference:'הפניה ראשונה',referencedBy:'מופנה על ידי',runtimeFormula:'מיפוי Runtime',dynamicMatch:'התאמה דינמית',pltEntry:'PLT / import stub',implementation:'מימוש',resolvesTo:'נפתר אל',hiddenLines:'שורות מוסתרות',instructionsLower:'הוראות',analyzing:'מנתח ASM…',loadedOk:'ה-ASM נטען. Ctrl+click עוקב אחר קריאות; Alt+← חוזר למקור.',loadedNoFunctions:'נטען. לא זוהו גבולות פונקציה.',
     visibleFunctions:'פונקציות גלויות',directRefs:'הפניות ישירות',addressRefs:'הפניות לכתובות',indirectRefs:'הפניות עקיפות',reachable:'ניתנות להגעה',noPath:'ללא נתיב',root:'שורש',functionsReachable:'פונקציות ניתנות להגעה',noPathFromRoot:'ללא נתיב מהשורש',noPreviousOrigin:'אין מקור קודם.',origin:'מקור',
@@ -664,7 +668,7 @@ const state = {
   visibleRows:[], rowOfLine:null, familyInfo:new Map(), familyVisibility:new Map(), sectionVisibility:new Map(),
   originGroups:new Map(), originVisibility:new Map(), expandedOriginGroups:new Set(), functionRepresentative:new Map(),
   groupViewStack:[],
-  viewMode:'boundaries', cfgView:'control', cfgPathStartId:null, cfgPathBlockIds:[], dataflowFilter:'important', dataflowFocus:'', dwarf:null, projectRoots:[], selectedOriginGroupId:null,
+  viewMode:'boundaries', cfgView:'control', cfgEdgeMode:'normal', cfgPathStartId:null, cfgPathBlockIds:[], dataflowFilter:'important', dataflowFocus:'', dwarf:null, projectRoots:[], selectedOriginGroupId:null,
   inputKind:'objdump', inputMeta:null, explicitEntrySymbols:[],
   editMode:false, editTimer:null, editRevision:0,
   workspaceFiles:new Map(), workspaceOrder:[], activeFileId:null, workspaceRevision:0,
@@ -1454,6 +1458,141 @@ function sectionBytesAt(section,address,size){
     for(let a=lo;a<hi;a++){out[a-b0]=chunk.bytes[a-a0];mask[a-b0]=1}
   }
   return {bytes:out,mask};
+}
+
+// -----------------------------------------------------------------------------
+// ELF unwind model (.eh_frame + optional LSDA call-site tables).
+// This stays intentionally low-level: CIE/FDE ranges and landing-pad edges are
+// binary facts. Language exceptions/classes are never reconstructed here.
+// -----------------------------------------------------------------------------
+
+const DW_EH_PE={absptr:0x00,uleb128:0x01,udata2:0x02,udata4:0x03,udata8:0x04,sleb128:0x09,sdata2:0x0a,sdata4:0x0b,sdata8:0x0c,pcrel:0x10,textrel:0x20,datarel:0x30,funcrel:0x40,aligned:0x50,indirect:0x80,omit:0xff};
+function signedN(value,bits){const lim=2**bits,sign=2**(bits-1);return value>=sign?value-lim:value}
+function ehFormatWidth(enc,ptrSize=8){
+  switch(enc&0x0f){case 0x00:return ptrSize;case 0x02:case 0x0a:return 2;case 0x03:case 0x0b:return 4;case 0x04:case 0x0c:return 8;default:return null}
+}
+function readEhEncoded(r,enc,ctx={}){
+  if(enc===DW_EH_PE.omit)return {value:null,raw:null,encoding:enc,indirect:false};
+  const ptrSize=ctx.ptrSize||8,application=enc&0x70,format=enc&0x0f,indirect=!!(enc&DW_EH_PE.indirect);
+  if(application===DW_EH_PE.aligned){const absolute=(ctx.baseAddress||0)+r.pos,aligned=Math.ceil(absolute/ptrSize)*ptrSize;r.pos+=aligned-absolute}
+  const fieldAddress=(ctx.baseAddress||0)+r.pos;let raw;
+  switch(format){
+    case DW_EH_PE.absptr:raw=ptrSize===8?r.u64():r.u32();break;
+    case DW_EH_PE.uleb128:raw=r.uleb();break;
+    case DW_EH_PE.udata2:raw=r.u16();break;case DW_EH_PE.udata4:raw=r.u32();break;case DW_EH_PE.udata8:raw=r.u64();break;
+    case DW_EH_PE.sleb128:raw=r.sleb();break;
+    case DW_EH_PE.sdata2:raw=signedN(r.u16(),16);break;case DW_EH_PE.sdata4:raw=signedN(r.u32(),32);break;
+    case DW_EH_PE.sdata8:{const v=r.u64();raw=v>Number.MAX_SAFE_INTEGER?v-2**64:v;break}
+    default:throw new Error(`unsupported DW_EH_PE format 0x${format.toString(16)}`);
+  }
+  let value=raw;
+  if(application===DW_EH_PE.pcrel)value=fieldAddress+raw;
+  else if(application===DW_EH_PE.textrel&&Number.isFinite(ctx.textBase))value=ctx.textBase+raw;
+  else if(application===DW_EH_PE.datarel&&Number.isFinite(ctx.dataBase))value=ctx.dataBase+raw;
+  else if(application===DW_EH_PE.funcrel&&Number.isFinite(ctx.functionBase))value=ctx.functionBase+raw;
+  return {value,raw,fieldAddress,encoding:enc,indirect};
+}
+function sectionRunReaderAt(section,address){
+  for(const run of sectionContiguousRuns(section)){
+    if(address>=run.address&&address<run.address+run.bytes.length)return {reader:new DwarfReader(new Uint8Array(run.bytes),address-run.address,run.bytes.length),baseAddress:run.address,run};
+  }
+  return null;
+}
+function parseEhFrameSection(section,{ptrSize=8,textBase=null,dataBase=null}={}){
+  const cies=[],fdes=[],errors=[],cieByAddress=new Map();
+  for(const run0 of sectionContiguousRuns(section)){
+    const data=new Uint8Array(run0.bytes),r=new DwarfReader(data),baseAddress=run0.address;
+    while(r.pos+4<=r.end){
+      const entryStartPos=r.pos,entryAddress=baseAddress+entryStartPos;let length=r.u32(),lengthFieldSize=4;
+      if(length===0)break;
+      if(length===0xffffffff){if(r.pos+8>r.end){errors.push({address:entryAddress,reason:'truncated extended .eh_frame length'});break}length=r.u64();lengthFieldSize=12}
+      const bodyStart=r.pos,entryEnd=bodyStart+length;
+      if(!Number.isFinite(length)||length<4||entryEnd>r.end){errors.push({address:entryAddress,reason:'invalid/truncated .eh_frame entry length'});break}
+      try{
+        const idFieldPos=r.pos,idFieldAddress=baseAddress+idFieldPos,ciePointer=r.u32();
+        if(ciePointer===0){
+          const version=r.u8(),augmentation=r.cstr(),codeAlignment=r.uleb(),dataAlignment=r.sleb(),returnRegister=version===1?r.u8():r.uleb();
+          const cie={id:`cie:${entryAddress.toString(16)}`,kind:'CIE',address:entryAddress,length,version,augmentation,codeAlignment,dataAlignment,returnRegister,
+            fdeEncoding:DW_EH_PE.absptr,lsdaEncoding:DW_EH_PE.omit,personalityEncoding:DW_EH_PE.omit,personalityAddress:null,signalFrame:false,
+            section,sectionId:section.id,instructions:[],parseComplete:true};
+          if(augmentation.startsWith('z')){
+            const augLength=r.uleb(),augEnd=Math.min(entryEnd,r.pos+augLength);
+            for(const ch of augmentation.slice(1)){
+              if(r.pos>=augEnd)break;
+              if(ch==='L')cie.lsdaEncoding=r.u8();
+              else if(ch==='R')cie.fdeEncoding=r.u8();
+              else if(ch==='P'){
+                cie.personalityEncoding=r.u8();
+                const p=readEhEncoded(r,cie.personalityEncoding,{ptrSize,baseAddress,textBase,dataBase});cie.personalityAddress=p.value;cie.personalityIndirect=p.indirect;
+              }else if(ch==='S')cie.signalFrame=true;
+              else {cie.parseComplete=false;r.pos=augEnd;break}
+            }
+            r.pos=augEnd;
+          }
+          if(r.pos<entryEnd)cie.instructions=[...data.subarray(r.pos,entryEnd)];
+          cies.push(cie);cieByAddress.set(entryAddress,cie);
+        }else{
+          const cieAddress=idFieldAddress-ciePointer,cie=cieByAddress.get(cieAddress);
+          if(!cie){errors.push({address:entryAddress,reason:`FDE references unknown CIE ${safeHex(cieAddress)}`});r.pos=entryEnd;continue}
+          const loc=readEhEncoded(r,cie.fdeEncoding,{ptrSize,baseAddress,textBase,dataBase}),rangeEnc=cie.fdeEncoding&0x0f,
+                range=readEhEncoded(r,rangeEnc,{ptrSize,baseAddress,textBase,dataBase,functionBase:loc.value});
+          const fde={id:`fde:${entryAddress.toString(16)}`,kind:'FDE',address:entryAddress,length,cie,cieAddress,
+            startAddress:loc.value,addressRange:range.value,endAddress:Number.isFinite(loc.value)&&Number.isFinite(range.value)?loc.value+range.value:null,
+            lsdaAddress:null,lsdaIndirect:false,section,sectionId:section.id,instructions:[],parseComplete:true};
+          if(cie.augmentation.startsWith('z')){
+            const augLength=r.uleb(),augEnd=Math.min(entryEnd,r.pos+augLength);
+            if(cie.lsdaEncoding!==DW_EH_PE.omit&&r.pos<augEnd){
+              const lsda=readEhEncoded(r,cie.lsdaEncoding,{ptrSize,baseAddress,textBase,dataBase,functionBase:fde.startAddress});fde.lsdaAddress=lsda.value;fde.lsdaIndirect=lsda.indirect;
+            }
+            r.pos=augEnd;
+          }
+          if(r.pos<entryEnd)fde.instructions=[...data.subarray(r.pos,entryEnd)];
+          fdes.push(fde);
+        }
+      }catch(err){errors.push({address:entryAddress,reason:String(err?.message||err)})}
+      r.pos=entryEnd;
+    }
+  }
+  return {section,cies,fdes,errors,ptrSize};
+}
+function parseLsdaForFde(fde,section,{ptrSize=8,textBase=null,dataBase=null}={}){
+  if(!fde||!Number.isFinite(fde.lsdaAddress)||!section)return null;
+  const source=sectionRunReaderAt(section,fde.lsdaAddress);if(!source)return null;
+  const {reader:r,baseAddress}=source,startPos=r.pos;let parseError='';
+  try{
+    const lpStartEncoding=r.u8();let lpStart=fde.startAddress;
+    if(lpStartEncoding!==DW_EH_PE.omit)lpStart=readEhEncoded(r,lpStartEncoding,{ptrSize,baseAddress,textBase,dataBase,functionBase:fde.startAddress}).value;
+    const ttypeEncoding=r.u8();let typeTableAddress=null;
+    if(ttypeEncoding!==DW_EH_PE.omit){const off=r.uleb();typeTableAddress=baseAddress+r.pos+off}
+    const callSiteEncoding=r.u8(),callSiteLength=r.uleb(),callSiteStart=r.pos,callSiteEnd=Math.min(r.end,r.pos+callSiteLength),callSites=[];
+    let index=0;
+    while(r.pos<callSiteEnd){
+      const start=readEhEncoded(r,callSiteEncoding&0x0f,{ptrSize,baseAddress}).value,
+            length=readEhEncoded(r,callSiteEncoding&0x0f,{ptrSize,baseAddress}).value,
+            landing=readEhEncoded(r,callSiteEncoding&0x0f,{ptrSize,baseAddress}).value,
+            action=r.uleb();
+      if(!Number.isFinite(start)||!Number.isFinite(length)||!Number.isFinite(landing))break;
+      callSites.push({index:index++,startOffset:start,length,landingPadOffset:landing,action,
+        startAddress:lpStart+start,endAddress:lpStart+start+length,landingPadAddress:landing?lpStart+landing:null,
+        kind:landing?(action===0?'cleanup':'handler/action'):'none',confidence:'exact',evidence:'LSDA call-site table'});
+    }
+    return {id:`lsda:${fde.lsdaAddress.toString(16)}`,address:fde.lsdaAddress,fde,section,lpStartEncoding,lpStart,ttypeEncoding,typeTableAddress,callSiteEncoding,
+      callSiteTableAddress:baseAddress+callSiteStart,callSiteTableLength:callSiteLength,callSites,parseError:'',rawStart:baseAddress+startPos};
+  }catch(err){parseError=String(err?.message||err);return {id:`lsda:${fde.lsdaAddress.toString(16)}`,address:fde.lsdaAddress,fde,section,callSites:[],parseError,confidence:'unknown'}}
+}
+function parseElfUnwindModel(parsed,record){
+  const eh=(parsed.sections||[]).find(s=>s.name==='.eh_frame');if(!eh)return {available:false,cies:[],fdes:[],lsdas:[],errors:[],exceptionSites:[]};
+  const ptrSize=(record?.bits||64)===32?4:8,text=(parsed.sections||[]).find(s=>s.name==='.text'),data=(parsed.sections||[]).find(s=>s.name==='.data'),
+        frame=parseEhFrameSection(eh,{ptrSize,textBase:text?.addressStart,dataBase:data?.addressStart}),gcc=(parsed.sections||[]).find(s=>s.name==='.gcc_except_table'),lsdas=[];
+  for(const fde of frame.fdes){
+    if(Number.isFinite(fde.startAddress))fde.function=(parsed.functions||[]).find(fn=>fn.addr===fde.startAddress)||(parsed.functions||[]).find(fn=>fn.addr<=fde.startAddress&&fn.endAddr>=fde.startAddress)||null;
+    if(gcc&&Number.isFinite(fde.lsdaAddress)){
+      const lsda=parseLsdaForFde(fde,gcc,{ptrSize,textBase:text?.addressStart,dataBase:data?.addressStart});if(lsda){fde.lsda=lsda;lsdas.push(lsda)}
+    }
+  }
+  const exceptionSites=[];
+  for(const lsda of lsdas)for(const site of lsda.callSites||[])if(site.landingPadAddress){exceptionSites.push({...site,fde:lsda.fde,lsda,function:lsda.fde.function||null})}
+  return {available:true,section:eh,cies:frame.cies,fdes:frame.fdes,lsdas,errors:frame.errors,exceptionSites,hasLsda:lsdas.length>0,ptrSize};
 }
 
 function discoverSymbolDataObjects(section,symbols){
@@ -2806,6 +2945,10 @@ function parseWorkspaceRecord(record){
   for(const obj of parsed.dataObjects||[]){
     obj.addressSpaceId=record.addressSpaceId;obj.addressSpaceLabel=record.addressSpaceLabel;obj.artifactKind=record.artifactKind;obj.artifactLabel=record.artifactLabel;
   }
+  parsed.unwind=inputKind==='objdump'?parseElfUnwindModel(parsed,record):{available:false,cies:[],fdes:[],lsdas:[],errors:[],exceptionSites:[]};
+  for(const cie of parsed.unwind?.cies||[]){cie.id=`${record.id}::${cie.id}`;cie.workspaceFileId=record.id;cie.addressSpaceId=record.addressSpaceId}
+  for(const fde of parsed.unwind?.fdes||[]){fde.id=`${record.id}::${fde.id}`;fde.workspaceFileId=record.id;fde.addressSpaceId=record.addressSpaceId}
+  for(const lsda of parsed.unwind?.lsdas||[]){lsda.id=`${record.id}::${lsda.id}`;lsda.workspaceFileId=record.id;lsda.addressSpaceId=record.addressSpaceId}
   buildLinkageSlots(record,parsed);
 
   record.parsed=parsed;record.inputKind=inputKind;record.inputMeta=parsed.inputMeta||null;record.error=null;
@@ -3218,7 +3361,7 @@ function updateStats(){
   if(state.mode==='cfg'){
     const fn=state.selectedFunction,a=fn?analyzeAdvancedCfg(fn):null;
     els.stats.textContent=fn
-      ?`${functionDisplayName(fn)} · ${num(a?.blocks.length||0)} blocks · ${num(a?.reachable.size||0)} reachable · ${num(a?.backEdges.length||0)} back edges · ${num(a?.loops.length||0)} natural loops · ${num(a?.irreducibleRegions?.length||0)} irreducible SCCs · ${num(a?.criticalEdges.length||0)} critical edges · ${num(a?.jumpTables.length||0)} jump-table candidates · ${num(a?.indirectCallCandidates?.length||0)} indirect calls · ${num(a?.indirectJumpCandidates?.length||0)} indirect jumps · ${num(a?.tailCalls.length||0)} tail calls · ${num(a?.unresolvedTransfers.length||0)} unresolved transfers · noreturn ${a?.structuralNoReturn?'proven':'no'} · ${state.cfgView}`
+      ?`${functionDisplayName(fn)} · ${num(a?.blocks.length||0)} blocks · ${num(a?.reachable.size||0)} reachable${a?.exceptionOnlyReachable?.size?` (${num(a.exceptionOnlyReachable.size)} exception-only)`:''} · ${num(a?.backEdges.length||0)} back edges · ${num(a?.loops.length||0)} natural loops · ${num(a?.irreducibleRegions?.length||0)} irreducible SCCs · ${num(a?.criticalEdges.length||0)} critical edges · ${num(a?.exceptionEdges?.length||0)} exception edges (${state.cfgEdgeMode}) · ${num(a?.functionFdes?.length||0)} FDEs · ${num(a?.jumpTables.length||0)} jump-table candidates · ${num(a?.indirectCallCandidates?.length||0)} indirect calls · ${num(a?.indirectJumpCandidates?.length||0)} indirect jumps · ${num(a?.tailCalls.length||0)} tail calls · ${num(a?.unresolvedTransfers.length||0)} unresolved transfers · noreturn ${a?.structuralNoReturn?'proven':'no'} · ${state.cfgView}`
       :`0 CFG blocks · ${t('selectFunctionCfg')}`;
     els.entrySummary.style.display='none';return;
   }
@@ -3248,7 +3391,7 @@ function updateStats(){
 
 function clearAll(){
   state.text='';state.lines=[];state.lineMeta=[];state.functions=[];state.calls=[];state.addressRefs=[];state.dataRefs=[];state.relocations=[];state.sections=[];state.sectionById=new Map();state.segments=[];state.dataObjects=[];state.dataObjectById=new Map();state.symbols=[];state.versionDefinitions=[];state.versionRequirements=[];state.dynamicTags=[];state.neededLibraries=[];state.linkageSlots=[];state.callByLine=new Map();
-  state.functionsByAddr=new Map();state.functionsByName=new Map();state.selectedFunction=null;state.selectedInstruction=null;state.selectedBlock=null;state.cfgView='control';state.cfgPathStartId=null;state.cfgPathBlockIds=[];els.cfgView.value='control';els.cfgView.style.display='none';state.selectedSection=null;state.selectedLinkageSlot=null;state.selectedDataObject=null;state.selectedSegment=null;state.selectedAddressSpaceId=null;state.selectedSymbol=null;state.selectedRelocation=null;state.expandedBinarySections=new Set();state.expandedDataSections=new Set();state.hexTarget=null;state.binaryScopeFileId='';state.dataflowFilter='important';state.dataflowFocus='';els.binaryScope.style.display='none';els.dataflowFilter.style.display='none';els.dataflowFocus.style.display='none';els.dataflowFilter.value='important';els.dataflowFocus.value='';els.binaryScope.innerHTML=`<option value="">${t('allAddressSpaces')}</option>`;
+  state.functionsByAddr=new Map();state.functionsByName=new Map();state.selectedFunction=null;state.selectedInstruction=null;state.selectedBlock=null;state.cfgView='control';state.cfgPathStartId=null;state.cfgPathBlockIds=[];state.cfgEdgeMode='normal';els.cfgView.value='control';els.cfgEdgeMode.value='normal';els.cfgView.style.display='none';els.cfgEdgeMode.style.display='none';state.selectedSection=null;state.selectedLinkageSlot=null;state.selectedDataObject=null;state.selectedSegment=null;state.selectedAddressSpaceId=null;state.selectedSymbol=null;state.selectedRelocation=null;state.expandedBinarySections=new Set();state.expandedDataSections=new Set();state.hexTarget=null;state.binaryScopeFileId='';state.dataflowFilter='important';state.dataflowFocus='';els.binaryScope.style.display='none';els.dataflowFilter.style.display='none';els.dataflowFocus.style.display='none';els.dataflowFilter.value='important';els.dataflowFocus.value='';els.binaryScope.innerHTML=`<option value="">${t('allAddressSpaces')}</option>`;
   state.navStack=[];state.graphSpatial=null;state.graphAdjacency=new Map();state.graphDepths=[];
   state.entryFunction=null;state.elfEntry=null;state.programEntry=null;state.reachableIds=new Set();state.reachParent=new Map();state.depthById=new Map();state.detachedY=null;
   state.graphNodes=[];state.graphEdges=[];state.nodeById=new Map();state.searchHits=[];state.searchIndex=-1;
@@ -3642,6 +3785,7 @@ function updateInspector(item){
           syms=state.symbols.filter(sym=>sym.workspaceFileId===sec.workspaceFileId&&sym.section===sec.name),
           slots=state.linkageSlots.filter(slot=>slot.workspaceFileId===sec.workspaceFileId&&slot.sectionName===sec.name),
           objects=state.dataObjects.filter(obj=>obj.section===sec),
+          unwind=state.workspaceFiles.get(sec.workspaceFileId)?.parsed?.unwind||null,
           rows=sectionHexRows(sec,8);
     html=`<div class="title">${escapeHtml(sec.name)}</div><div class="meta">
       <b>${t('binarySection')}</b><span>${escapeHtml(sec.name)}</span>
@@ -3661,7 +3805,11 @@ function updateInspector(item){
       <b>${t('linkageSlots')}</b><span>${num(slots.length)}</span>
       <b>${t('references')}</b><span>${num(refs.length)}</span>
       <b>${t('relocations')}</b><span>${num(relIn.length+relOut.length)}</span>
+      ${sec.name==='.eh_frame'?`<b>${t('unwindFrames')}</b><span>${num(unwind?.fdes?.length||0)} FDE · ${num(unwind?.cies?.length||0)} CIE · ${num(unwind?.errors?.length||0)} diagnostics</span>`:''}
+      ${sec.name==='.gcc_except_table'?`<b>${t('landingPads')}</b><span>${num(unwind?.exceptionSites?.length||0)} call-site entries with landing pads · ${num(unwind?.lsdas?.length||0)} LSDA</span>`:''}
     </div>${rows.length?`<div class="path"><b>HEX</b><br><span class="linkage">${rows.map(r=>`${safeHex(r.address)}  ${escapeHtml(r.hex)}  ${escapeHtml(r.ascii)}`).join('<br>')}</span></div>`:''}
+    ${sec.name==='.eh_frame'&&unwind?.available?`<div class="path"><b>.eh_frame MODEL</b><br>${num(unwind.cies.length)} CIE · ${num(unwind.fdes.length)} FDE${unwind.hasLsda?` · ${num(unwind.lsdas.length)} LSDA`:''}${unwind.errors.length?` · ${num(unwind.errors.length)} parse diagnostics`:''}<br>${unwind.fdes.slice(0,12).map(f=>`${safeHex(f.startAddress)}..${safeHex(f.endAddress)} · CIE ${safeHex(f.cieAddress)}${Number.isFinite(f.lsdaAddress)?` · LSDA ${safeHex(f.lsdaAddress)}`:''}`).join('<br>')}${unwind.fdes.length>12?'<br>…':''}</div>`:''}
+    ${sec.name==='.gcc_except_table'&&unwind?.lsdas?.length?`<div class="path"><b>LSDA CALL-SITE TABLES</b><br>${unwind.lsdas.slice(0,12).map(l=>`${safeHex(l.address)} · function ${l.fde?.function?escapeHtml(functionDisplayName(l.fde.function)):safeHex(l.fde?.startAddress)} · ${num(l.callSites?.length||0)} call sites${l.parseError?` · ${escapeHtml(l.parseError)}`:''}`).join('<br>')}${unwind.lsdas.length>12?'<br>…':''}</div>`:''}
     ${objects.length?`<div class="dataObjectList"><b>${t('dataObjects')}</b>${objects.slice(0,12).map(obj=>`<div class="dataObjectRow"><span>${safeHex(obj.address)}</span><span>${escapeHtml(obj.stringText||obj.text||obj.name||obj.kind)}</span><button data-data-object="${escapeHtml(obj.id)}">→</button></div>`).join('')}${objects.length>12?`<div>… ${num(objects.length-12)} more</div>`:''}</div>`:''}
     ${syms.length?`<div class="dataObjectList"><b>${t('symbols')}</b>${syms.slice(0,10).map((sym,i)=>`<div class="dataObjectRow"><span>${sym.defined?safeHex(sym.address):'UND'}</span><span>${escapeHtml(sym.name)}</span><button data-section-symbol="${i}">→</button></div>`).join('')}${syms.length>10?`<div>… ${num(syms.length-10)} more</div>`:''}</div>`:''}
     ${(relIn.length+relOut.length)?`<div class="dataObjectList"><b>${t('relocations')}</b>${[...relOut,...relIn].slice(0,10).map((r,i)=>`<div class="dataObjectRow"><span>${safeHex(r.offset)}</span><span>${escapeHtml(r.type)} · ${escapeHtml(r.symbol||r.value)}</span><button data-section-reloc="${i}">→</button></div>`).join('')}</div>`:''}
@@ -3839,13 +3987,15 @@ function updateInspector(item){
           preds=db?(advanced?.predecessors?.get(db.id)||db.pred||[]):[],
           succs=db?(advanced?.successors?.get(db.id)||db.succ||[]):[],
           pathStart=state.cfgPathStartId?advanced?.blocks?.find(b=>b.id===state.cfgPathStartId):null,
-          customPath=(state.cfgPathBlockIds||[]).map(id=>advanced?.blocks?.find(b=>b.id===id)).filter(Boolean);
+          customPath=(state.cfgPathBlockIds||[]).map(id=>advanced?.blocks?.find(b=>b.id===id)).filter(Boolean),
+          exceptionOut=db?(advanced?.exceptionEdges||[]).filter(e=>e.from===db):[],
+          exceptionIn=db?(advanced?.exceptionEdges||[]).filter(e=>e.to===db):[];
     html=`<div class="title">${escapeHtml(item.label)}</div><div class="meta">
       <b>${t('function')}</b><span>${escapeHtml(functionDisplayName(item.function))}</span>
       <b>Range</b><span>${item.function?.syntheticAddress?`${t('line')} ${item.startLine+1}–${item.endLine+1}`:`${safeHex(item.startAddr)} – ${safeHex(item.endAddr)}`}</span>
       <b>${t('instructions')}</b><span>${item.instructions.length}</span>
       <b>${t('linesLabel')}</b><span>${item.startLine+1}–${item.endLine+1}</span>
-      <b>${t('reachable')}</b><span>${db&&advanced?.reachable?.has(db.id)?'yes':'no'}</span>
+      <b>${t('reachable')}</b><span>${db&&advanced?.reachable?.has(db.id)?(advanced?.exceptionOnlyReachable?.has(db.id)?'exception-only':'normal'):'no'}</span>
       <b>Loop header</b><span>${item.loopHeader?'yes':'no'}</span>
       <b>${t('loopDepth')}</b><span>${num(loops.length)}</span>
       <b>Irreducible SCC</b><span>${irreducible.length?`yes · ${irreducible.map(r=>`${r.blocks.length} blocks/${r.entryNodes.length} entries`).join(', ')}`:'no'}</span>
@@ -3865,6 +4015,8 @@ function updateInspector(item){
     ${pathStart?`<div class="path"><b>CUSTOM CFG PATH</b><br>start ${escapeHtml(cfgBlockTitle(pathStart,item.function))}${customPath.length>1?`<br>${customPath.map(b=>escapeHtml(cfgBlockTitle(b,item.function))).join(' → ')}`:' · target not selected yet'}</div>`:''}
     ${outFacts.length?`<div class="dataObjectList"><b>CONTROL-FLOW EDGES</b>${outFacts.map((f,i)=>`<div class="dataObjectRow"><span>${escapeHtml(cfgBlockTitle(f.to,item.function))}</span><span>${escapeHtml([f.backEdge?'back-edge':null,f.critical?'critical':null,f.predicate||f.label||null,f.evidence||null].filter(Boolean).join(' · ')||'flow')}</span><button data-cfg-succ="${i}">→</button></div>`).join('')}</div>`:''}
     ${preds.length?`<div class="dataObjectList"><b>PREDECESSORS</b>${preds.map((b,i)=>`<div class="dataObjectRow"><span>${escapeHtml(cfgBlockTitle(b,item.function))}</span><span>${advanced?.edgeFacts?.get(`${b.id}->${db.id}`)?.backEdge?'back-edge':'incoming'}</span><button data-cfg-pred="${i}">→</button></div>`).join('')}</div>`:''}
+    ${exceptionOut.length?`<div class="path"><b>EXCEPTION OUTGOING</b><br>${exceptionOut.map(e=>`${escapeHtml(cfgBlockTitle(e.to,item.function))} · ${escapeHtml(e.exceptionSite?.kind||'exception')} · protected ${safeHex(e.exceptionSite?.startAddress)}..${safeHex(e.exceptionSite?.endAddress)} · landing ${safeHex(e.exceptionSite?.landingPadAddress)}`).join('<br>')}</div>`:''}
+    ${exceptionIn.length?`<div class="path"><b>LANDING PAD / EXCEPTION INCOMING</b><br>${exceptionIn.map(e=>`${escapeHtml(cfgBlockTitle(e.from,item.function))} ⇢ here · ${escapeHtml(e.exceptionSite?.kind||'exception')} · LSDA ${safeHex(e.exceptionSite?.lsda?.address)}`).join('<br>')}</div>`:''}
     ${jumpTables.length?`<div class="path"><b>JUMP-TABLE / SWITCH CANDIDATES</b><br>${jumpTables.map((j,ji)=>{
       const table=j.table,bound=j.bound||table?.bound,unresolved=j.unresolvedEntries||[];
       return `${escapeHtml(dataObjectLabel(table))} · ${escapeHtml(table?.encoding||'pointer-table')} · ${j.confidence} · ${num(j.targets?.length||0)} exact targets${Number.isFinite(table?.address)?` · ${safeHex(table.address)}`:''}${bound?`<br>index bound: ${escapeHtml(bound.evidence)} · cases ${bound.min}..${bound.max}${bound.defaultBlock?` · default → ${escapeHtml(cfgBlockTitle(bound.defaultBlock,item.function))}`:''}`:''}${j.targets?.length?'<br>'+j.targets.map(tg=>`case ${tg.caseValue??tg.index} → ${escapeHtml(cfgBlockTitle(tg.block,item.function))} · ${escapeHtml(tg.evidence||'exact table entry')}`).join('<br>'):''}${unresolved.length?`<br>${num(unresolved.length)} unresolved table entries preserved`:''}${table?.section&&Number.isFinite(table?.address)?`<br><button data-jt-hex="${ji}">Open table hex</button>`:''}`;
@@ -3894,7 +4046,9 @@ function updateInspector(item){
     ${item.dynamicMatch?`<div class="path"><b>${t('dynamicMatch')} · ${escapeHtml(item.dynamicMatchConfidence||'inferred')}</b><br>${escapeHtml(item.name)} · ${item.syntheticAddress?t('line')+' '+(item.startLine+1):safeHex(item.addr)}<br>↓ ${t('resolvesTo')}<br>${escapeHtml(functionDisplayName(item.dynamicMatch))} · ${safeHex(item.dynamicMatch.addr)}<br>${escapeHtml(item.dynamicMatch.addressSpaceLabel||'')}</div>`:''}
     ${item.dynamicMatchedBy?.length?`<div class="path"><b>${t('dynamicMatch')}</b><br>${item.dynamicMatchedBy.map(x=>`${escapeHtml(x.name)} · ${safeHex(x.addr)} · ${escapeHtml(x.addressSpaceLabel||'')}`).join('<br>')}</div>`:''}
     ${df?`<div class="path"><b>STATIC ANALYSIS SUMMARY</b><br>${escapeHtml(df.architecture||'unknown')} · ${escapeHtml(df.adapter?.id||'unsupported')} · ${num(df.values?.length||0)} values · ${num(df.phiValues?.length||0)} phi · ${num(df.values?.filter(v=>v.kind==='memory-version').length||0)} memory versions · ${num(df.values?.filter(v=>v.kind==='memory-slice'||v.kind==='memory-composite').length||0)} memory slices/composites · ${num(df.values?.filter(v=>v.kind==='memory-clobber').length||0)} memory clobbers · memory cells peak ${num(df.memoryCellPeak||0)}/${num(df.memoryCellBudget||0)}${df.memoryFragmentCollapses?` · ${num(df.memoryFragmentCollapses)} fragmentation collapses`:''} · ${num(df.analysisBarriers?.length||0)} barriers<br>value FP ${df.fixedPointConverged?'converged':'partial'} (${num(df.fixedPointIterations||0)}) · full-state FP ${df.stateFixedPointConverged?'converged':'partial'} (${num(df.stateFixedPointIterations||0)}/${num(df.stateFixedPointBudget||0)}) · loop headers ${num(df.loopBlocks?.length||0)}${df.stateDomainConvergence?`<br>${Object.entries(df.stateDomainConvergence).map(([k,v])=>`${escapeHtml(k)}=${v.converged?'ok':'partial'}@${num(v.iterations||0)}`).join(' · ')}`:''}</div>`:''}
-    ${cfg?`<div class="path"><b>ADVANCED CFG</b><br>${num(cfg.blocks.length)} blocks · ${num(cfg.reachable.size)} reachable · dominators ${num(cfg.domIterations)} iterations · ${num(cfg.backEdges.length)} back edges · ${num(cfg.loops.length)} natural loops · ${num(cfg.irreducibleRegions?.length||0)} irreducible SCCs · ${num(cfg.criticalEdges.length)} critical edges · ${num(cfg.jumpTables.length)} jump-table candidates · ${num(cfg.indirectCallCandidates?.length||0)} indirect calls · ${num(cfg.indirectJumpCandidates?.length||0)} indirect jumps · ${num(cfg.tailCalls.length)} tail calls · ${num(cfg.unresolvedTransfers.length)} unresolved transfers · noreturn ${cfg.structuralNoReturn?'structurally proven':'not proven'}${cfg.loops.length?`<br>${cfg.loops.slice(0,8).map(l=>`loop depth ${l.depth}: header ${escapeHtml(cfgBlockTitle(l.header,item))} · ${num(l.nodes.size)} blocks`).join('<br>')}`:''}</div>`:''}
+    ${cfg?`<div class="path"><b>ADVANCED CFG</b><br>${num(cfg.blocks.length)} blocks · ${num(cfg.reachable.size)} reachable${cfg.exceptionOnlyReachable?.size?` (${num(cfg.exceptionOnlyReachable.size)} exception-only)`:''} · dominators ${num(cfg.domIterations)} iterations · ${num(cfg.backEdges.length)} back edges · ${num(cfg.loops.length)} natural loops · ${num(cfg.irreducibleRegions?.length||0)} irreducible SCCs · ${num(cfg.criticalEdges.length)} critical edges · ${num(cfg.functionFdes?.length||0)} unwind FDEs · ${num(cfg.exceptionEdges?.length||0)} exception edges · ${num(cfg.jumpTables.length)} jump-table candidates · ${num(cfg.indirectCallCandidates?.length||0)} indirect calls · ${num(cfg.indirectJumpCandidates?.length||0)} indirect jumps · ${num(cfg.tailCalls.length)} tail calls · ${num(cfg.unresolvedTransfers.length)} unresolved transfers · noreturn ${cfg.structuralNoReturn?'structurally proven':'not proven'}${cfg.loops.length?`<br>${cfg.loops.slice(0,8).map(l=>`loop depth ${l.depth}: header ${escapeHtml(cfgBlockTitle(l.header,item))} · ${num(l.nodes.size)} blocks`).join('<br>')}`:''}</div>`:''}
+    ${cfg?.functionFdes?.length?`<div class="path"><b>UNWIND / .eh_frame</b><br>${cfg.functionFdes.slice(0,24).map(f=>`${safeHex(f.startAddress)}..${safeHex(f.endAddress)} · CIE ${safeHex(f.cieAddress)} · aug ${escapeHtml(f.cie?.augmentation||'')} · FDE encoding 0x${(f.cie?.fdeEncoding??0).toString(16)}${Number.isFinite(f.lsdaAddress)?` · LSDA ${safeHex(f.lsdaAddress)}`:''}`).join('<br>')}${cfg.functionFdes.length>24?'<br>…':''}${cfg.unwind?.errors?.length?`<br>${num(cfg.unwind.errors.length)} unwind parse diagnostics`:''}</div>`:''}
+    ${cfg?.exceptionEdges?.length?`<div class="path"><b>EXCEPTION / LANDING-PAD EDGES</b><br>${cfg.exceptionEdges.slice(0,24).map(e=>`${escapeHtml(cfgBlockTitle(e.from,item))} ⇢ ${escapeHtml(cfgBlockTitle(e.to,item))} · ${escapeHtml(e.exceptionSite?.kind||'exception')} · ${safeHex(e.exceptionSite?.startAddress)}..${safeHex(e.exceptionSite?.endAddress)}`).join('<br>')}${cfg.exceptionEdges.length>24?'<br>…':''}<br>analysis edge set: ${escapeHtml(state.cfgEdgeMode)}</div>`:''}
     ${cfg?.noreturnProof?`<div class="path"><b>STRUCTURAL NORETURN PROOF</b><br>${escapeHtml(cfg.noreturnProof.evidence)} · confidence ${escapeHtml(cfg.noreturnProof.confidence)}</div>`:''}
     ${cfg?.irreducibleRegions?.length?`<div class="path"><b>IRREDUCIBLE CFG REGIONS</b><br>${cfg.irreducibleRegions.slice(0,12).map(r=>`${num(r.blocks.length)} blocks · ${num(r.entryNodes.length)} entries: ${r.entryNodes.map(b=>escapeHtml(cfgBlockTitle(b,item))).join(', ')}`).join('<br>')}</div>`:''}
     ${cfg?.criticalEdges?.length?`<div class="path"><b>CRITICAL EDGES</b><br>${cfg.criticalEdges.slice(0,20).map(e=>`${escapeHtml(cfgBlockTitle(e.from,item))} → ${escapeHtml(cfgBlockTitle(e.to,item))}`).join('<br>')}${cfg.criticalEdges.length>20?'<br>…':''}</div>`:''}
@@ -4448,12 +4602,13 @@ function cfgValueDataObjects(value,seen=new Set(),out=new Set()){
 }
 function analyzeAdvancedCfg(fn){
   if(!fn)return null;
-  const cached=state.cfgAnalysisCache.get(fn.id);
-  if(cached?.workspaceRevision===state.workspaceRevision)return cached;
+  const includeExceptions=state.cfgEdgeMode==='exception',cacheKey=`${fn.id}|exc:${includeExceptions?1:0}`;
+  const cached=state.cfgAnalysisCache.get(cacheKey);
+  if(cached?.workspaceRevision===state.workspaceRevision&&cached.includeExceptions===includeExceptions)return cached;
   const df=functionDataflow(fn),blocks=df?.blocks||[];
   if(!blocks.length){
     const empty={workspaceRevision:state.workspaceRevision,function:fn,blocks:[],reachable:new Set(),dominators:new Map(),idom:new Map(),frontier:new Map(),backEdges:[],loops:[],criticalEdges:[],edgeFacts:new Map(),reachParent:new Map(),tailCalls:[],unresolvedTransfers:[],jumpTables:[]};
-    state.cfgAnalysisCache.set(fn.id,empty);return empty;
+    empty.includeExceptions=includeExceptions;state.cfgAnalysisCache.set(cacheKey,empty);return empty;
   }
   const entry=blocks[0],byId=new Map(blocks.map(b=>[b.id,b]));
   const firstAddr=b=>b.instructions?.[0]?.addr;
@@ -4486,6 +4641,26 @@ function analyzeAdvancedCfg(fn){
     if(!reg||imm==null||imm<0n||imm>BigInt(Number.MAX_SAFE_INTEGER))return null;
     return {reg:reg.canonical,imm:Number(imm),instruction:inst};
   };
+  const switchIndexBias=(block,indexReg,beforeInst)=>{
+    const end=Math.max(0,block.instructions.indexOf(beforeInst)),items=block.instructions.slice(0,end).reverse();
+    for(const inst of items.slice(0,8)){
+      const rawMn=inst.mnemonic.toLowerCase(),mn=/^(?:add|sub|lea)[bwlq]$/.test(rawMn)?rawMn.slice(0,-1):rawMn,norm=df.adapter.normalizeOperands(inst),parts=norm.parts;
+      if((mn==='sub'||mn==='add')&&parts.length>=2){
+        const dst=norm.syntax==='att'?parts.at(-1):parts[0],src=norm.syntax==='att'?parts[0]:parts[1],reg=operandRegister(dst),imm=immediateValue(src);
+        if(reg?.canonical===indexReg&&imm!=null&&imm>=BigInt(Number.MIN_SAFE_INTEGER)&&imm<=BigInt(Number.MAX_SAFE_INTEGER)){
+          const amount=Number(imm),caseBase=mn==='sub'?amount:-amount;
+          return {caseBase,instruction:inst,evidence:`${mn} immediate bias proves original case value = table index ${caseBase>=0?'+':''}${caseBase}`};
+        }
+      }
+      if(mn==='lea'&&parts.length>=2){
+        const dst=norm.syntax==='att'?parts.at(-1):parts[0],src=norm.syntax==='att'?parts[0]:parts[1],reg=operandRegister(dst),ea=df.adapter.effectiveAddress?.(src);
+        if(reg?.canonical===indexReg&&ea&&ea.base&&!ea.index&&Number.isFinite(ea.disp)&&Math.abs(ea.disp)<0x100000){
+          return {caseBase:-ea.disp,instruction:inst,evidence:`lea displacement bias proves original case value = table index ${-ea.disp>=0?'+':''}${-ea.disp}`};
+        }
+      }
+    }
+    return {caseBase:0,instruction:null,evidence:''};
+  };
   const inferSwitchBound=(tableBlock,indexReg)=>{
     for(const pred of tableBlock.pred||[]){
       const branch=pred.instructions?.at(-1),mn=branch?.mnemonic?.toLowerCase().replace(/q$/,'');
@@ -4493,16 +4668,20 @@ function analyzeAdvancedCfg(fn){
       const cmp=[...pred.instructions.slice(0,-1)].reverse().find(i=>/^cmp/.test(i.mnemonic.toLowerCase()));
       const ci=normalizedCmpRegImm(cmp);if(!ci||ci.reg!==indexReg)continue;
       const targetBlock=blockContainingAddress(df.adapter.branchTarget(branch)),tableIsTarget=targetBlock===tableBlock,
-            other=(pred.succ||[]).find(x=>x!==tableBlock)||null;
-      let min=0,max=null,relation='';
-      if((mn==='ja'||mn==='jnbe')&&!tableIsTarget){max=ci.imm;relation=`${indexReg} <= ${ci.imm}`}
-      else if((mn==='jbe'||mn==='jna')&&tableIsTarget){max=ci.imm;relation=`${indexReg} <= ${ci.imm}`}
-      else if((mn==='jae'||mn==='jnb'||mn==='jnc')&&!tableIsTarget&&ci.imm>0){max=ci.imm-1;relation=`${indexReg} < ${ci.imm}`}
-      else if((mn==='jb'||mn==='jnae'||mn==='jc')&&tableIsTarget&&ci.imm>0){max=ci.imm-1;relation=`${indexReg} < ${ci.imm}`}
-      if(max!=null&&max>=0&&max<4096)return {
-        min,max,count:max-min+1,indexReg,compare:cmp,branch,guardBlock:pred,tableBlock,defaultBlock:other,
-        confidence:'exact',evidence:`${cmp.mnemonic} immediate bound + ${mn} control split proves ${relation}`
-      };
+            other=(pred.succ||[]).find(x=>x!==tableBlock)||null,bias=switchIndexBias(pred,indexReg,cmp);
+      let normalizedMax=null,relation='';
+      if((mn==='ja'||mn==='jnbe')&&!tableIsTarget){normalizedMax=ci.imm;relation=`${indexReg} <= ${ci.imm}`}
+      else if((mn==='jbe'||mn==='jna')&&tableIsTarget){normalizedMax=ci.imm;relation=`${indexReg} <= ${ci.imm}`}
+      else if((mn==='jae'||mn==='jnb'||mn==='jnc')&&!tableIsTarget&&ci.imm>0){normalizedMax=ci.imm-1;relation=`${indexReg} < ${ci.imm}`}
+      else if((mn==='jb'||mn==='jnae'||mn==='jc')&&tableIsTarget&&ci.imm>0){normalizedMax=ci.imm-1;relation=`${indexReg} < ${ci.imm}`}
+      if(normalizedMax!=null&&normalizedMax>=0&&normalizedMax<4096){
+        const min=bias.caseBase,max=min+normalizedMax;
+        return {
+          min,max,normalizedMin:0,normalizedMax,count:normalizedMax+1,caseBase:bias.caseBase,indexReg,compare:cmp,branch,biasInstruction:bias.instruction,
+          guardBlock:pred,tableBlock,defaultBlock:other,confidence:'exact',
+          evidence:`${cmp.mnemonic} immediate bound + ${mn} control split proves ${relation}${bias.evidence?` · ${bias.evidence}`:''}`
+        };
+      }
     }
     return null;
   };
@@ -4693,6 +4872,22 @@ function analyzeAdvancedCfg(fn){
     fact.critical=(from.succ?.length||0)>1&&(to.pred?.length||0)>1;
     if(fact.backEdge)backEdges.push(fact);if(fact.critical)criticalEdges.push(fact);
     edgeFacts.set(fact.key,fact);
+  }
+  const record=state.workspaceFiles.get(fn.workspaceFileId),unwind=record?.parsed?.unwind||null,
+        functionFdes=(unwind?.fdes||[]).filter(fde=>fde.function===fn||(Number.isFinite(fde.startAddress)&&Number.isFinite(fde.endAddress)&&fn.addr>=fde.startAddress&&fn.addr<fde.endAddress)),
+        exceptionSites=(unwind?.exceptionSites||[]).filter(site=>site.function===fn||functionFdes.includes(site.fde)),exceptionEdges=[];
+  for(const site of exceptionSites){
+    if(!Number.isFinite(site.landingPadAddress))continue;
+    const landingBlock=blockContainingAddress(site.landingPadAddress);if(!landingBlock)continue;
+    let sources=blocks.filter(b=>(b.instructions||[]).some(inst=>Number.isFinite(inst.addr)&&inst.addr>=site.startAddress&&inst.addr<site.endAddress));
+    if(!sources.length){const fallback=blockContainingAddress(site.startAddress);if(fallback)sources=[fallback]}
+    for(const from of sources){
+      const fact={from,to:landingBlock,key:`${edgeKey(from,landingBlock)}|exception:${site.lsda?.address?.toString(16)||site.index}`,
+        kind:'exception',backEdge:false,critical:false,label:site.kind==='cleanup'?'cleanup':'exception',predicate:'unwind',outcome:null,
+        evidence:`LSDA call-site ${safeHex(site.startAddress)}..${safeHex(site.endAddress)} → landing pad ${safeHex(site.landingPadAddress)} · ${site.kind}`,
+        exception:true,exceptionSite:site,fde:site.fde,lsda:site.lsda};
+      exceptionEdges.push(fact);if(includeExceptions)edgeFacts.set(fact.key,fact);
+    }
   }
 
   const loopsByHeader=new Map();
@@ -4976,6 +5171,14 @@ function analyzeAdvancedCfg(fn){
     };
   };
   const finalStructure=computeFinalCfgStructure();
+  const normalSuccessors=new Map(blocks.map(b=>[b.id,[]]));
+  for(const fact of edgeFacts.values()){
+    if(!fact?.from||!fact?.to||fact.kind==='exception')continue;
+    const list=normalSuccessors.get(fact.from.id);if(list&&!list.includes(fact.to))list.push(fact.to);
+  }
+  const normalReachable=new Set([entry.id]),normalQueue=[entry];
+  for(let i=0;i<normalQueue.length;i++)for(const to of normalSuccessors.get(normalQueue[i].id)||[])if(!normalReachable.has(to.id)){normalReachable.add(to.id);normalQueue.push(to)}
+  const exceptionOnlyReachable=new Set([...finalStructure.reachable].filter(id=>!normalReachable.has(id)));
   const pathFromEntry=block=>{
     if(!block||!finalStructure.reachable.has(block.id))return [];
     const path=[block];let cur=block,guard=0;
@@ -5010,15 +5213,16 @@ function analyzeAdvancedCfg(fn){
   }:null;
   const result={
     workspaceRevision:state.workspaceRevision,function:fn,df,blocks,entry,
-    reachable:finalStructure.reachable,reachParent:finalStructure.reachParent,pathFromEntry,
+    reachable:finalStructure.reachable,normalReachable,exceptionOnlyReachable,reachParent:finalStructure.reachParent,pathFromEntry,
     successors:finalStructure.successors,predecessors:finalStructure.predecessors,
     dominators:finalStructure.dominators,idom:finalStructure.idom,domDepth:finalStructure.domDepth,frontier:finalStructure.frontier,
     backEdges:finalStructure.backEdges,loops:finalStructure.loops,blockLoops:finalStructure.blockLoops,criticalEdges:finalStructure.criticalEdges,edgeFacts,
     sccs:finalStructure.sccs,cyclicSccs:finalStructure.cyclicSccs,irreducibleRegions:finalStructure.irreducibleRegions,blockIrreducible:finalStructure.blockIrreducible,
     tailCalls,unresolvedTransfers,jumpTables,indirectCallCandidates,indirectJumpCandidates,
+    unwind,functionFdes,exceptionSites,exceptionEdges,
     shortestPath,structuralNoReturn,noreturnProof,domIterations:finalStructure.domIterations
   };
-  state.cfgAnalysisCache.set(fn.id,result);return result;
+  result.includeExceptions=includeExceptions;state.cfgAnalysisCache.set(cacheKey,result);return result;
 }
 
 function buildCfgGraph(){
@@ -5038,10 +5242,13 @@ function buildCfgGraph(){
     n.immediateDominator=db?advanced?.idom?.get(db.id)||null:null;
     n.dominanceFrontier=db?[...(advanced?.frontier?.get(db.id)||[])].map(id=>advanced.blocks.find(b=>b.id===id)).filter(Boolean):[];
     n.reachable=db?advanced?.reachable?.has(db.id):true;
+    n.normalReachable=db?advanced?.normalReachable?.has(db.id):true;
+    n.exceptionOnlyReachable=db?advanced?.exceptionOnlyReachable?.has(db.id):false;
     n.pathFromEntry=db?advanced?.pathFromEntry?.(db)||[]:[];
     n.irreducibleRegions=db?(advanced?.blockIrreducible?.get(db.id)||[]):[];
     n.irreducible=!!n.irreducibleRegions.length;
-    if(n.irreducible)n.color='#d56f78';
+    if(n.exceptionOnlyReachable)n.color='#e06c9f';
+    else if(n.irreducible)n.color='#d56f78';
     else if(n.loopHeader)n.color='#a47fd1';
     else if(n.loopDepth>1)n.color='#8f75bc';
     else if(n.loopDepth===1)n.color='#6f86b7';
@@ -5072,7 +5279,7 @@ function buildCfgGraph(){
     const seen=new Set();
     for(const fact of advanced?.edgeFacts?.values?.()||[]){
       const key=fact.key;if(seen.has(key))continue;seen.add(key);
-      let kind=fact.kind==='switch-case'?'switch-case':fact.kind==='switch-default'?'switch-default':fact.kind==='indirect-target'?'indirect-target':fact.backEdge?'back-edge':fact.critical?'critical-edge':null;
+      let kind=fact.kind==='exception'?'exception':fact.kind==='switch-case'?'switch-case':fact.kind==='switch-default'?'switch-default':fact.kind==='indirect-target'?'indirect-target':fact.backEdge?'back-edge':fact.critical?'critical-edge':null;
       if(!kind){
         const fromLast=fact.from.instructions?.at(-1),mn=fromLast?.mnemonic?.toLowerCase()||'';
         const targetAddr=df?.adapter?.branchTarget?.(fromLast),isTarget=Number.isFinite(targetAddr)&&fact.to.instructions?.some(i=>i.addr===targetAddr);
@@ -5280,6 +5487,7 @@ function updateGraphLegend(){
       <span style="color:#e29c55">─ critical edge</span>
       <span style="color:#78c8a0">─ switch/case</span>
       <span style="color:#a9b2be">─ switch default</span>
+      <span style="color:#e06c9f">┄ exception / unwind</span>
       <span style="color:#69a9d2">┄ indirect target</span>
       <span style="color:#d56f78">◇ irreducible SCC</span>
       <span style="color:#806a43">─ branch predicate</span>`;
@@ -5634,6 +5842,7 @@ function renderGraph(){
             e.kind==='critical-edge'?'#e29c55':
             e.kind==='switch-case'?'#78c8a0':
             e.kind==='switch-default'?'#a9b2be':
+            e.kind==='exception'?'#e06c9f':
             e.kind==='indirect-target'?'#69a9d2':
             e.kind==='contains'?'#3f4b56':
             e.crossFile&&e.kind==='call'?'#6fa8d8':
@@ -5651,7 +5860,7 @@ function renderGraph(){
     drawArrow(
       ctx,x1,y1,x2,y2,col,
       Math.max(.75,(cfgCustomPath?2.8:onPath?2.2:near?1.6:1)/z*.72),
-      e.kind==='address'||e.kind==='hidden'||e.crossFile||e.kind==='dynamic-match'||e.kind==='data-ref'||e.kind==='relocation'||e.kind==='phi-input'||e.kind==='memory-phi'||e.kind==='analysis-barrier'||e.kind==='back-edge'||e.kind==='indirect-target',
+      e.kind==='address'||e.kind==='hidden'||e.crossFile||e.kind==='dynamic-match'||e.kind==='data-ref'||e.kind==='relocation'||e.kind==='phi-input'||e.kind==='memory-phi'||e.kind==='analysis-barrier'||e.kind==='back-edge'||e.kind==='indirect-target'||e.kind==='exception',
       staticallyImpossible?.08:dim?.10:(onPath||near?1:.38)
     );
 
@@ -5676,7 +5885,7 @@ function renderGraph(){
     if(state.mode==='cfg'&&e.label&&z>.42){
       const mx=(x1+x2)/2,my=(y1+y2)/2,screenDistance=Math.hypot((x2-x1)*z,(y2-y1)*z);
       if(mx>=worldMin.x&&mx<=worldMax.x&&my>=worldMin.y&&my<=worldMax.y&&screenDistance>58){
-        ctx.save();ctx.fillStyle=e.kind==='back-edge'?'#d0a0df':e.kind==='switch-case'?'#9bdec0':e.kind==='switch-default'?'#c4cbd3':'#bcae82';
+        ctx.save();ctx.fillStyle=e.kind==='back-edge'?'#d0a0df':e.kind==='switch-case'?'#9bdec0':e.kind==='switch-default'?'#c4cbd3':e.kind==='exception'?'#f09abb':'#bcae82';
         ctx.font=`${8.2/z*clamp(z,.72,1)}px ui-monospace,monospace`;
         ctx.textAlign='center';ctx.textBaseline='bottom';
         let label=e.label;if(label.length>34)label=label.slice(0,33)+'…';
@@ -7868,6 +8077,7 @@ els.graphMode.addEventListener('change',()=>{
   els.entrySelect.disabled=!calls;
   els.entryBtn.disabled=!calls;
   els.cfgView.style.display=cfg?'inline-flex':'none';
+  els.cfgEdgeMode.style.display=cfg?'inline-flex':'none';
   els.binaryScope.style.display=binary?'inline-flex':'none';
   els.dataflowFilter.style.display=dataflow?'inline-flex':'none';
   els.dataflowFocus.style.display=dataflow?'inline-flex':'none';
@@ -7878,10 +8088,11 @@ els.graphMode.addEventListener('change',()=>{
     setStatus(`${t('dataflow')}: ${functionDisplayName(state.selectedFunction)} · ${num(df?.values.length||0)} values · ${num(df?.phiValues.length||0)} phi · ${num(df?.analysisBarriers?.length||0)} barriers · state FP ${df?.stateFixedPointConverged?'converged':'partial'} ${num(df?.stateFixedPointIterations||0)}/${num(df?.stateFixedPointBudget||0)}`);
   }else if(cfg&&state.selectedFunction){
     const a=analyzeAdvancedCfg(state.selectedFunction);
-    setStatus(`CFG: ${functionDisplayName(state.selectedFunction)} · ${num(a?.loops.length||0)} loops · ${num(a?.backEdges.length||0)} back edges · ${num(a?.criticalEdges.length||0)} critical edges · ${state.cfgView}`);
+    setStatus(`CFG: ${functionDisplayName(state.selectedFunction)} · ${num(a?.loops.length||0)} loops · ${num(a?.backEdges.length||0)} back edges · ${num(a?.criticalEdges.length||0)} critical edges · ${num(a?.exceptionEdges?.length||0)} exception edges · ${state.cfgView} · ${state.cfgEdgeMode}`);
   }
 });
 els.cfgView.addEventListener('change',()=>{state.cfgView=els.cfgView.value||'control';if(state.mode==='cfg'){buildGraph();fitGraph(false);updateStats();updateInspector(state.selectedBlock||state.selectedFunction)}});
+els.cfgEdgeMode.addEventListener('change',()=>{state.cfgEdgeMode=els.cfgEdgeMode.value||'normal';if(state.mode==='cfg'){buildGraph();fitGraph(false);updateStats();updateInspector(state.selectedBlock||state.selectedFunction);const a=state.selectedFunction?analyzeAdvancedCfg(state.selectedFunction):null;setStatus(`CFG edge set: ${state.cfgEdgeMode} · ${num(a?.exceptionEdges?.length||0)} exception edges available`)}});
 els.dataflowFilter.addEventListener('change',()=>{state.dataflowFilter=els.dataflowFilter.value;buildGraph();fitGraph(false)});
 els.dataflowFocus.addEventListener('input',()=>{state.dataflowFocus=els.dataflowFocus.value.trim();buildGraph()});
 els.binaryScope.addEventListener('change',()=>{
