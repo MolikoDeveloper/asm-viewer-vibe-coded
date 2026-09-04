@@ -379,6 +379,11 @@ dialog::backdrop{background:#0009}
           <option value="dataflow" data-i18n="selectedDataflow">Selected function dataflow</option>
           <option value="binary" data-i18n="binaryMap">Binary map</option>
         </select>
+        <select id="cfgView" class="viewMode" style="display:none" title="CFG analysis view">
+          <option value="control" data-i18n="cfgControl">CFG: control flow</option>
+          <option value="dominators" data-i18n="cfgDominators">CFG: dominators</option>
+          <option value="loops" data-i18n="cfgLoops">CFG: loops</option>
+        </select>
         <select id="binaryScope" class="viewMode" style="display:none" title="Binary address-space focus">
           <option value="" data-i18n="allAddressSpaces">All address spaces</option>
         </select>
@@ -482,7 +487,7 @@ const els = {
   traceToggle:$('#traceToggle'), tracePane:$('#tracePane'),
   traceTitle:$('#traceTitle'), traceFit:$('#traceFit'), traceCanvas:$('#traceCanvas'), traceCanvasWrap:$('#traceCanvasWrap'), traceEmpty:$('#traceEmpty'),
   graph:$('#graph'), graphPanel:$('#graphPanel'),
-  graphMode:$('#graphMode'), binaryScope:$('#binaryScope'), dataflowFilter:$('#dataflowFilter'), dataflowFocus:$('#dataflowFocus'), viewMode:$('#viewMode'), entrySelect:$('#entrySelect'), entryBtn:$('#entryBtn'), fitBtn:$('#fitBtn'), labelsBtn:$('#labelsBtn'),
+  graphMode:$('#graphMode'), cfgView:$('#cfgView'), binaryScope:$('#binaryScope'), dataflowFilter:$('#dataflowFilter'), dataflowFocus:$('#dataflowFocus'), viewMode:$('#viewMode'), entrySelect:$('#entrySelect'), entryBtn:$('#entryBtn'), fitBtn:$('#fitBtn'), labelsBtn:$('#labelsBtn'),
   entrySummary:$('#entrySummary'), inspector:$('#inspector'), legend:$('#legend'), emptyGraph:$('#emptyGraph'), status:$('#status'), stats:$('#stats'),
   zoomInfo:$('#zoomInfo'), divider:$('#divider'), codePanel:$('#codePanel'), workspace:$('#workspace'),
   pasteDialog:$('#pasteDialog'), pasteArea:$('#pasteArea'), pasteCancel:$('#pasteCancel'), pasteLoad:$('#pasteLoad'),
@@ -496,7 +501,7 @@ const I18N = {
     foldTitle:'Structural ASM folding',folding:'Folding…',collapseFunctions:'− Functions',expandFunctions:'+ Functions',collapseContents:'− Contents',expandContents:'+ Contents',collapseSections:'− Sections',expandSections:'+ Sections',
     groups:'Groups',groupsTitle:'Filter symbol families and sections',flow:'Flow',hideFlow:'Hide flow',flowTitle:'Show/hide flow below ASM',edit:'Edit',inspect:'Inspect',save:'Save',liveParsing:'Live parsing…',liveUpdated:'Graph updated',visibleGroups:'Visible groups',all:'All',none:'None',filterGroups:'Filter groups…',
     dropAsm:'Drop the ASM dump here',dropAsmSub:'It will be loaded as text, without validation.',selectFunctionInstruction:'Select a function or instruction',staticHeuristic:'static · x86-64 dataflow',fit:'Fit',noFlow:'No flow selected',selectCodeOrNode:'Select code or a graph node.',
-    globalCallGraph:'Global call graph',selectedCfg:'Selected function CFG',selectedDataflow:'Selected function dataflow',binaryMap:'Binary map',allAddressSpaces:'All address spaces',reachabilityRootTitle:'Reachability analysis root',entry:'Entry',entryTitle:'Fit the component reachable from the entrypoint',fitAll:'Fit all',fitAllTitle:'Fit all nodes, including detached nodes',labels:'Labels',auto:'auto',yes:'yes',no:'no',
+    globalCallGraph:'Global call graph',selectedCfg:'Selected function CFG',selectedDataflow:'Selected function dataflow',binaryMap:'Binary map',cfgControl:'CFG: control flow',cfgDominators:'CFG: dominators',cfgLoops:'CFG: loops',dominators:'Dominators',immediateDominator:'Immediate dominator',dominanceFrontier:'Dominance frontier',backEdges:'Back edges',naturalLoops:'Natural loops',loopDepth:'Loop depth',criticalEdges:'Critical edges',branchPredicate:'Branch predicate',tailCalls:'Tail calls',unresolvedTransfers:'Unresolved transfers',reachable:'Reachable',pathFromEntry:'Path from entry',allAddressSpaces:'All address spaces',reachabilityRootTitle:'Reachability analysis root',entry:'Entry',entryTitle:'Fit the component reachable from the entrypoint',fitAll:'Fit all',fitAllTitle:'Fit all nodes, including detached nodes',labels:'Labels',auto:'auto',yes:'yes',no:'no',
     legendFamily:'color = symbol family',legendAddress:'┄ address ref.',legendData:'·· data ref.',legendRelocation:'·· relocation',legendCrossFile:'╌ cross-file call',legendResolve:'·· dynamic resolves-to',legendBridge:'╌ bridge across hidden nodes',loadObjdump:'Load assembly / objdump',loadObjdumpSub:'File, drag & drop, or direct paste.',ready:'Ready.',pasteAsm:'Paste assembly / objdump',pastePlaceholder:'Paste the complete content here…',cancel:'Cancel',load:'Load',
     symbolFamilies:'Symbol families',codeSections:'Code sections',bridgeHidden:'automatically connect through hidden functions',matchDynamic:'match loaded dynamic implementations',addressSpace:'Address space',binarySection:'Binary section',sectionKind:'Section kind',range:'Range',bytes:'Bytes',references:'References',relocations:'Relocations',relocation:'Relocation',formula:'Formula',target:'Target',provider:'Provider',evidence:'Evidence',flags:'Flags',alignment:'Alignment',fileOffset:'File offset',symbols:'Symbols',binaryIndex:'Symbols / Relocs',symbol:'Symbol',symbolVersion:'Symbol version',definedIn:'Defined in',undefinedSymbol:'Undefined',dynamicSymbol:'Dynamic symbol',dynamicSymbols:'Dynamic symbols',neededLibraries:'Needed libraries',linkageSlots:'Linkage slots',expandSlots:'Expand slots',collapseSlots:'Collapse slots',expandData:'Expand data',collapseData:'Collapse data',gotSlot:'GOT slot',addend:'Addend',nobits:'NOBITS',vma:'VMA',lma:'LMA',segments:'Segments',segment:'Segment',permissions:'Permissions',memorySize:'Memory size',fileSize:'File size',loadBias:'Load bias',dataObjects:'Data objects',dataObject:'Data object',stringObject:'String',hexViewer:'Hex / data',decodedText:'Decoded text',openHex:'Open hex',firstReference:'First reference',referencedBy:'Referenced by',runtimeFormula:'Runtime mapping',dynamicMatch:'Dynamic match',pltEntry:'PLT / import stub',implementation:'Implementation',resolvesTo:'resolves to',hiddenLines:'hidden lines',instructionsLower:'instructions',analyzing:'Analyzing ASM…',loadedOk:'ASM loaded. Ctrl+click follows calls; Alt+← returns to the origin.',loadedNoFunctions:'Loaded. No function boundaries were detected.',
     visibleFunctions:'visible functions',directRefs:'direct refs',addressRefs:'address refs',indirectRefs:'indirect refs',reachable:'reachable',noPath:'no path',root:'root',functionsReachable:'reachable functions',noPathFromRoot:'no path from root',noPreviousOrigin:'No previous origin.',origin:'origin',
@@ -515,7 +520,7 @@ const I18N = {
     foldTitle:'קיפול מבני של ASM',folding:'קיפול…',collapseFunctions:'− פונקציות',expandFunctions:'+ פונקציות',collapseContents:'− Contents',expandContents:'+ Contents',collapseSections:'− מקטעים',expandSections:'+ מקטעים',
     groups:'קבוצות',groupsTitle:'סינון משפחות סמלים ומקטעים',flow:'זרימה',hideFlow:'הסתר זרימה',flowTitle:'הצג/הסתר זרימה מתחת ל-ASM',edit:'עריכה',inspect:'תצוגה',save:'שמור',liveParsing:'מנתח בזמן אמת…',liveUpdated:'הגרף עודכן',visibleGroups:'קבוצות גלויות',all:'הכל',none:'ללא',filterGroups:'סינון קבוצות…',
     dropAsm:'גרור לכאן dump של ASM',dropAsmSub:'ייטען כטקסט, ללא אימות.',selectFunctionInstruction:'בחר פונקציה או הוראה',staticHeuristic:'סטטי · x86-64 dataflow',fit:'התאם',noFlow:'לא נבחרה זרימה',selectCodeOrNode:'בחר קוד או צומת בגרף.',
-    globalCallGraph:'גרף קריאות גלובלי',selectedCfg:'CFG של הפונקציה שנבחרה',selectedDataflow:'Dataflow של הפונקציה שנבחרה',binaryMap:'מפת בינארי',allAddressSpaces:'כל מרחבי הכתובות',reachabilityRootTitle:'שורש ניתוח הנגישות',entry:'כניסה',entryTitle:'התאם את הרכיב הנגיש מנקודת הכניסה',fitAll:'התאם הכל',fitAllTitle:'התאם את כל הצמתים, כולל צמתים מנותקים',labels:'תוויות',auto:'אוטומטי',yes:'כן',no:'לא',
+    globalCallGraph:'גרף קריאות גלובלי',selectedCfg:'CFG של הפונקציה שנבחרה',selectedDataflow:'Dataflow של הפונקציה שנבחרה',binaryMap:'מפת בינארי',cfgControl:'CFG: זרימת בקרה',cfgDominators:'CFG: Dominators',cfgLoops:'CFG: לולאות',dominators:'Dominators',immediateDominator:'Immediate dominator',dominanceFrontier:'Dominance frontier',backEdges:'Back edges',naturalLoops:'Natural loops',loopDepth:'Loop depth',criticalEdges:'Critical edges',branchPredicate:'Branch predicate',tailCalls:'Tail calls',unresolvedTransfers:'Unresolved transfers',reachable:'נגיש',pathFromEntry:'נתיב מהכניסה',allAddressSpaces:'כל מרחבי הכתובות',reachabilityRootTitle:'שורש ניתוח הנגישות',entry:'כניסה',entryTitle:'התאם את הרכיב הנגיש מנקודת הכניסה',fitAll:'התאם הכל',fitAllTitle:'התאם את כל הצמתים, כולל צמתים מנותקים',labels:'תוויות',auto:'אוטומטי',yes:'כן',no:'לא',
     legendFamily:'צבע = משפחת סמלים',legendAddress:'┄ הפניה לכתובת',legendData:'·· הפניית נתונים',legendRelocation:'·· relocation',legendCrossFile:'╌ קריאה בין קבצים',legendResolve:'·· קישור דינמי resolves-to',legendBridge:'╌ גישור מעל צמתים מוסתרים',loadObjdump:'טען אסמבלי / objdump',loadObjdumpSub:'קובץ, גרירה ושחרור, או הדבקה ישירה.',ready:'מוכן.',pasteAsm:'הדבק אסמבלי / objdump',pastePlaceholder:'הדבק כאן את התוכן המלא…',cancel:'ביטול',load:'טען',
     symbolFamilies:'משפחות סמלים',codeSections:'מקטעי קוד',bridgeHidden:'חבר אוטומטית דרך פונקציות מוסתרות',matchDynamic:'התאם מימושים דינמיים שנטענו',addressSpace:'מרחב כתובות',binarySection:'מקטע בינארי',sectionKind:'סוג מקטע',range:'טווח',bytes:'בתים',references:'הפניות',relocations:'Relocations',relocation:'Relocation',formula:'נוסחה',target:'יעד',provider:'Provider',evidence:'Evidence',flags:'דגלים',alignment:'יישור',fileOffset:'היסט קובץ',symbols:'סמלים',binaryIndex:'סמלים / Relocations',symbol:'סמל',symbolVersion:'גרסת סמל',definedIn:'מוגדר ב',undefinedSymbol:'לא מוגדר',dynamicSymbol:'סמל דינמי',dynamicSymbols:'סמלים דינמיים',neededLibraries:'ספריות נדרשות',linkageSlots:'חריצי קישור',expandSlots:'הרחב חריצים',collapseSlots:'כווץ חריצים',expandData:'הרחב נתונים',collapseData:'כווץ נתונים',gotSlot:'חריץ GOT',addend:'Addend',nobits:'NOBITS',vma:'VMA',lma:'LMA',segments:'מקטעי טעינה',segment:'מקטע טעינה',permissions:'הרשאות',memorySize:'גודל זיכרון',fileSize:'גודל קובץ',loadBias:'Load bias',dataObjects:'אובייקטי נתונים',dataObject:'אובייקט נתונים',stringObject:'מחרוזת',hexViewer:'Hex / data',decodedText:'טקסט מפוענח',openHex:'פתח Hex',firstReference:'הפניה ראשונה',referencedBy:'מופנה על ידי',runtimeFormula:'מיפוי Runtime',dynamicMatch:'התאמה דינמית',pltEntry:'PLT / import stub',implementation:'מימוש',resolvesTo:'נפתר אל',hiddenLines:'שורות מוסתרות',instructionsLower:'הוראות',analyzing:'מנתח ASM…',loadedOk:'ה-ASM נטען. Ctrl+click עוקב אחר קריאות; Alt+← חוזר למקור.',loadedNoFunctions:'נטען. לא זוהו גבולות פונקציה.',
     visibleFunctions:'פונקציות גלויות',directRefs:'הפניות ישירות',addressRefs:'הפניות לכתובות',indirectRefs:'הפניות עקיפות',reachable:'ניתנות להגעה',noPath:'ללא נתיב',root:'שורש',functionsReachable:'פונקציות ניתנות להגעה',noPathFromRoot:'ללא נתיב מהשורש',noPreviousOrigin:'אין מקור קודם.',origin:'מקור',
@@ -659,7 +664,7 @@ const state = {
   visibleRows:[], rowOfLine:null, familyInfo:new Map(), familyVisibility:new Map(), sectionVisibility:new Map(),
   originGroups:new Map(), originVisibility:new Map(), expandedOriginGroups:new Set(), functionRepresentative:new Map(),
   groupViewStack:[],
-  viewMode:'boundaries', dataflowFilter:'important', dataflowFocus:'', dwarf:null, projectRoots:[], selectedOriginGroupId:null,
+  viewMode:'boundaries', cfgView:'control', dataflowFilter:'important', dataflowFocus:'', dwarf:null, projectRoots:[], selectedOriginGroupId:null,
   inputKind:'objdump', inputMeta:null, explicitEntrySymbols:[],
   editMode:false, editTimer:null, editRevision:0,
   workspaceFiles:new Map(), workspaceOrder:[], activeFileId:null, workspaceRevision:0,
@@ -672,7 +677,7 @@ const state = {
   view:{zoom:1,panX:0,panY:0}, drag:null, hoverNode:null, dirty:true, dpr:1,
   graphSpatial:null, graphAdjacency:new Map(), graphDepths:[],
   traceOpen:false, traceNodes:[], traceEdges:[], traceHover:null, traceDrag:null,
-  dataflowCache:new Map(), selectedDataflowValue:null,
+  dataflowCache:new Map(), cfgAnalysisCache:new Map(), selectedDataflowValue:null,
   traceView:{zoom:1,panX:0,panY:0}, traceDirty:true, traceDpr:1
 };
 
@@ -2707,7 +2712,7 @@ function clearDynamicMatchFlags(){
     fn.dynamicMatch=null;
     fn.dynamicMatchedBy=[];
   }
-  state.dynamicMatches=[];state.dataflowCache=new Map();state.selectedDataflowValue=null;
+  state.dynamicMatches=[];state.dataflowCache=new Map();state.cfgAnalysisCache=new Map();state.selectedDataflowValue=null;
 }
 
 function buildDynamicImplementationMatches(functions){
@@ -3031,7 +3036,7 @@ function rebuildWorkspaceAnalysis({live=false,preserveView=true}={}){
     }
   }
 
-  state.dataflowCache=new Map();state.selectedDataflowValue=null;
+  state.dataflowCache=new Map();state.cfgAnalysisCache=new Map();state.selectedDataflowValue=null;
   state.functions=functions;state.calls=calls;state.addressRefs=addressRefs;state.dataRefs=dataRefs;state.relocations=relocations;state.sections=sections;state.sectionById=new Map(sections.map(sec=>[sec.id,sec]));state.segments=segments;state.dataObjects=dataObjects;state.dataObjectById=new Map(dataObjects.map(obj=>[obj.id,obj]));state.symbols=symbols;state.versionDefinitions=versionDefinitions;state.versionRequirements=versionRequirements;state.dynamicTags=dynamicTags;state.linkageSlots=linkageSlots;state.neededLibraries=[...new Set(neededLibraries)];state.functionsByAddr=functionsByAddr;state.functionsByName=functionsByName;
   els.emptyGraph.style.display=functions.length?'none':'grid';
   state.projectRoots=[...new Set(roots)];state.provenanceMapped=mapped;state.explicitEntrySymbols=state.workspaceOrder.flatMap(id=>state.workspaceFiles.get(id)?.explicitEntrySymbols||[]);
@@ -3210,10 +3215,18 @@ function updateStats(){
   const kinds=new Set(state.workspaceOrder.map(id=>state.workspaceFiles.get(id)?.inputKind).filter(Boolean));
   const mappedLabel=kinds.size>1?'mapped':kinds.has('fasm-source')?t('sourceMapped'):t('dwarfMapped');
 
+  if(state.mode==='cfg'){
+    const fn=state.selectedFunction,a=fn?analyzeAdvancedCfg(fn):null;
+    els.stats.textContent=fn
+      ?`${functionDisplayName(fn)} · ${num(a?.blocks.length||0)} blocks · ${num(a?.reachable.size||0)} reachable · ${num(a?.backEdges.length||0)} back edges · ${num(a?.loops.length||0)} natural loops · ${num(a?.criticalEdges.length||0)} critical edges · ${num(a?.jumpTables.length||0)} jump-table candidates · ${num(a?.indirectCallCandidates?.length||0)} indirect calls · ${num(a?.indirectJumpCandidates?.length||0)} indirect jumps · ${num(a?.tailCalls.length||0)} tail calls · ${num(a?.unresolvedTransfers.length||0)} unresolved transfers · ${state.cfgView}`
+      :`0 CFG blocks · ${t('selectFunctionCfg')}`;
+    els.entrySummary.style.display='none';return;
+  }
+
   if(state.mode==='dataflow'){
     const fn=state.selectedFunction,df=fn?functionDataflow(fn):null;
     els.stats.textContent=fn
-      ?`${functionDisplayName(fn)} · ${df?.architecture||'unknown'} · ${num(df?.blocks?.length||0)} blocks · ${num(df?.values?.length||0)} values · ${num(df?.phiValues?.length||0)} phi · ${num(df?.values?.filter(v=>v.kind==='memory-version').length||0)} memory versions · ${num(df?.values?.filter(v=>v.kind==='memory-slice'||v.kind==='memory-composite').length||0)} slices · ${num(df?.values?.filter(v=>v.kind==='memory-clobber').length||0)} clobbers · ${num(df?.analysisBarriers?.length||0)} barriers · ${num(df?.callSites?.length||0)} calls · ${num(state.graphNodes.length)} display nodes`
+      ?`${functionDisplayName(fn)} · ${df?.architecture||'unknown'} · ${num(df?.blocks?.length||0)} blocks · ${num(df?.loopBlocks?.length||0)} loop headers · ${num(df?.values?.length||0)} values · ${num(df?.phiValues?.length||0)} phi · ${num(df?.values?.filter(v=>v.kind==='memory-version').length||0)} memory versions · ${num(df?.values?.filter(v=>v.kind==='memory-slice'||v.kind==='memory-composite').length||0)} slices · ${num(df?.values?.filter(v=>v.kind==='memory-clobber').length||0)} clobbers · ${num(df?.analysisBarriers?.length||0)} barriers · state FP ${df?.stateFixedPointConverged?'ok':'partial'}@${num(df?.stateFixedPointIterations||0)} · ${num(df?.callSites?.length||0)} calls · ${num(state.graphNodes.length)} display nodes`
       :`0 dataflow nodes · ${t('selectFunctionCfg')}`;
     els.entrySummary.style.display='none';return;
   }
@@ -3235,7 +3248,7 @@ function updateStats(){
 
 function clearAll(){
   state.text='';state.lines=[];state.lineMeta=[];state.functions=[];state.calls=[];state.addressRefs=[];state.dataRefs=[];state.relocations=[];state.sections=[];state.sectionById=new Map();state.segments=[];state.dataObjects=[];state.dataObjectById=new Map();state.symbols=[];state.versionDefinitions=[];state.versionRequirements=[];state.dynamicTags=[];state.neededLibraries=[];state.linkageSlots=[];state.callByLine=new Map();
-  state.functionsByAddr=new Map();state.functionsByName=new Map();state.selectedFunction=null;state.selectedInstruction=null;state.selectedBlock=null;state.selectedSection=null;state.selectedLinkageSlot=null;state.selectedDataObject=null;state.selectedSegment=null;state.selectedAddressSpaceId=null;state.selectedSymbol=null;state.selectedRelocation=null;state.expandedBinarySections=new Set();state.expandedDataSections=new Set();state.hexTarget=null;state.binaryScopeFileId='';state.dataflowFilter='important';state.dataflowFocus='';els.binaryScope.style.display='none';els.dataflowFilter.style.display='none';els.dataflowFocus.style.display='none';els.dataflowFilter.value='important';els.dataflowFocus.value='';els.binaryScope.innerHTML=`<option value="">${t('allAddressSpaces')}</option>`;
+  state.functionsByAddr=new Map();state.functionsByName=new Map();state.selectedFunction=null;state.selectedInstruction=null;state.selectedBlock=null;state.cfgView='control';els.cfgView.value='control';els.cfgView.style.display='none';state.selectedSection=null;state.selectedLinkageSlot=null;state.selectedDataObject=null;state.selectedSegment=null;state.selectedAddressSpaceId=null;state.selectedSymbol=null;state.selectedRelocation=null;state.expandedBinarySections=new Set();state.expandedDataSections=new Set();state.hexTarget=null;state.binaryScopeFileId='';state.dataflowFilter='important';state.dataflowFocus='';els.binaryScope.style.display='none';els.dataflowFilter.style.display='none';els.dataflowFocus.style.display='none';els.dataflowFilter.value='important';els.dataflowFocus.value='';els.binaryScope.innerHTML=`<option value="">${t('allAddressSpaces')}</option>`;
   state.navStack=[];state.graphSpatial=null;state.graphAdjacency=new Map();state.graphDepths=[];
   state.entryFunction=null;state.elfEntry=null;state.programEntry=null;state.reachableIds=new Set();state.reachParent=new Map();state.depthById=new Map();state.detachedY=null;
   state.graphNodes=[];state.graphEdges=[];state.nodeById=new Map();state.searchHits=[];state.searchIndex=-1;
@@ -3247,7 +3260,7 @@ function clearAll(){
   state.editMode=false;state.editRevision++;clearTimeout(state.editTimer);state.editTimer=null;
   state.workspaceFiles=new Map();state.workspaceOrder=[];state.activeFileId=null;state.workspaceRevision=0;
   state.workspaceName='Workspace';state.functionsByNameMulti=new Map();state.workspaceDependencies=new Map();
-  state.dynamicMatches=[];
+  state.dynamicMatches=[];state.dataflowCache=new Map();state.cfgAnalysisCache=new Map();state.currentCfgAnalysis=null;
 
   els.fileLabel.textContent=t('noFile');els.formatBadge.textContent='—';els.formatBadge.className='formatBadge';els.codeInfo.textContent=`0 ${t('lines')}`;els.codeSpacer.style.height='0';els.codeLayer.innerHTML='';
   els.codeViewport.classList.remove('editing');els.codeEditor.value='';els.editorGutter.textContent='';els.editBtn.classList.remove('active');els.editBtn.textContent=t('edit');els.editBtn.disabled=true;els.binaryIndexBtn.disabled=true;els.saveBtn.classList.remove('visible');
@@ -3741,7 +3754,8 @@ function updateInspector(item){
       <b>ABI</b><span>${escapeHtml(df?.abi?.name||'—')}</span>
       <b>Transfer capability</b><span>${escapeHtml(`${info?.transferCapability?.level||'unknown'} · ${info?.transferCapability?.kind||'unknown'} · ${info?.transferCapability?.evidence||''}`)}</span>
       <b>${t('dataflow')}</b><span>${escapeHtml(df?.mode||t('blockLocal'))}</span>
-      <b>Fixed point</b><span>${df?.fixedPointConverged?'converged':'budget/partial'} · ${num(df?.fixedPointIterations||0)} iterations</span>
+      <b>Value fixed point</b><span>${df?.fixedPointConverged?'converged':'budget/partial'} · ${num(df?.fixedPointIterations||0)} iterations</span>
+      <b>State fixed point</b><span>${df?.stateFixedPointConverged?'converged':'budget/partial'} · ${num(df?.stateFixedPointIterations||0)}/${num(df?.stateFixedPointBudget||0)} iterations</span>
       <b>Analysis barriers</b><span>${num(info?.analysisBarriers?.length||0)} local · ${num(df?.analysisBarriers?.length||0)} function</span>
       <b>RSP Δ</b><span>${Number.isFinite(info?.rspDeltaAfter)?`${info.rspDeltaAfter>=0?'+':''}${info.rspDeltaAfter}`:'unknown'}</span>
       <b>RBP base</b><span>${Number.isFinite(info?.rbpEntryDelta)?`entry RSP ${info.rbpEntryDelta>=0?'+':''}${info.rbpEntryDelta}`:'unknown'}</span>
@@ -3805,9 +3819,53 @@ function updateInspector(item){
     </div>${list.length>1?`<div class="path"><b>EXAMPLES</b><br>${list.slice(0,6).map(x=>`${x.instruction?.syntheticAddress?'line '+(x.instruction.line+1):safeHex(x.instruction?.addr)} · ${escapeHtml(`${x.instruction?.mnemonic||''} ${x.instruction?.operands||''}`.trim())}`).join('<br>')}${list.length>6?`<br>… ${num(list.length-6)} more`:''}</div>`:''}<div class="path"><b>STATIC ANALYSIS CONTRACT</b><br>The analyzer stops claiming exact transfer semantics at these points. Existing proven facts are retained only where the instruction/call cannot invalidate them.</div>
     <div class="actions">${first?`<button data-action="barrier-code">${t('goToCode')}</button>`:''}${last&&last!==first?`<button data-action="barrier-last">Last</button>`:''}</div>`;
   }else if(item.kind==='block'){
-    html=`<div class="title">${escapeHtml(item.label)}</div><div class="meta"><b>${t('function')}</b><span>${escapeHtml(functionDisplayName(item.function))}</span><b>Range</b><span>${item.function?.syntheticAddress?`${t('line')} ${item.startLine+1}–${item.endLine+1}`:`${safeHex(item.startAddr)} – ${safeHex(item.endAddr)}`}</span><b>${t('instructions')}</b><span>${item.instructions.length}</span><b>${t('linesLabel')}</b><span>${item.startLine+1}–${item.endLine+1}</span></div><div class="actions"><button data-action="code">${t('goToCode')}</button></div>`;
+    const df=functionDataflow(item.function),advanced=analyzeAdvancedCfg(item.function),
+          db=item.dataflowBlock||df?.blocks?.find(b=>b.instructions?.[0]?.line===item.startLine||(!item.function?.syntheticAddress&&b.instructions?.[0]?.addr===item.startAddr)),
+          entry=item.dataflowEntryState||db?.dataflowEntryState||df?.blockEntryState?.get(db?.id),exit=item.dataflowExitState||db?.dataflowExitState||df?.blockExitState?.get(db?.id),
+          summarize=st=>st?`${num(st.regs?.size||0)} regs · ${num(st.stack?.size||0)} stack · ${num(st.memory?.size||0)} memory · RSP ${Number.isFinite(st.rspDelta)?(st.rspDelta>=0?'+':'')+st.rspDelta:'?'}`:'—',
+          doms=db?[...(advanced?.dominators?.get(db.id)||[])].map(id=>advanced.blocks.find(b=>b.id===id)).filter(Boolean):[],
+          idom=db?advanced?.idom?.get(db.id)||null:null,
+          frontier=db?[...(advanced?.frontier?.get(db.id)||[])].map(id=>advanced.blocks.find(b=>b.id===id)).filter(Boolean):[],
+          loops=db?(advanced?.blockLoops?.get(db.id)||[]):[],
+          path=db?(advanced?.pathFromEntry?.(db)||[]):[],
+          outFacts=db?[...(advanced?.edgeFacts?.values?.()||[])].filter(f=>f.from===db):[],
+          tail=advanced?.tailCalls?.find(x=>x.block===db)||null,
+          unresolved=(advanced?.unresolvedTransfers||[]).filter(x=>x.block===db),
+          jumpTables=(advanced?.jumpTables||[]).filter(x=>x.block===db),
+          indirectCalls=(advanced?.indirectCallCandidates||[]).filter(x=>x.block===db),
+          indirectJumps=(advanced?.indirectJumpCandidates||[]).filter(x=>x.block===db);
+    html=`<div class="title">${escapeHtml(item.label)}</div><div class="meta">
+      <b>${t('function')}</b><span>${escapeHtml(functionDisplayName(item.function))}</span>
+      <b>Range</b><span>${item.function?.syntheticAddress?`${t('line')} ${item.startLine+1}–${item.endLine+1}`:`${safeHex(item.startAddr)} – ${safeHex(item.endAddr)}`}</span>
+      <b>${t('instructions')}</b><span>${item.instructions.length}</span>
+      <b>${t('linesLabel')}</b><span>${item.startLine+1}–${item.endLine+1}</span>
+      <b>${t('reachable')}</b><span>${db&&advanced?.reachable?.has(db.id)?'yes':'no'}</span>
+      <b>Loop header</b><span>${item.loopHeader?'yes':'no'}</span>
+      <b>${t('loopDepth')}</b><span>${num(loops.length)}</span>
+      <b>Predecessors</b><span>${num(db?.pred?.length||item.pred?.length||0)}</span>
+      <b>Successors</b><span>${num(db?.succ?.length||item.succ?.length||0)}</span>
+      <b>${t('dominators')}</b><span>${num(doms.length)}</span>
+      <b>${t('immediateDominator')}</b><span>${idom?escapeHtml(cfgBlockTitle(idom,item.function)):'—'}</span>
+      <b>${t('dominanceFrontier')}</b><span>${frontier.length?frontier.map(b=>escapeHtml(cfgBlockTitle(b,item.function))).join(', '):'—'}</span>
+      <b>Entry state</b><span>${escapeHtml(summarize(entry))}</span>
+      <b>Exit state</b><span>${escapeHtml(summarize(exit))}</span>
+      <b>State convergence</b><span>${df?.stateFixedPointConverged?'converged':'partial'} · ${num(df?.stateFixedPointIterations||0)} iterations</span>
+    </div>
+    ${path.length?`<div class="path"><b>${t('pathFromEntry')}</b><br>${path.map(b=>escapeHtml(cfgBlockTitle(b,item.function))).join(' → ')}</div>`:''}
+    ${doms.length?`<div class="path"><b>${t('dominators')}</b><br>${doms.map(b=>`${b===db?'<strong>':''}${escapeHtml(cfgBlockTitle(b,item.function))}${b===db?'</strong>':''}`).join(' → ')}</div>`:''}
+    ${loops.length?`<div class="path"><b>${t('naturalLoops')}</b><br>${loops.map(l=>`depth ${l.depth} · header ${escapeHtml(cfgBlockTitle(l.header,item.function))} · ${num(l.nodes.size)} blocks · ${num(l.backEdges.length)} back edges`).join('<br>')}</div>`:''}
+    ${outFacts.length?`<div class="dataObjectList"><b>CONTROL-FLOW EDGES</b>${outFacts.map((f,i)=>`<div class="dataObjectRow"><span>${escapeHtml(cfgBlockTitle(f.to,item.function))}</span><span>${escapeHtml([f.backEdge?'back-edge':null,f.critical?'critical':null,f.predicate||f.label||null,f.evidence||null].filter(Boolean).join(' · ')||'flow')}</span><button data-cfg-succ="${i}">→</button></div>`).join('')}</div>`:''}
+    ${(db?.pred?.length)?`<div class="dataObjectList"><b>PREDECESSORS</b>${db.pred.map((b,i)=>`<div class="dataObjectRow"><span>${escapeHtml(cfgBlockTitle(b,item.function))}</span><span>${advanced?.edgeFacts?.get(`${b.id}->${db.id}`)?.backEdge?'back-edge':'incoming'}</span><button data-cfg-pred="${i}">→</button></div>`).join('')}</div>`:''}
+    ${jumpTables.length?`<div class="path"><b>JUMP-TABLE / SWITCH CANDIDATES</b><br>${jumpTables.map(j=>`${escapeHtml(dataObjectLabel(j.table))} · ${j.confidence} · ${num(j.targets.length)} exact block targets${j.targets.length?'<br>'+j.targets.map(tg=>`case ${tg.index} → ${escapeHtml(cfgBlockTitle(tg.block,item.function))}`).join('<br>'):''}`).join('<br>')}</div>`:''}
+    ${indirectCalls.length?`<div class="path"><b>INDIRECT CALL CANDIDATES</b><br>${indirectCalls.map(c=>`${escapeHtml(c.instruction.mnemonic+' '+c.instruction.operands)} · ${c.confidence}${c.candidates.length?'<br>'+c.candidates.map(tg=>tg.kind==='function'?`→ ${escapeHtml(functionDisplayName(tg.function))} · ${safeHex(tg.address)} · ${escapeHtml(tg.evidence)}`:`→ ${escapeHtml(cfgBlockTitle(tg.block,item.function))} · ${escapeHtml(tg.evidence)}`).join('<br>'):' · unresolved'}`).join('<br>')}</div>`:''}
+    ${indirectJumps.length?`<div class="path"><b>INDIRECT JUMP CANDIDATES</b><br>${indirectJumps.map(c=>`${escapeHtml(c.instruction.mnemonic+' '+c.instruction.operands)} · ${c.confidence}${c.candidates.length?'<br>'+c.candidates.map(tg=>tg.kind==='function'?`→ ${escapeHtml(functionDisplayName(tg.function))} · ${safeHex(tg.address)} · ${escapeHtml(tg.evidence)}`:`→ ${escapeHtml(cfgBlockTitle(tg.block,item.function))} · ${escapeHtml(tg.evidence)}`).join('<br>'):' · unresolved'}`).join('<br>')}</div>`:''}
+    ${tail?`<div class="path"><b>TAIL CALL</b><br>${escapeHtml(functionDisplayName(tail.target))} · ${safeHex(tail.address)} · ${escapeHtml(tail.evidence)}</div>`:''}
+    ${unresolved.length?`<div class="path"><b>${t('unresolvedTransfers')}</b><br>${unresolved.map(u=>`${escapeHtml(u.kind)} · ${escapeHtml(u.reason)}${Number.isFinite(u.address)?` · ${safeHex(u.address)}`:''}`).join('<br>')}</div>`:''}
+    ${entry?`<div class="path"><b>BLOCK ENTRY STATE</b><br>registers ${num(entry.regs.size)} · stack ${num(entry.stack.size)} · memory ${num(entry.memory.size)} · FLAGS ${entry.flags?escapeHtml(JSON.stringify(entry.flags)):'unknown'} · RBP base ${Number.isFinite(entry.rbpEntryDelta)?entry.rbpEntryDelta:'unknown'}</div>`:''}
+    ${exit?`<div class="path"><b>BLOCK EXIT STATE</b><br>registers ${num(exit.regs.size)} · stack ${num(exit.stack.size)} · memory ${num(exit.memory.size)} · FLAGS ${exit.flags?escapeHtml(JSON.stringify(exit.flags)):'unknown'} · RBP base ${Number.isFinite(exit.rbpEntryDelta)?exit.rbpEntryDelta:'unknown'}</div>`:''}
+    <div class="actions"><button data-action="code">${t('goToCode')}</button>${idom?`<button data-action="cfg-idom">${t('immediateDominator')}</button>`:''}${loops[0]?`<button data-action="cfg-loop-header">Loop header</button>`:''}</div>`;
   }else{
-    const incoming=state.calls.filter(e=>e.to===item).length+state.addressRefs.filter(e=>e.to===item).length,repId=state.functionRepresentative.get(item.id)||item.id,node=state.nodeById.get(repId),isEntry=item===state.entryFunction,isElf=item===state.elfEntry,isProgram=item===state.programEntry,reachable=!!node?.reachable,depth=node?.depth,df=state.dataflowCache.get(item.id)||null;
+    const incoming=state.calls.filter(e=>e.to===item).length+state.addressRefs.filter(e=>e.to===item).length,repId=state.functionRepresentative.get(item.id)||item.id,node=state.nodeById.get(repId),isEntry=item===state.entryFunction,isElf=item===state.elfEntry,isProgram=item===state.programEntry,reachable=!!node?.reachable,depth=node?.depth,df=state.dataflowCache.get(item.id)||null,cfg=analyzeAdvancedCfg(item);
     const role=[isElf?'ELF entry':null,isProgram?'program entry':null,isEntry?'reachability root':null].filter(Boolean).join(', ')||'—',reach=isEntry?'ENTRY':reachable?`reachable · depth ${depth}`:'NO PATH FROM ENTRYPOINT',path=reachabilityPath(item),p=item.provenance||makeProvenance('unknown','unknown:unclassified','Unclassified'),g=state.originGroups.get(p.groupId),canCollapse=g&&state.expandedOriginGroups.has(g.id)&&state.viewMode!=='functions';
     html=`<div class="title semantic">${escapeHtml(functionDisplayName(item))}</div>${functionDisplayName(item)!==item.name?`<div class="linkage">${escapeHtml(item.name)}</div>`:''}<div class="meta">
       <b>${t('role')}</b><span>${escapeHtml(role)}</span><b>${t('reachability')}</b><span>${escapeHtml(reach)}</span>
@@ -3823,7 +3881,8 @@ function updateInspector(item){
     </div>
     ${item.dynamicMatch?`<div class="path"><b>${t('dynamicMatch')} · ${escapeHtml(item.dynamicMatchConfidence||'inferred')}</b><br>${escapeHtml(item.name)} · ${item.syntheticAddress?t('line')+' '+(item.startLine+1):safeHex(item.addr)}<br>↓ ${t('resolvesTo')}<br>${escapeHtml(functionDisplayName(item.dynamicMatch))} · ${safeHex(item.dynamicMatch.addr)}<br>${escapeHtml(item.dynamicMatch.addressSpaceLabel||'')}</div>`:''}
     ${item.dynamicMatchedBy?.length?`<div class="path"><b>${t('dynamicMatch')}</b><br>${item.dynamicMatchedBy.map(x=>`${escapeHtml(x.name)} · ${safeHex(x.addr)} · ${escapeHtml(x.addressSpaceLabel||'')}`).join('<br>')}</div>`:''}
-    ${df?`<div class="path"><b>STATIC ANALYSIS SUMMARY</b><br>${escapeHtml(df.architecture||'unknown')} · ${escapeHtml(df.adapter?.id||'unsupported')} · ${num(df.values?.length||0)} values · ${num(df.phiValues?.length||0)} phi · ${num(df.values?.filter(v=>v.kind==='memory-version').length||0)} memory versions · ${num(df.values?.filter(v=>v.kind==='memory-slice'||v.kind==='memory-composite').length||0)} memory slices/composites · ${num(df.values?.filter(v=>v.kind==='memory-clobber').length||0)} memory clobbers · memory cells peak ${num(df.memoryCellPeak||0)}/${num(df.memoryCellBudget||0)}${df.memoryFragmentCollapses?` · ${num(df.memoryFragmentCollapses)} fragmentation collapses`:''} · ${num(df.analysisBarriers?.length||0)} barriers · fixed point ${df.fixedPointConverged?'converged':'partial'} (${num(df.fixedPointIterations||0)})</div>`:''}
+    ${df?`<div class="path"><b>STATIC ANALYSIS SUMMARY</b><br>${escapeHtml(df.architecture||'unknown')} · ${escapeHtml(df.adapter?.id||'unsupported')} · ${num(df.values?.length||0)} values · ${num(df.phiValues?.length||0)} phi · ${num(df.values?.filter(v=>v.kind==='memory-version').length||0)} memory versions · ${num(df.values?.filter(v=>v.kind==='memory-slice'||v.kind==='memory-composite').length||0)} memory slices/composites · ${num(df.values?.filter(v=>v.kind==='memory-clobber').length||0)} memory clobbers · memory cells peak ${num(df.memoryCellPeak||0)}/${num(df.memoryCellBudget||0)}${df.memoryFragmentCollapses?` · ${num(df.memoryFragmentCollapses)} fragmentation collapses`:''} · ${num(df.analysisBarriers?.length||0)} barriers<br>value FP ${df.fixedPointConverged?'converged':'partial'} (${num(df.fixedPointIterations||0)}) · full-state FP ${df.stateFixedPointConverged?'converged':'partial'} (${num(df.stateFixedPointIterations||0)}/${num(df.stateFixedPointBudget||0)}) · loop headers ${num(df.loopBlocks?.length||0)}${df.stateDomainConvergence?`<br>${Object.entries(df.stateDomainConvergence).map(([k,v])=>`${escapeHtml(k)}=${v.converged?'ok':'partial'}@${num(v.iterations||0)}`).join(' · ')}`:''}</div>`:''}
+    ${cfg?`<div class="path"><b>ADVANCED CFG</b><br>${num(cfg.blocks.length)} blocks · ${num(cfg.reachable.size)} reachable · dominators ${num(cfg.domIterations)} iterations · ${num(cfg.backEdges.length)} back edges · ${num(cfg.loops.length)} natural loops · ${num(cfg.criticalEdges.length)} critical edges · ${num(cfg.jumpTables.length)} jump-table candidates · ${num(cfg.indirectCallCandidates?.length||0)} indirect calls · ${num(cfg.indirectJumpCandidates?.length||0)} indirect jumps · ${num(cfg.tailCalls.length)} tail calls · ${num(cfg.unresolvedTransfers.length)} unresolved transfers${cfg.loops.length?`<br>${cfg.loops.slice(0,8).map(l=>`loop depth ${l.depth}: header ${escapeHtml(cfgBlockTitle(l.header,item))} · ${num(l.nodes.size)} blocks`).join('<br>')}`:''}</div>`:''}
     ${df?.adapter?`<div class="path"><b>ARCHITECTURE ADAPTER</b><br>${escapeHtml(df.adapter.id)} v${escapeHtml(df.adapter.version||'1')} · ${escapeHtml(df.adapter.contractId||'unversioned')}<br>${Object.entries(df.adapter.capabilities||{}).map(([k,v])=>`${escapeHtml(k)}=${escapeHtml(String(v))}`).join(' · ')}</div>`:''}
     ${path.length?`<div class="path"><b>PATH</b><br>${path.map(n=>escapeHtml(n.label)).join(' → ')}</div>`:''}<div class="actions"><button data-action="code">${t('goToCode')}</button><button data-action="center">${t('center')}</button><button data-action="cfg">${t('openCfg')}</button><button data-action="dataflow">${t('openDataflow')}</button>${item.dynamicMatch?`<button data-action="dynamic-match">${t('implementation')}</button>`:''}${item.dynamicMatchedBy?.length?`<button data-action="dynamic-stub">${t('pltEntry')}</button>`:''}${canCollapse?`<button data-action="collapse-group">${t('collapseGroup')}</button>`:''}</div>`;
   }
@@ -3837,8 +3896,8 @@ function updateInspector(item){
     const node=directKinds.has(item.kind)?state.nodeById.get(item.id):state.nodeById.get(state.functionRepresentative.get(item.id)||item.id);
     if(node)centerNode(node,.9);
   });
-  els.inspector.querySelector('[data-action="cfg"]')?.addEventListener('click',()=>{state.mode='cfg';els.graphMode.value='cfg';buildGraph();fitGraph()});
-  els.inspector.querySelector('[data-action="dataflow"]')?.addEventListener('click',()=>{state.mode='dataflow';els.graphMode.value='dataflow';buildGraph();fitGraph()});
+  els.inspector.querySelector('[data-action="cfg"]')?.addEventListener('click',()=>{els.graphMode.value='cfg';els.graphMode.dispatchEvent(new Event('change'))});
+  els.inspector.querySelector('[data-action="dataflow"]')?.addEventListener('click',()=>{els.graphMode.value='dataflow';els.graphMode.dispatchEvent(new Event('change'))});
   els.inspector.querySelector('[data-action="toggle-group"]')?.addEventListener('click',()=>toggleOriginGroup(item.group.id));
   els.inspector.querySelector('[data-action="collapse-group"]')?.addEventListener('click',()=>toggleOriginGroup(item.provenance.groupId,false));
   els.inspector.querySelector('[data-action="dynamic-match"]')?.addEventListener('click',()=>item.dynamicMatch&&selectFunction(item.dynamicMatch,{scroll:true,keepMode:true}));
@@ -3916,6 +3975,32 @@ function updateInspector(item){
   els.inspector.querySelector('[data-action="flow-definition"]')?.addEventListener('click',()=>item.value?.defInst&&goToFlowInstruction(item.value.defInst));
   els.inspector.querySelector('[data-action="flow-data"]')?.addEventListener('click',()=>item.value?.dataObject&&selectDataObject(item.value.dataObject,{center:true}));
   els.inspector.querySelector('[data-action="flow-function"]')?.addEventListener('click',()=>item.instruction?.function&&updateInspector(item.instruction.function));
+  const selectCfgBlock=db=>{
+    if(!db)return;
+    let node=state.graphNodes.find(n=>n.kind==='block'&&n.dataflowBlock===db);
+    if(!node&&item.function){
+      state.mode='cfg';els.graphMode.value='cfg';buildGraph();
+      node=state.graphNodes.find(n=>n.kind==='block'&&n.dataflowBlock===db);
+    }
+    if(node){selectGraphNode(node);centerNode(node,.85)}
+  };
+  els.inspector.querySelector('[data-action="cfg-idom"]')?.addEventListener('click',()=>{
+    const db=item.dataflowBlock,advanced=item.function?analyzeAdvancedCfg(item.function):null;
+    selectCfgBlock(db&&advanced?.idom?.get(db.id));
+  });
+  els.inspector.querySelector('[data-action="cfg-loop-header"]')?.addEventListener('click',()=>{
+    const db=item.dataflowBlock,advanced=item.function?analyzeAdvancedCfg(item.function):null,loop=db?(advanced?.blockLoops?.get(db.id)||[])[0]:null;
+    selectCfgBlock(loop?.header);
+  });
+  els.inspector.querySelectorAll('[data-cfg-succ]').forEach(btn=>btn.addEventListener('click',()=>{
+    const db=item.dataflowBlock,advanced=item.function?analyzeAdvancedCfg(item.function):null,
+          facts=db?[...(advanced?.edgeFacts?.values?.()||[])].filter(f=>f.from===db):[],
+          fact=facts[Number(btn.dataset.cfgSucc)];
+    selectCfgBlock(fact?.to);
+  }));
+  els.inspector.querySelectorAll('[data-cfg-pred]').forEach(btn=>btn.addEventListener('click',()=>{
+    const db=item.dataflowBlock,idx=Number(btn.dataset.cfgPred);selectCfgBlock(db?.pred?.[idx]);
+  }));
 }
 
 
@@ -4076,7 +4161,7 @@ function buildBasicBlocks(fn){
   const isRet=mn=>/^ret/.test(mn);
   const targetAddr=inst=>{
     if(Number.isFinite(inst.targetAddr))return inst.targetAddr;
-    const m=inst.operands.match(/(?:^|[\s,*])(?:0x)?([0-9a-fA-F]{5,16})(?=\s|$|<)/);
+    const m=inst.operands.match(/(?:^|[\s,*])(?:0x)?([0-9a-fA-F]{1,16})(?=\s|$|<)/);
     return m?parseInt(m[1],16):null;
   };
   for(let i=0;i<ins.length;i++){
@@ -4290,11 +4375,331 @@ function buildBinaryGraph(){
   return {nodes,edges,nodeById};
 }
 
+
+function cfgBlockTitle(block,fn){
+  const inst=block?.instructions?.[0];if(!inst)return 'block';
+  return fn?.syntheticAddress?`L${inst.line+1}`:`+0x${(inst.addr-(fn?.addr||0)).toString(16)}`;
+}
+function cfgNegatedPredicate(predicate){return predicate?`¬(${predicate})`:''}
+function cfgBranchPredicate(mnemonic){
+  const mn=String(mnemonic||'').toLowerCase().replace(/q$/,'');
+  const map={
+    je:'ZF = 1',jz:'ZF = 1',jne:'ZF = 0',jnz:'ZF = 0',
+    ja:'CF = 0 ∧ ZF = 0',jnbe:'CF = 0 ∧ ZF = 0',
+    jae:'CF = 0',jnb:'CF = 0',jnc:'CF = 0',
+    jb:'CF = 1',jnae:'CF = 1',jc:'CF = 1',
+    jbe:'CF = 1 ∨ ZF = 1',jna:'CF = 1 ∨ ZF = 1',
+    jg:'ZF = 0 ∧ SF = OF',jnle:'ZF = 0 ∧ SF = OF',
+    jge:'SF = OF',jnl:'SF = OF',
+    jl:'SF ≠ OF',jnge:'SF ≠ OF',
+    jle:'ZF = 1 ∨ SF ≠ OF',jng:'ZF = 1 ∨ SF ≠ OF',
+    js:'SF = 1',jns:'SF = 0',jo:'OF = 1',jno:'OF = 0',
+    jp:'PF = 1',jpe:'PF = 1',jnp:'PF = 0',jpo:'PF = 0',
+    jcxz:'CX = 0',jecxz:'ECX = 0',jrcxz:'RCX = 0'
+  };
+  return map[mn]||'';
+}
+function cfgValueDataObjects(value,seen=new Set(),out=new Set()){
+  if(!value||seen.has(value))return out;seen.add(value);
+  if(value.dataObject)out.add(value.dataObject);
+  if(value.storedValue)cfgValueDataObjects(value.storedValue,seen,out);
+  if(value.sourceMemory)cfgValueDataObjects(value.sourceMemory,seen,out);
+  for(const input of value.inputs||[])cfgValueDataObjects(input,seen,out);
+  for(const seg of value.segments||[])cfgValueDataObjects(seg,seen,out);
+  return out;
+}
+function analyzeAdvancedCfg(fn){
+  if(!fn)return null;
+  const cached=state.cfgAnalysisCache.get(fn.id);
+  if(cached?.workspaceRevision===state.workspaceRevision)return cached;
+  const df=functionDataflow(fn),blocks=df?.blocks||[];
+  if(!blocks.length){
+    const empty={workspaceRevision:state.workspaceRevision,function:fn,blocks:[],reachable:new Set(),dominators:new Map(),idom:new Map(),frontier:new Map(),backEdges:[],loops:[],criticalEdges:[],edgeFacts:new Map(),reachParent:new Map(),tailCalls:[],unresolvedTransfers:[],jumpTables:[]};
+    state.cfgAnalysisCache.set(fn.id,empty);return empty;
+  }
+  const entry=blocks[0],byId=new Map(blocks.map(b=>[b.id,b]));
+  const firstAddr=b=>b.instructions?.[0]?.addr;
+  const blockContainingAddress=addr=>blocks.find(b=>Number.isFinite(addr)&&b.instructions?.some(i=>i.addr===addr))||blocks.find(b=>{
+    const first=b.instructions?.[0],last=b.instructions?.at(-1);return first&&last&&addr>=first.addr&&addr<=last.addr;
+  })||null;
+  const functionAtAddress=addr=>state.functions.find(f=>f.workspaceFileId===fn.workspaceFileId&&f.addr===addr)||state.functions.find(f=>f.addr===addr)||null;
+  const candidateTargetsFromValue=(value,seen=new Set(),out=[])=>{
+    if(!value||seen.has(value))return out;seen.add(value);
+    const abs=value.abstractValue;
+    let exactAddress=null;
+    if(abs?.kind==='address'&&Number.isFinite(abs.address))exactAddress=abs.address;
+    else if(abs?.kind==='constant'&&typeof abs.value==='bigint'&&abs.value>=0n&&abs.value<=BigInt(Number.MAX_SAFE_INTEGER))exactAddress=Number(abs.value);
+    if(Number.isFinite(exactAddress)){
+      const block=blockContainingAddress(exactAddress),targetFn=functionAtAddress(exactAddress);
+      if(block&&!out.some(x=>x.block===block))out.push({kind:'block',block,address:exactAddress,confidence:'exact',evidence:abs.kind==='constant'?'exact constant used as control target':'exact abstract target address'});
+      else if(targetFn&&targetFn!==fn&&!out.some(x=>x.function===targetFn))out.push({kind:'function',function:targetFn,address:exactAddress,confidence:'exact',evidence:abs.kind==='constant'?'exact constant used as control target':'exact abstract target address'});
+    }
+    for(const obj of cfgValueDataObjects(value)){
+      if(!(obj.kind==='pointer-table'||obj.functionPointers||obj.entries?.length))continue;
+      for(const entry of obj.entries||[]){
+        const addr=entry.targetFunction?.addr??entry.relocation?.targetAddress,block=blockContainingAddress(addr),targetFn=entry.targetFunction||functionAtAddress(addr);
+        if(block&&!out.some(x=>x.block===block))out.push({kind:'block',block,address:addr,table:obj,confidence:'exact',evidence:'relocation-backed pointer-table entry'});
+        else if(targetFn&&targetFn!==fn&&!out.some(x=>x.function===targetFn))out.push({kind:'function',function:targetFn,address:addr,table:obj,confidence:'exact',evidence:'relocation-backed pointer-table entry'});
+      }
+    }
+    for(const input of value.inputs||[])candidateTargetsFromValue(input,seen,out);
+    return out;
+  };
+
+  const reachable=new Set([entry.id]),reachParent=new Map(),queue=[entry];
+  for(let qi=0;qi<queue.length;qi++){
+    const b=queue[qi];
+    for(const to of b.succ||[])if(!reachable.has(to.id)){reachable.add(to.id);reachParent.set(to.id,b.id);queue.push(to)}
+  }
+  const rblocks=blocks.filter(b=>reachable.has(b.id)),allReachableIds=new Set(rblocks.map(b=>b.id));
+  const dominators=new Map();
+  for(const b of blocks)dominators.set(b.id,reachable.has(b.id)?(b===entry?new Set([b.id]):new Set(allReachableIds)):new Set([b.id]));
+  let changed=true,domIterations=0;
+  while(changed&&domIterations++<Math.max(16,blocks.length*4)){
+    changed=false;
+    for(const b of rblocks){
+      if(b===entry)continue;
+      const preds=(b.pred||[]).filter(p=>reachable.has(p.id));
+      let next;
+      if(!preds.length)next=new Set([b.id]);
+      else{
+        next=new Set(dominators.get(preds[0].id));
+        for(const p of preds.slice(1))for(const id of [...next])if(!dominators.get(p.id).has(id))next.delete(id);
+        next.add(b.id);
+      }
+      const old=dominators.get(b.id);
+      if(old.size!==next.size||[...old].some(id=>!next.has(id))){dominators.set(b.id,next);changed=true}
+    }
+  }
+  const idom=new Map([[entry.id,null]]);
+  for(const b of rblocks){
+    if(b===entry)continue;
+    const strict=[...dominators.get(b.id)].filter(id=>id!==b.id).map(id=>byId.get(id)).filter(Boolean);
+    strict.sort((a,b2)=>(dominators.get(b2.id)?.size||0)-(dominators.get(a.id)?.size||0));
+    idom.set(b.id,strict[0]||null);
+  }
+  const domDepth=new Map([[entry.id,0]]);
+  const depthOf=b=>{
+    if(!b)return 0;if(domDepth.has(b.id))return domDepth.get(b.id);
+    const parent=idom.get(b.id);const d=parent?depthOf(parent)+1:0;domDepth.set(b.id,d);return d;
+  };
+  for(const b of rblocks)depthOf(b);
+
+  const frontier=new Map(blocks.map(b=>[b.id,new Set()]));
+  for(const b of rblocks){
+    const preds=(b.pred||[]).filter(p=>reachable.has(p.id));
+    if(preds.length<2)continue;
+    for(const p of preds){
+      let runner=p,guard=0;
+      while(runner&&runner!==idom.get(b.id)&&guard++<blocks.length+2){
+        frontier.get(runner.id).add(b.id);runner=idom.get(runner.id)||null;
+      }
+    }
+  }
+
+  const edgeKey=(a,b)=>`${a.id}->${b.id}`,edgeFacts=new Map(),backEdges=[],criticalEdges=[];
+  for(const from of blocks)for(const to of from.succ||[]){
+    const fact={from,to,key:edgeKey(from,to),kind:'cfg-edge',backEdge:false,critical:false,label:'',predicate:'',outcome:null,evidence:''};
+    fact.backEdge=reachable.has(from.id)&&reachable.has(to.id)&&dominators.get(from.id)?.has(to.id);
+    fact.critical=(from.succ?.length||0)>1&&(to.pred?.length||0)>1;
+    if(fact.backEdge)backEdges.push(fact);if(fact.critical)criticalEdges.push(fact);
+    edgeFacts.set(fact.key,fact);
+  }
+
+  const loopsByHeader=new Map();
+  for(const be of backEdges){
+    const header=be.to,tail=be.from,nodes=new Set([header.id,tail.id]),stack=tail===header?[]:[tail];
+    while(stack.length){
+      const n=stack.pop();
+      for(const p of n.pred||[]){
+        if(p===header){nodes.add(header.id);continue}
+        if(!nodes.has(p.id)){nodes.add(p.id);stack.push(p)}
+      }
+    }
+    let loop=loopsByHeader.get(header.id);
+    if(!loop){loop={id:`loop:${header.id}`,header,nodes:new Set(),backEdges:[],tails:new Set(),parent:null,children:[],depth:1};loopsByHeader.set(header.id,loop)}
+    for(const id of nodes)loop.nodes.add(id);loop.backEdges.push(be);loop.tails.add(tail.id);
+  }
+  const loops=[...loopsByHeader.values()];
+  for(const loop of loops){
+    const containers=loops.filter(other=>other!==loop&&[...loop.nodes].every(id=>other.nodes.has(id)));
+    containers.sort((a,b)=>a.nodes.size-b.nodes.size);
+    loop.parent=containers[0]||null;
+    if(loop.parent)loop.parent.children.push(loop);
+  }
+  const loopDepthOf=loop=>loop.parent?loopDepthOf(loop.parent)+1:1;
+  for(const loop of loops)loop.depth=loopDepthOf(loop);
+  const blockLoops=new Map(blocks.map(b=>[b.id,loops.filter(l=>l.nodes.has(b.id)).sort((a,b2)=>a.nodes.size-b2.nodes.size)]));
+  for(const b of blocks){b.advancedLoopDepth=blockLoops.get(b.id).length;b.advancedLoopHeader=loops.some(l=>l.header===b)}
+
+  const tailCalls=[],unresolvedTransfers=[],jumpTables=[],indirectCallCandidates=[],indirectJumpCandidates=[];
+  const adapter=df?.adapter||architectureAdapterForFunction(fn);
+  for(const b of blocks){
+    for(const inst of b.instructions||[]){
+      const info=df?.instInfo?.get(inst),mn=inst.mnemonic.toLowerCase();
+      if(/^call/.test(mn)&&info?.callTargetValue){
+        const candidates=candidateTargetsFromValue(info.callTargetValue);
+        indirectCallCandidates.push({block:b,instruction:inst,value:info.callTargetValue,candidates,confidence:candidates.length===1&&candidates[0].confidence==='exact'?'exact':candidates.length?'inferred-candidates':'unknown'});
+      }
+    }
+    const last=b.instructions?.at(-1);if(!last)continue;
+    const mn=last.mnemonic.toLowerCase(),info=df?.instInfo?.get(last),predicate=cfgBranchPredicate(mn);
+    const targetAddr=adapter?.branchTarget?.(last);
+    const targetBlock=blockContainingAddress(targetAddr);
+    if(/^j(?!mp)/.test(mn)){
+      for(const to of b.succ||[]){
+        const fact=edgeFacts.get(edgeKey(b,to));if(!fact)continue;
+        fact.predicate=predicate;
+        fact.outcome=info?.branchOutcome;
+        const isTarget=targetBlock===to;
+        fact.label=isTarget?(predicate||mn):(predicate?cfgNegatedPredicate(predicate):'fallthrough');
+        if(info?.branchOutcome!==undefined){
+          fact.staticFeasible=isTarget?!!info.branchOutcome:!info.branchOutcome;
+          fact.evidence=`static ${fact.staticFeasible?'taken':'not taken'} · ${info.branchEvidence||'predicate'}`;
+        }
+      }
+    }
+    if(/^jmp/.test(mn)){
+      const indirect=!!info?.jumpTargetValue||!Number.isFinite(targetAddr);
+      if(indirect){
+        const valueCandidates=candidateTargetsFromValue(info?.jumpTargetValue);
+        indirectJumpCandidates.push({block:b,instruction:last,value:info?.jumpTargetValue||null,candidates:valueCandidates,confidence:valueCandidates.length===1&&valueCandidates[0].confidence==='exact'?'exact':valueCandidates.length?'inferred-candidates':'unknown'});
+        const exactLocal=valueCandidates.filter(x=>x.kind==='block');
+        for(const candidate of exactLocal){
+          const key=edgeKey(b,candidate.block);
+          if(!edgeFacts.has(key))edgeFacts.set(key,{from:b,to:candidate.block,key,kind:'indirect-target',backEdge:false,critical:false,label:'indirect target',predicate:'indirect',outcome:null,evidence:candidate.evidence,indirectTarget:true});
+        }
+        const exactFunctions=valueCandidates.filter(x=>x.kind==='function');
+        if(exactFunctions.length===1)tailCalls.push({block:b,instruction:last,target:exactFunctions[0].function,address:exactFunctions[0].address,confidence:exactFunctions[0].confidence,evidence:`indirect terminal jump: ${exactFunctions[0].evidence}`});
+        const objects=new Set();
+        for(const obj of cfgValueDataObjects(info?.jumpTargetValue))objects.add(obj);
+        const dref=state.dataRefs.find(r=>r.workspaceFileId===fn.workspaceFileId&&r.instruction===last);
+        if(dref?.toObject)objects.add(dref.toObject);
+        const tables=[...objects].filter(obj=>obj.kind==='pointer-table'||obj.functionPointers||obj.entries?.length);
+        if(tables.length){
+          for(const table of tables){
+            const targets=[];
+            (table.entries||[]).forEach((entry,i)=>{
+              const addr=entry.targetFunction?.addr??entry.relocation?.targetAddress;
+              const tb=blockContainingAddress(addr);
+              if(tb&&!targets.some(t=>t.block===tb)){
+                targets.push({index:i,address:addr,block:tb,entry,evidence:entry.relocation?'relocation-backed table entry':'table target'});
+              }
+            });
+            const jt={block:b,instruction:last,table,targets,confidence:targets.length?'exact-targets':'candidate',evidence:'indirect jump references a relocation-backed pointer table'};
+            jumpTables.push(jt);
+          }
+        }else if(!valueCandidates.length)unresolvedTransfers.push({block:b,instruction:last,kind:'indirect-jump',reason:'indirect jump target has no proven table/target set'});
+      }else if(!targetBlock){
+        const targetFn=state.functions.find(f=>f!==fn&&f.workspaceFileId===fn.workspaceFileId&&f.addr===targetAddr)||state.functions.find(f=>f!==fn&&f.addr===targetAddr);
+        if(targetFn)tailCalls.push({block:b,instruction:last,target:targetFn,address:targetAddr,confidence:'exact',evidence:'terminal direct jump targets another function'});
+        else unresolvedTransfers.push({block:b,instruction:last,kind:'external-jump',address:targetAddr,reason:'direct jump leaves the selected function but target function is unresolved'});
+      }
+    }
+  }
+
+  // Exact switch/case edges only when a relocation-backed table entry maps to
+  // a concrete block in the same function.
+  for(const jt of jumpTables)for(const target of jt.targets){
+    const key=edgeKey(jt.block,target.block),existing=edgeFacts.get(key);
+    if(existing){existing.switchCase=true;existing.switchTable=jt.table;existing.caseIndices=[...(existing.caseIndices||[]),target.index]}
+    else edgeFacts.set(key,{from:jt.block,to:target.block,key,kind:'switch-case',backEdge:false,critical:false,label:`case ${target.index}`,predicate:'jump-table',outcome:null,evidence:target.evidence,switchCase:true,switchTable:jt.table,caseIndices:[target.index]});
+  }
+
+  const pathFromEntry=block=>{
+    if(!block||!reachable.has(block.id))return [];
+    const path=[block];let cur=block,guard=0;
+    while(cur!==entry&&guard++<blocks.length+2){const pid=reachParent.get(cur.id);cur=pid?byId.get(pid):null;if(!cur)break;path.push(cur)}
+    return path.reverse();
+  };
+  const result={
+    workspaceRevision:state.workspaceRevision,function:fn,df,blocks,entry,reachable,reachParent,pathFromEntry,
+    dominators,idom,domDepth,frontier,backEdges,loops,blockLoops,criticalEdges,edgeFacts,
+    tailCalls,unresolvedTransfers,jumpTables,indirectCallCandidates,indirectJumpCandidates,domIterations
+  };
+  state.cfgAnalysisCache.set(fn.id,result);return result;
+}
+
 function buildCfgGraph(){
   const fn=state.selectedFunction;
   if(!fn)return {nodes:[],edges:[],nodeById:new Map()};
-  const nodes=buildBasicBlocks(fn),edges=[],nodeById=new Map(nodes.map(n=>[n.id,n]));
-  for(const n of nodes)for(const e of n.edges)edges.push({from:n,to:e.to,kind:e.kind,count:1});
+  const nodes=buildBasicBlocks(fn),edges=[],nodeById=new Map(nodes.map(n=>[n.id,n])),df=functionDataflow(fn),advanced=analyzeAdvancedCfg(fn);
+  const visualByDataflowId=new Map();
+  for(const n of nodes){
+    n.pred=[];n.succ=[];
+    const db=df?.blocks?.find(b=>b.instructions?.[0]?.line===n.startLine||(!fn.syntheticAddress&&b.instructions?.[0]?.addr===n.startAddr))||null;
+    n.dataflowBlock=db;if(db)visualByDataflowId.set(db.id,n);
+    n.dataflowEntryState=db?.dataflowEntryState||null;n.dataflowExitState=db?.dataflowExitState||null;
+    const loops=db?(advanced?.blockLoops?.get(db.id)||[]):[];
+    n.loopHeader=!!db&&advanced?.loops?.some(l=>l.header===db);
+    n.loopDepth=loops.length;n.loops=loops;
+    n.dominators=db?[...(advanced?.dominators?.get(db.id)||[])].map(id=>advanced.blocks.find(b=>b.id===id)).filter(Boolean):[];
+    n.immediateDominator=db?advanced?.idom?.get(db.id)||null:null;
+    n.dominanceFrontier=db?[...(advanced?.frontier?.get(db.id)||[])].map(id=>advanced.blocks.find(b=>b.id===id)).filter(Boolean):[];
+    n.reachable=db?advanced?.reachable?.has(db.id):true;
+    n.pathFromEntry=db?advanced?.pathFromEntry?.(db)||[]:[];
+    if(n.loopHeader)n.color='#a47fd1';
+    else if(n.loopDepth>1)n.color='#8f75bc';
+    else if(n.loopDepth===1)n.color='#6f86b7';
+    if(n.loopHeader)n.label=`↻ ${n.label}`;
+    else if(n.loopDepth)n.label=`L${n.loopDepth} · ${n.label}`;
+  }
+
+  const addEdge=(fromDb,toDb,kind,extra={})=>{
+    const from=visualByDataflowId.get(fromDb?.id),to=visualByDataflowId.get(toDb?.id);if(!from||!to)return;
+    const edge={from,to,kind,count:1,...extra};edges.push(edge);from.succ.push(to);to.pred.push(from);
+  };
+
+  if(state.cfgView==='dominators'){
+    for(const db of advanced?.blocks||[]){
+      const parent=advanced.idom.get(db.id);if(parent)addEdge(parent,db,'dominator',{label:'idom',dominator:true});
+    }
+    const levels=new Map();
+    for(const n of nodes){
+      const d=n.dataflowBlock?(advanced?.domDepth?.get(n.dataflowBlock.id)||0):0;
+      if(!levels.has(d))levels.set(d,[]);levels.get(d).push(n)
+    }
+    for(const [d,arr] of levels){
+      arr.sort((a,b)=>(a.startAddr??0)-(b.startAddr??0));
+      const gap=310,total=(arr.length-1)*gap;
+      arr.forEach((n,i)=>{n.x=i*gap-total/2;n.y=d*160});
+    }
+  }else{
+    const seen=new Set();
+    for(const fact of advanced?.edgeFacts?.values?.()||[]){
+      const key=fact.key;if(seen.has(key))continue;seen.add(key);
+      let kind=fact.kind==='switch-case'?'switch-case':fact.kind==='indirect-target'?'indirect-target':fact.backEdge?'back-edge':fact.critical?'critical-edge':null;
+      if(!kind){
+        const fromLast=fact.from.instructions?.at(-1),mn=fromLast?.mnemonic?.toLowerCase()||'';
+        const targetAddr=df?.adapter?.branchTarget?.(fromLast),isTarget=Number.isFinite(targetAddr)&&fact.to.instructions?.some(i=>i.addr===targetAddr);
+        kind=/^j(?!mp)/.test(mn)?(isTarget?'branch':'fallthrough'):/^jmp/.test(mn)?'jump':'fallthrough';
+      }
+      addEdge(fact.from,fact.to,kind,{
+        label:fact.label||'',predicate:fact.predicate||'',outcome:fact.outcome,staticFeasible:fact.staticFeasible,evidence:fact.evidence||'',
+        backEdge:fact.backEdge,critical:fact.critical,switchCase:fact.switchCase,caseIndices:fact.caseIndices||[]
+      });
+    }
+    // Jump-table targets can exist outside the ordinary direct CFG successor
+    // list. They are added only when a table entry resolves to an exact block.
+    for(const jt of advanced?.jumpTables||[])for(const target of jt.targets||[]){
+      const k=`${jt.block.id}->${target.block.id}`;
+      if(seen.has(k))continue;seen.add(k);
+      addEdge(jt.block,target.block,'switch-case',{label:`case ${target.index}`,predicate:'jump-table',evidence:target.evidence,switchCase:true,caseIndices:[target.index]});
+    }
+    if(state.cfgView==='loops'){
+      // Keep control-flow geometry but separate nested loop levels horizontally
+      // enough that headers/back-edges are visually inspectable.
+      for(const n of nodes){
+        if(n.loopDepth)n.x+=n.loopDepth*80;
+        if(n.loopHeader)n.y-=20;
+      }
+    }
+  }
+  for(const n of nodes){
+    if(!n.pred.length)n.pred=(n.dataflowBlock?.pred||[]).map(b=>visualByDataflowId.get(b.id)).filter(Boolean);
+    if(!n.succ.length)n.succ=(n.dataflowBlock?.succ||[]).map(b=>visualByDataflowId.get(b.id)).filter(Boolean);
+  }
+  state.currentCfgAnalysis=advanced;
   return {nodes,edges,nodeById};
 }
 
@@ -4458,6 +4863,22 @@ function buildDataflowGraph(){
 }
 
 function updateGraphLegend(){
+  if(state.mode==='cfg'){
+    if(state.cfgView==='dominators')els.legend.innerHTML=`
+      <span><i class="dot" style="background:#6fa8ff"></i>basic block</span>
+      <span><i class="dot" style="background:#5aa5d8"></i>idom edge</span>
+      <span><i class="dot" style="background:#a47fd1"></i>loop header</span>
+      <span>dominance tree</span>`;
+    else els.legend.innerHTML=`
+      <span><i class="dot" style="background:#6fa8ff"></i>basic block</span>
+      <span><i class="dot" style="background:#a47fd1"></i>loop header</span>
+      <span style="color:#c281d6">┄ back edge</span>
+      <span style="color:#e29c55">─ critical edge</span>
+      <span style="color:#78c8a0">─ switch/case</span>
+      <span style="color:#69a9d2">┄ indirect target</span>
+      <span style="color:#806a43">─ branch predicate</span>`;
+    return;
+  }
   if(state.mode==='dataflow'){
     els.legend.innerHTML=`
       <span><i class="dot" style="background:#6fa8ff"></i>instruction</span>
@@ -4484,7 +4905,7 @@ function buildGraph(){
   state.graphNodes=g.nodes;state.graphEdges=g.edges;state.nodeById=g.nodeById;state.hoverNode=null;
   buildGraphRenderIndex();updateGraphLegend();
   state.dirty=true;
-  if(state.mode==='calls'||state.mode==='binary'||state.mode==='dataflow')updateStats();
+  if(state.mode==='calls'||state.mode==='binary'||state.mode==='dataflow'||state.mode==='cfg')updateStats();
   if(state.mode!=='calls')els.entrySummary.style.display='none';
   if((state.mode==='cfg'||state.mode==='dataflow')&&!state.selectedFunction)setStatus(t('selectFunctionCfg'));
 }
@@ -4717,6 +5138,24 @@ function renderGraph(){
     ctx.restore();
   }
 
+  if(state.mode==='cfg'&&state.cfgView==='loops'&&state.currentCfgAnalysis?.loops?.length){
+    const ordered=[...state.currentCfgAnalysis.loops].sort((a,b)=>a.depth-b.depth||b.nodes.size-a.nodes.size);
+    for(const loop of ordered){
+      const members=state.graphNodes.filter(n=>n.kind==='block'&&n.dataflowBlock&&loop.nodes.has(n.dataflowBlock.id));
+      if(!members.length)continue;
+      const pad=26/z,minX=Math.min(...members.map(n=>n.x-n.w/2))-pad,maxX=Math.max(...members.map(n=>n.x+n.w/2))+pad,
+            minY=Math.min(...members.map(n=>n.y-n.h/2))-pad,maxY=Math.max(...members.map(n=>n.y+n.h/2))+pad;
+      if(maxX<worldMin.x||minX>worldMax.x||maxY<worldMin.y||minY>worldMax.y)continue;
+      ctx.save();
+      ctx.fillStyle=loop.depth%2?'#34234822':'#24374a22';ctx.strokeStyle=loop.depth%2?'#9b79c8':'#648bb8';
+      ctx.lineWidth=1.2/z;ctx.setLineDash([7/z,6/z]);
+      roundRect(ctx,minX,minY,maxX-minX,maxY-minY,12/z);ctx.fill();ctx.stroke();ctx.setLineDash([]);
+      ctx.fillStyle=loop.depth%2?'#bca1df':'#92b9df';ctx.font=`600 ${9/z*clamp(z,.72,1)}px ui-monospace,monospace`;ctx.textAlign='left';ctx.textBaseline='bottom';
+      ctx.fillText(`loop d${loop.depth} · header ${cfgBlockTitle(loop.header,state.selectedFunction)} · ${loop.nodes.size} blocks`,minX+8/z,minY-4/z);
+      ctx.restore();
+    }
+  }
+
   const selectedRepId=state.selectedFunction?(state.functionRepresentative.get(state.selectedFunction.id)||state.selectedFunction.id):null;
   const selectedNode=state.mode==='calls'&&selectedRepId?state.nodeById.get(selectedRepId):null;
 
@@ -4742,7 +5181,8 @@ function renderGraph(){
 
     const onPath=pathEdges.has(e);
     const near=selectedNode&&(e.from===selectedNode||e.to===selectedNode);
-    const dim=selectedNode&&!near&&!onPath;
+    const staticallyImpossible=state.mode==='cfg'&&e.staticFeasible===false;
+    const dim=(selectedNode&&!near&&!onPath)||staticallyImpossible;
 
     let col=e.kind==='dynamic-match'?'#d7b457':
             e.kind==='data-ref'?'#72a58c':
@@ -4756,6 +5196,11 @@ function renderGraph(){
             e.kind==='data-use'?'#6fa8ff':
             e.kind==='phi-input'?'#a47fd1':
             e.kind==='analysis-barrier'?'#d27d72':
+            e.kind==='dominator'?'#5aa5d8':
+            e.kind==='back-edge'?'#c281d6':
+            e.kind==='critical-edge'?'#e29c55':
+            e.kind==='switch-case'?'#78c8a0':
+            e.kind==='indirect-target'?'#69a9d2':
             e.kind==='contains'?'#3f4b56':
             e.crossFile&&e.kind==='call'?'#6fa8d8':
             e.kind==='call'?'#557792':
@@ -4770,8 +5215,8 @@ function renderGraph(){
     drawArrow(
       ctx,x1,y1,x2,y2,col,
       Math.max(.75,(onPath?2.2:near?1.6:1)/z*.72),
-      e.kind==='address'||e.kind==='hidden'||e.crossFile||e.kind==='dynamic-match'||e.kind==='data-ref'||e.kind==='relocation'||e.kind==='phi-input'||e.kind==='memory-phi'||e.kind==='analysis-barrier',
-      dim?.10:(onPath||near?1:.38)
+      e.kind==='address'||e.kind==='hidden'||e.crossFile||e.kind==='dynamic-match'||e.kind==='data-ref'||e.kind==='relocation'||e.kind==='phi-input'||e.kind==='memory-phi'||e.kind==='analysis-barrier'||e.kind==='back-edge'||e.kind==='indirect-target',
+      staticallyImpossible?.08:dim?.10:(onPath||near?1:.38)
     );
 
     if(e.kind==='hidden'&&e.hiddenCount&&z>.33){
@@ -4790,6 +5235,17 @@ function renderGraph(){
         ctx.font=`600 ${8.5/z*clamp(z,.72,1)}px ui-monospace,monospace`;
         ctx.textAlign='center';ctx.textBaseline='bottom';
         ctx.fillText(t('resolvesTo'),mx,my-5/z);ctx.restore();
+      }
+    }
+    if(state.mode==='cfg'&&e.label&&z>.42){
+      const mx=(x1+x2)/2,my=(y1+y2)/2;
+      if(mx>=worldMin.x&&mx<=worldMax.x&&my>=worldMin.y&&my<=worldMax.y){
+        ctx.save();ctx.fillStyle=e.kind==='back-edge'?'#d0a0df':e.kind==='switch-case'?'#9bdec0':'#bcae82';
+        ctx.font=`${8.2/z*clamp(z,.72,1)}px ui-monospace,monospace`;
+        ctx.textAlign='center';ctx.textBaseline='bottom';
+        let label=e.label;if(e.evidence)label+=` · ${e.evidence}`;
+        if(label.length>58)label=label.slice(0,57)+'…';
+        ctx.fillText(label,mx,my-5/z);ctx.restore();
       }
     }
   }
@@ -4843,7 +5299,13 @@ function renderGraph(){
       const primaryYOffset=n.kind==='section'&&n.textPreview?11/z:(n.kind==='block'||n.kind==='group'?10/z:0);
       ctx.fillText(label,n.x-n.w/2+pad,n.y-primaryYOffset);
 
-      if(n.kind==='block'&&z>.45){ctx.fillStyle='#81909f';ctx.font=`${9/z*clamp(z,.7,1)}px ui-monospace,monospace`;ctx.fillText(n.instructions.slice(0,3).map(i=>i.mnemonic).join(' · '),n.x-n.w/2+pad,n.y+13/z)}
+      if(n.kind==='block'&&z>.45){
+        ctx.fillStyle='#81909f';ctx.font=`${9/z*clamp(z,.7,1)}px ui-monospace,monospace`;
+        const parts=[n.instructions.slice(0,3).map(i=>i.mnemonic).join(' · ')];
+        if(state.mode==='cfg'&&n.loopDepth)parts.push(`loop depth ${n.loopDepth}`);
+        if(state.mode==='cfg'&&state.cfgView==='dominators'&&n.immediateDominator)parts.push('idom');
+        ctx.fillText(parts.join(' · '),n.x-n.w/2+pad,n.y+13/z)
+      }
       if(n.kind==='group'&&z>.30){ctx.fillStyle='#82909e';ctx.font=`${9/z*clamp(z,.7,1)}px ui-monospace,monospace`;ctx.fillText(`${num(n.memberCount||n.group?.members?.length||0)} ${t('members')} · ${provenanceKindLabel(n.group?.kind)}`,n.x-n.w/2+pad,n.y+13/z)}
       if(n.kind==='section'&&z>.30){
         ctx.fillStyle='#82909e';ctx.font=`${9/z*clamp(z,.7,1)}px ui-monospace,monospace`;
@@ -5270,7 +5732,7 @@ function x86InstructionCapability(inst){
 function x86_64TransferInstruction({ctx,inst,decoded,api}){
   const {info,mn,parts,syntax,dst,src,semanticBarrier}=decoded;
   const {
-    adapter,abi,fn,newValue,valueFromOperand,writeOperand,readFlags,readReg,recordUse,recordDef,
+    adapter,abi,fn,newValue,valueFromOperand,writeOperand,defineReg,readFlags,readReg,recordUse,recordDef,
     addBarrier,collectCallArguments,callSites,entryValue,stableUnknown,phiValue,
     valueDependsOnKind,collectValueDataObjects,collectValueAliases,isWritableDataObject,
     clobberObjectMemory,clobberObjectRange,nextOrdinal
@@ -5385,7 +5847,11 @@ function x86_64TransferInstruction({ctx,inst,decoded,api}){
     const escapedStack=args.some(a=>valueDependsOnKind(a.value,new Set(['stack-address'])));
     if(escapedStack){
       addBarrier(inst,'escaped-stack-memory','stack address escapes into call; tracked stack contents after the call are conservatively invalidated','conservative');
-      for(const [key,old] of ctx.stack)ctx.stack.set(key,newValue('memory-clobber',`${old.stackSlot?.label||key} may be modified by call`,inst,{stackSlot:old.stackSlot||{key,label:key},inputs:[old],confidence:'unknown'}));
+      for(const [key,old] of ctx.stack){
+        const clobber=newValue('memory-clobber',`${old.stackSlot?.label||key} may be modified by call`,inst,{stackSlot:old.stackSlot||{key,label:key},inputs:[old],confidence:'unknown'});
+        ctx.stack.set(key,clobber);recordDef(clobber,inst,`stack ${clobber.stackSlot?.label||key} clobber`);
+        (info.stackWrites||(info.stackWrites=[])).push({slot:clobber.stackSlot,value:clobber,source:null,clobber:true});
+      }
     }
     const passedAliases=new Map();for(const a of args)collectValueAliases(a.value,passedAliases);
     const writableAliases=[...passedAliases.values()].filter(a=>isWritableDataObject(a.object));
@@ -5395,13 +5861,19 @@ function x86_64TransferInstruction({ctx,inst,decoded,api}){
       (info.memoryInvalidations||(info.memoryInvalidations=[])).push(...writableAliases.map(a=>a.object));
       info.memoryInvalidationDetails=writableAliases.map(a=>({object:a.object,offset:a.offset,confidence:a.confidence,scope:'exact-object'}));
     }
-    for(const reg of abi.callerSaved)ctx.regs.set(reg,newValue('clobber',`${reg} clobbered`,inst,{reg,confidence:'exact'}));
+    for(const reg of abi.callerSaved){
+      const clobber=newValue('clobber',`${reg} clobbered`,inst,{reg,confidence:'exact'});
+      ctx.regs.set(reg,clobber);recordDef(clobber,inst,reg);
+    }
     const ret=newValue('call-result',`${abi.returnReg} ← ${callEdge?.targetName||'call'} result`,inst,{reg:abi.returnReg,callee:callEdge?.to||null,confidence:'exact'});
     ctx.regs.set(abi.returnReg,ret);recordDef(ret,inst,t('returnValue'));info.returnValue=ret;
   }else if(mn==='syscall'){
     const syscallAbi=adapter.syscallABI,sysArgs=syscallAbi.registerArgs.map((reg,index)=>({reg,index,value:readReg(ctx,reg,inst,`syscall arg ${index+1}`),location:reg}));
     info.callArguments=sysArgs;callSites.push({inst,args:sysArgs,abi:syscallAbi});
-    for(const reg of syscallAbi.callerSaved)ctx.regs.set(reg,newValue('clobber',`${reg} syscall-clobbered`,inst,{reg,confidence:'exact'}));
+    for(const reg of syscallAbi.callerSaved){
+      const clobber=newValue('clobber',`${reg} syscall-clobbered`,inst,{reg,confidence:'exact'});
+      ctx.regs.set(reg,clobber);recordDef(clobber,inst,reg);
+    }
     const ret=newValue('call-result',`${syscallAbi.returnReg} ← syscall result`,inst,{reg:syscallAbi.returnReg,confidence:'exact'});ctx.regs.set(syscallAbi.returnReg,ret);recordDef(ret,inst,t('returnValue'));info.returnValue=ret;
     const syscallAliases=new Map();for(const a of sysArgs)collectValueAliases(a.value,syscallAliases);
     const syscallWritable=[...syscallAliases.values()].filter(a=>isWritableDataObject(a.object));
@@ -5409,7 +5881,8 @@ function x86_64TransferInstruction({ctx,inst,decoded,api}){
     for(const alias of syscallWritable)clobberObjectMemory(ctx,alias.object,inst,alias.offset==null?'alias-set escapes into syscall':`pointer +${alias.offset} escapes into syscall`);
     if(syscallWritable.length){(info.memoryInvalidations||(info.memoryInvalidations=[])).push(...syscallWritable.map(a=>a.object));info.memoryInvalidationDetails=syscallWritable.map(a=>({object:a.object,offset:a.offset,confidence:a.confidence,scope:'exact-object'}))}
   }else if(mn==='jmp'||mn==='jmpq'){
-    if(parts[0]&&(!Number.isFinite(adapter.branchTarget(inst))||/[\[\(]|%?[a-z]/i.test(parts[0]))){info.jumpTargetValue=valueFromOperand(ctx,parts[0],inst,'indirect jump target')}
+    const op=parts[0]||'',indirectOperand=/[\[\(]/.test(op)||adapter.operandRegisters(op).length>0;
+    if(op&&indirectOperand)info.jumpTargetValue=valueFromOperand(ctx,op,inst,'indirect jump target');
   }else if(mn.startsWith('ret')){
     const ret=ctx.regs.get(abi.returnReg)||entryValue(abi.returnReg);recordUse(ret,inst,'function return');info.returnValue=ret;
   }else{
@@ -5450,7 +5923,7 @@ const X86_64_ADAPTER={
   transferAPI:Object.freeze({
     request:'{ ctx, instruction, decoded, api }',
     decoded:['info','mnemonic','parts','syntax','dst','src','semanticBarrier'],
-    api:['newValue','valueFromOperand','writeOperand','readRegister','readFlags','recordUse','recordDef','barrier','callArguments','aliasSets','memoryClobber']
+    api:['newValue','valueFromOperand','writeOperand','defineRegister','readRegister','readFlags','recordUse','recordDef','barrier','callArguments','aliasSets','memoryClobber']
   }),
   syscallABI:{name:'Linux x86-64 syscall',registerArgs:['rdi','rsi','rdx','r10','r8','r9'],callerSaved:['rax','rcx','r11'],returnReg:'rax'},
   abiFor(record){
@@ -6082,7 +6555,7 @@ function analyzeFunctionDataflow(fn){
     return args.sort((a,b)=>a.index-b.index);
   };
   const transferAPI={
-    adapter,abi,fn,newValue,valueFromOperand,writeOperand,readFlags,readReg,recordUse,recordDef,
+    adapter,abi,fn,newValue,valueFromOperand,writeOperand,defineReg,readFlags,readReg,recordUse,recordDef,
     addBarrier,collectCallArguments,callSites,entryValue,stableUnknown,phiValue,
     valueDependsOnKind,collectValueDataObjects,collectValueAliases,isWritableDataObject,
     clobberObjectMemory,clobberObjectRange,nextOrdinal:()=>seq+1
@@ -6269,11 +6742,212 @@ function analyzeFunctionDataflow(fn){
     }
   }
 
+  // Full block-state convergence pass.
+  //
+  // The SSA/value graph above owns semantic values. This pass deliberately
+  // does not create a second set of IR values: it replays the already-proven
+  // instruction definitions into compact abstract block states until register,
+  // stack, static-memory, FLAGS and frame geometry stabilize around back edges.
+  const aliasFactsForValue=value=>{
+    const aliases=[...collectValueAliases(value).values()].map(a=>({
+      object:a.object,objectKey:a.object?.id||String(a.object?.address||''),
+      offset:Number.isFinite(a.offset)?a.offset:null,address:Number.isFinite(a.address)?a.address:null,
+      confidence:a.confidence||'inferred'
+    }));
+    aliases.sort((a,b)=>String(a.objectKey).localeCompare(String(b.objectKey))||(a.offset??-1)-(b.offset??-1));
+    return aliases;
+  };
+  const factFromValue=value=>({
+    value:value||null,abs:value?.abstractValue||TOP,
+    aliases:value?aliasFactsForValue(value):[],
+    confidence:value?.confidence||'unknown',
+    dataObject:value?.dataObject||null,rangeStart:value?.rangeStart,rangeEnd:value?.rangeEnd,
+    stackSlot:value?.stackSlot||null
+  });
+  const topFact=()=>({value:null,abs:TOP,aliases:[],confidence:'unknown'});
+  const aliasFactKey=list=>(list||[]).map(a=>`${a.objectKey}:${a.offset==null?'?':a.offset}`).join('|');
+  const factEq=(a,b)=>!!a&&!!b&&absEq(a.abs||TOP,b.abs||TOP)&&aliasFactKey(a.aliases)===aliasFactKey(b.aliases);
+  const mergeFactList=list=>{
+    const facts=list.filter(Boolean);if(!facts.length)return topFact();
+    const abs=mergeAbs(facts.map(f=>f.abs||TOP),{ignoreBottom:false});
+    const firstAlias=aliasFactKey(facts[0].aliases),sameAliases=facts.every(f=>aliasFactKey(f.aliases)===firstAlias);
+    let aliases;
+    if(sameAliases)aliases=facts[0].aliases||[];
+    else{
+      const all=[];for(const f of facts)for(const a of f.aliases||[])if(!all.some(x=>x.objectKey===a.objectKey&&x.offset===a.offset))all.push(a);
+      aliases=all.map(a=>({...a,confidence:'alias-set'}));
+    }
+    return {value:facts.every(f=>f.value===facts[0].value)?facts[0].value:null,abs,aliases,confidence:abs.kind==='top'?'unknown':'inferred'};
+  };
+  const emptyState=()=>({regs:new Map(),stack:new Map(),memory:new Map(),flags:null,rspDelta:null,rbpEntryDelta:null});
+  const cloneState=st=>({regs:new Map(st.regs),stack:new Map(st.stack),memory:new Map(st.memory),flags:st.flags?{...st.flags}:null,rspDelta:st.rspDelta,rbpEntryDelta:st.rbpEntryDelta});
+  const mapStateEq=(a,b)=>{
+    if(a.size!==b.size)return false;
+    for(const [k,v] of a)if(!factEq(v,b.get(k)))return false;
+    return true;
+  };
+  const flagsFactEq=(a,b)=>{
+    if(a===b)return true;if(!a||!b)return false;
+    return a.ZF===b.ZF&&a.CF===b.CF&&a.OF===b.OF&&a.SF===b.SF;
+  };
+  const stateDomainChanges=(a,b)=>({
+    registers:!mapStateEq(a.regs,b.regs),
+    stack:!mapStateEq(a.stack,b.stack),
+    memory:!mapStateEq(a.memory,b.memory),
+    flags:!flagsFactEq(a.flags,b.flags),
+    geometry:a.rspDelta!==b.rspDelta||a.rbpEntryDelta!==b.rbpEntryDelta,
+    aliases:[...new Set([...a.regs.keys(),...b.regs.keys()])].some(k=>aliasFactKey(a.regs.get(k)?.aliases)!==aliasFactKey(b.regs.get(k)?.aliases))
+  });
+  const stateEq=(a,b)=>!Object.values(stateDomainChanges(a,b)).some(Boolean);
+  const scalarMerge=list=>{
+    if(!list.length||list.some(v=>!Number.isFinite(v)))return null;
+    return list.every(v=>v===list[0])?list[0]:null;
+  };
+  const memoryFactKey=f=>{
+    const v=f?.value;
+    if(v?.memoryKey)return v.memoryKey;
+    if(f?.dataObject&&Number.isFinite(f.rangeStart)&&Number.isFinite(f.rangeEnd))return memoryRangeKey(f.dataObject,f.rangeStart,f.rangeEnd);
+    return null;
+  };
+  const installSummaryMemory=(memory,fact)=>{
+    const v=fact?.value,obj=v?.dataObject||fact?.dataObject;
+    if(!obj||!Number.isFinite(v?.rangeStart??fact?.rangeStart)||!Number.isFinite(v?.rangeEnd??fact?.rangeEnd))return;
+    const start=v?.rangeStart??fact.rangeStart,end=v?.rangeEnd??fact.rangeEnd,key=memoryRangeKey(obj,start,end);
+    for(const [oldKey,oldFact] of [...memory]){
+      const ov=oldFact?.value,oldObj=ov?.dataObject||oldFact?.dataObject,os=ov?.rangeStart??oldFact?.rangeStart,oe=ov?.rangeEnd??oldFact?.rangeEnd;
+      if(oldObj===obj&&Number.isFinite(os)&&Number.isFinite(oe)&&os<end&&oe>start)memory.delete(oldKey);
+    }
+    memory.set(key,{...fact,dataObject:obj,rangeStart:start,rangeEnd:end});
+  };
+  const defaultMemoryFact=(key,template)=>{
+    const v=template?.value,obj=v?.dataObject||template?.dataObject,start=v?.rangeStart??template?.rangeStart,end=v?.rangeEnd??template?.rangeEnd;
+    if(obj&&Number.isFinite(start)&&Number.isFinite(end))return factFromValue(entryMemoryValue(obj,start,end));
+    return topFact();
+  };
+  const mergeStateFromPreds=(block,predStates)=>{
+    if(block.index===0)return {regs:new Map(),stack:new Map(),memory:new Map(),flags:null,rspDelta:0,rbpEntryDelta:null};
+    if(!predStates.length)return emptyState();
+    const out=emptyState();
+    const regKeys=[...new Set(predStates.flatMap(st=>[...st.regs.keys()]))];
+    for(const key of regKeys)out.regs.set(key,mergeFactList(predStates.map(st=>st.regs.get(key)||topFact())));
+    const stackKeys=[...new Set(predStates.flatMap(st=>[...st.stack.keys()]))];
+    for(const key of stackKeys)out.stack.set(key,mergeFactList(predStates.map(st=>st.stack.get(key)||topFact())));
+    const memoryKeys=[...new Set(predStates.flatMap(st=>[...st.memory.keys()]))];
+    for(const key of memoryKeys){
+      const template=predStates.map(st=>st.memory.get(key)).find(Boolean),facts=predStates.map(st=>st.memory.get(key)||defaultMemoryFact(key,template));
+      const merged=mergeFactList(facts);merged.dataObject=template?.dataObject||template?.value?.dataObject||null;
+      merged.rangeStart=template?.rangeStart??template?.value?.rangeStart;merged.rangeEnd=template?.rangeEnd??template?.value?.rangeEnd;
+      out.memory.set(key,merged);
+    }
+    const flagFacts=predStates.map(st=>st.flags);
+    if(flagFacts.every(Boolean)){
+      const first=flagFacts[0];
+      out.flags={
+        ZF:flagFacts.every(f=>f.ZF===first.ZF)?first.ZF:undefined,
+        CF:flagFacts.every(f=>f.CF===first.CF)?first.CF:undefined,
+        OF:flagFacts.every(f=>f.OF===first.OF)?first.OF:undefined,
+        SF:flagFacts.every(f=>f.SF===first.SF)?first.SF:undefined
+      };
+    }
+    out.rspDelta=scalarMerge(predStates.map(st=>st.rspDelta));
+    out.rbpEntryDelta=scalarMerge(predStates.map(st=>st.rbpEntryDelta));
+    return out;
+  };
+  const transferGeometry=(st,inst)=>{
+    const mn=inst.mnemonic.toLowerCase().replace(/^(?:lock|rep|repe|repne)\s+/,'');
+    const {syntax,parts}=adapter.normalizeOperands(inst),dst=parts.length?(syntax==='att'?parts.at(-1):parts[0]):'',src=parts.length>1?(syntax==='att'?parts[0]:parts[1]):'';
+    if(mn==='push'||mn==='pushq'){if(Number.isFinite(st.rspDelta))st.rspDelta-=8;return}
+    if(mn==='pop'||mn==='popq'){if(Number.isFinite(st.rspDelta))st.rspDelta+=8;return}
+    if(mn==='leave'||mn==='leaveq'){
+      st.rspDelta=Number.isFinite(st.rbpEntryDelta)?st.rbpEntryDelta+8:null;st.rbpEntryDelta=null;return;
+    }
+    if(/^mov/.test(mn)){
+      const d=operandRegister(dst),r=operandRegister(src);
+      if(d?.canonical==='rbp'&&r?.canonical==='rsp')st.rbpEntryDelta=st.rspDelta;
+      else if(d?.canonical==='rsp'&&r?.canonical==='rbp')st.rspDelta=st.rbpEntryDelta;
+      return;
+    }
+    if(/^(?:add|sub)[bwlq]?$/.test(mn)&&operandRegister(dst)?.canonical==='rsp'){
+      const imm=immediateValue(src);
+      if(imm!=null&&Number.isFinite(st.rspDelta)){
+        const amount=Number(imm);st.rspDelta+=mn.startsWith('sub')?-amount:amount;
+      }else st.rspDelta=null;
+    }
+  };
+  const replayBlockState=(block,entry)=>{
+    const st=cloneState(entry);
+    for(const inst of block.instructions){
+      const info=instInfo.get(inst);if(!info){transferGeometry(st,inst);continue}
+      transferGeometry(st,inst);
+      for(const d of info.defs||[]){
+        const v=d.value;if(!v)continue;const fact=factFromValue(v);
+        if(v.reg)st.regs.set(v.reg,fact);
+        if(v.stackSlot?.key)st.stack.set(v.stackSlot.key,fact);
+        if(v.kind==='flags')st.flags=v.knownFlags?{...v.knownFlags}:null;
+        if(v.memoryKey||['memory-version','memory-clobber','memory-slice','memory-entry'].includes(v.kind))installSummaryMemory(st.memory,fact);
+      }
+      for(const w of info.stackWrites||[])if(w?.slot?.key&&w.value)st.stack.set(w.slot.key,factFromValue(w.value));
+      for(const w of info.memoryWrites||[]){
+        if(w?.version)installSummaryMemory(st.memory,factFromValue(w.version));
+        for(const v of w?.versions||[])if(v)installSummaryMemory(st.memory,factFromValue(v));
+      }
+      if((info.analysisBarriers||[]).some(b=>b.kind==='escaped-stack-memory')){
+        for(const key of st.stack.keys())st.stack.set(key,topFact());
+      }
+      if(info.memoryInvalidationDetails?.length){
+        for(const detail of info.memoryInvalidationDetails){
+          const obj=detail.object;if(!obj)continue;
+          for(const [key,f] of [...st.memory]){
+            const v=f?.value,fo=v?.dataObject||f?.dataObject;if(fo===obj)st.memory.set(key,topFact());
+          }
+        }
+      }
+      const flagsDef=(info.defs||[]).map(x=>x.value).find(v=>v?.kind==='flags');
+      if(flagsDef)st.flags=flagsDef.knownFlags?{...flagsDef.knownFlags}:null;
+    }
+    return st;
+  };
+
+  const blockEntryState=new Map(),blockExitState=new Map(),domainLastChange={registers:0,stack:0,memory:0,flags:0,geometry:0,aliases:0};
+  const loopBlocks=blocks.filter(b=>b.pred.some(p=>p.index>=b.index));
+  let stateFixedPointIterations=0,stateFixedPointConverged=false;
+  const STATE_BUDGET=Math.min(128,Math.max(24,blocks.length*8));
+  for(let iter=1;iter<=STATE_BUDGET;iter++){
+    stateFixedPointIterations=iter;let any=false;
+    for(const block of blocks){
+      const predStates=block.index===0?[]:block.pred.map(p=>blockExitState.get(p.id)).filter(Boolean);
+      const entry=mergeStateFromPreds(block,predStates),exit=replayBlockState(block,entry);
+      const prevEntry=blockEntryState.get(block.id),prevExit=blockExitState.get(block.id);
+      if(!prevEntry||!stateEq(prevEntry,entry)){
+        if(prevEntry){
+          const changes=stateDomainChanges(prevEntry,entry);
+          for(const [domain,changed] of Object.entries(changes))if(changed)domainLastChange[domain]=iter;
+        }else for(const domain of Object.keys(domainLastChange))domainLastChange[domain]=Math.max(domainLastChange[domain],iter);
+        blockEntryState.set(block.id,entry);any=true;
+      }
+      if(!prevExit||!stateEq(prevExit,exit)){
+        if(prevExit){
+          const changes=stateDomainChanges(prevExit,exit);
+          for(const [domain,changed] of Object.entries(changes))if(changed)domainLastChange[domain]=iter;
+        }else for(const domain of Object.keys(domainLastChange))domainLastChange[domain]=Math.max(domainLastChange[domain],iter);
+        blockExitState.set(block.id,exit);any=true;
+      }
+    }
+    if(!any){stateFixedPointConverged=true;break}
+  }
+  if(!stateFixedPointConverged)addBarrier(fn.instructions.at(-1)||fn.instructions[0],'state-fixed-point-budget',`complete block-state propagation hit the ${STATE_BUDGET}-iteration budget`,'conservative');
+  const stateDomainConvergence=Object.fromEntries(Object.entries(domainLastChange).map(([domain,last])=>[domain,{iterations:last||1,converged:stateFixedPointConverged||last<STATE_BUDGET}]));
+  for(const block of blocks){
+    block.dataflowEntryState=blockEntryState.get(block.id)||null;block.dataflowExitState=blockExitState.get(block.id)||null;
+    block.loopHeader=loopBlocks.includes(block);
+  }
+
   const result={
     workspaceRevision:state.workspaceRevision,function:fn,architecture,adapter,abi,blocks,values,phiValues,
     instInfo,callSites,entryRegs,entryMemory,blockExit,analysisBarriers,fixedPointIterations,fixedPointConverged,
+    blockEntryState,blockExitState,stateFixedPointIterations,stateFixedPointConverged,stateDomainConvergence,stateFixedPointBudget:STATE_BUDGET,loopBlocks,
     memoryCellPeak,memoryFragmentCollapses,memoryCellBudget:MEMORY_CELL_BUDGET,
-    mode:'CFG-aware SSA-like merges + abstract fixed point + normalized range memory'
+    mode:'CFG-aware SSA + value fixed point + complete block-state convergence + normalized range memory'
   };
   state.dataflowCache.set(fn.id,result);return result;
 }
@@ -6741,20 +7415,25 @@ els.foldAction.addEventListener('change',()=>{
 // Graph controls
 els.graphMode.addEventListener('change',()=>{
   state.mode=els.graphMode.value;
-  const calls=state.mode==='calls',binary=state.mode==='binary',dataflow=state.mode==='dataflow';
+  const calls=state.mode==='calls',binary=state.mode==='binary',dataflow=state.mode==='dataflow',cfg=state.mode==='cfg';
   els.viewMode.disabled=!calls;
   els.entrySelect.disabled=!calls;
   els.entryBtn.disabled=!calls;
+  els.cfgView.style.display=cfg?'inline-flex':'none';
   els.binaryScope.style.display=binary?'inline-flex':'none';
   els.dataflowFilter.style.display=dataflow?'inline-flex':'none';
   els.dataflowFocus.style.display=dataflow?'inline-flex':'none';
   els.viewMode.style.display=calls?'inline-flex':'none';els.entrySelect.style.display=calls?'inline-flex':'none';els.entryBtn.style.display=calls?'inline-flex':'none';
-  buildGraph();fitGraph(calls);
+  buildGraph();fitGraph(calls);updateStats();
   if(dataflow&&state.selectedFunction){
     const df=functionDataflow(state.selectedFunction);
-    setStatus(`${t('dataflow')}: ${functionDisplayName(state.selectedFunction)} · ${num(df?.values.length||0)} values · ${num(df?.phiValues.length||0)} phi · ${num(df?.analysisBarriers?.length||0)} barriers`);
+    setStatus(`${t('dataflow')}: ${functionDisplayName(state.selectedFunction)} · ${num(df?.values.length||0)} values · ${num(df?.phiValues.length||0)} phi · ${num(df?.analysisBarriers?.length||0)} barriers · state FP ${df?.stateFixedPointConverged?'converged':'partial'} ${num(df?.stateFixedPointIterations||0)}/${num(df?.stateFixedPointBudget||0)}`);
+  }else if(cfg&&state.selectedFunction){
+    const a=analyzeAdvancedCfg(state.selectedFunction);
+    setStatus(`CFG: ${functionDisplayName(state.selectedFunction)} · ${num(a?.loops.length||0)} loops · ${num(a?.backEdges.length||0)} back edges · ${num(a?.criticalEdges.length||0)} critical edges · ${state.cfgView}`);
   }
 });
+els.cfgView.addEventListener('change',()=>{state.cfgView=els.cfgView.value||'control';if(state.mode==='cfg'){buildGraph();fitGraph(false);updateStats();updateInspector(state.selectedBlock||state.selectedFunction)}});
 els.dataflowFilter.addEventListener('change',()=>{state.dataflowFilter=els.dataflowFilter.value;buildGraph();fitGraph(false)});
 els.dataflowFocus.addEventListener('input',()=>{state.dataflowFocus=els.dataflowFocus.value.trim();buildGraph()});
 els.binaryScope.addEventListener('change',()=>{
@@ -6854,7 +7533,7 @@ document.addEventListener('keydown',e=>{
   else if(e.key.toLowerCase()==='f'){fitGraph()}
   else if(e.key.toLowerCase()==='g'&&!els.graphMode.disabled){
     const cycle=['calls','cfg','dataflow'],i=cycle.indexOf(state.mode);
-    state.mode=cycle[(i<0?0:i+1)%cycle.length];els.graphMode.value=state.mode;buildGraph();fitGraph(state.mode==='calls');
+    els.graphMode.value=cycle[(i<0?0:i+1)%cycle.length];els.graphMode.dispatchEvent(new Event('change'));
   }
   else if(e.key==='Escape'){els.inspector.classList.add('hidden')}
 });
@@ -6864,8 +7543,8 @@ new ResizeObserver(()=>{resizeCanvas();resizeTraceCanvas();renderCode(true);stat
 // Regression diagnostics surface used by automated QA. Normal UI code does
 // not depend on it; explicit load entry points exist only for harnesses.
 Object.defineProperty(window,'asmInspectorDebug',{value:{
-  get state(){return state}, functionDataflow, buildGraph, buildDataflowGraph, fitGraph, resizeCanvas, groupAnalysisBarriers,
-  selectFunction, valueDisplay, dataflowUnknownReason,
+  get state(){return state}, functionDataflow, analyzeAdvancedCfg, buildGraph, buildCfgGraph, buildDataflowGraph, fitGraph, resizeCanvas, groupAnalysisBarriers,
+  selectFunction, selectGraphNode, valueDisplay, dataflowUnknownReason,
   // Explicit regression-harness entry points; normal UI code does not depend on them.
   addWorkspaceText, loadText
 },configurable:false,enumerable:false});
