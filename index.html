@@ -63,6 +63,21 @@ html[dir="rtl"] .familyName,html[dir="rtl"] .inspector .title,html[dir="rtl"] .i
 .fileEmpty{padding:10px 8px;color:#596673;font-size:10px;line-height:1.5}
 .hexDialog{width:min(1080px,94vw);height:min(760px,88vh);padding:0;background:#0d1217;color:#c8d2dc;border:1px solid #34414d;border-radius:8px}
 .hexDialog::backdrop{background:#0009}
+.unwindDialog{width:min(1180px,96vw);height:min(820px,92vh);padding:0;background:#0d1217;color:#c8d2dc;border:1px solid #34414d;border-radius:8px}
+.unwindDialog::backdrop{background:#0009}
+.unwindDialogHead{height:40px;display:flex;align-items:center;gap:8px;padding:0 10px;border-bottom:1px solid #26313a;background:#111820}
+.unwindDialogBody{height:calc(100% - 86px);display:grid;grid-template-columns:minmax(320px,39%) 1fr;min-height:0}
+.unwindForm{padding:10px;border-right:1px solid #26313a;overflow:auto;display:flex;flex-direction:column;gap:8px}
+.unwindFormGrid{display:grid;grid-template-columns:120px 1fr;gap:6px 8px;align-items:center}
+.unwindForm textarea{width:100%;min-height:120px;resize:vertical;background:#0a0f14;color:#c9d6e2;border:1px solid #34414d;border-radius:5px;padding:7px;font:12px ui-monospace,monospace;direction:ltr}
+.unwindForm input,.unwindForm select{background:#0a0f14;color:#c9d6e2;border:1px solid #34414d;border-radius:4px;padding:5px 6px;font:12px ui-monospace,monospace}
+.unwindResults{overflow:auto;padding:10px}
+.unwindFrame{border:1px solid #2e3944;border-radius:6px;background:#10161d;margin-bottom:8px;padding:8px}
+.unwindFrame.current{border-color:#5aa5d8}.unwindFrame.stop{border-color:#d27d72}
+.unwindFrameHead{display:flex;align-items:center;gap:8px;font:600 12px ui-monospace,monospace;margin-bottom:6px}
+.unwindFrameGrid{display:grid;grid-template-columns:120px 1fr;gap:3px 8px;font:11px ui-monospace,monospace}
+.unwindDiag{margin-top:6px;color:#d9b97a;font:11px ui-monospace,monospace}
+.unwindDialogFoot{height:46px;display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:0 10px;border-top:1px solid #26313a;background:#111820}
 .hexDialogHead{height:38px;display:flex;align-items:center;gap:8px;padding:0 10px;border-bottom:1px solid #26313a;background:#111820}
 .hexDialogHead .grow{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .hexViewport{position:relative;height:calc(100% - 38px);overflow:auto;background:#090d11;font:12px/20px ui-monospace,SFMono-Regular,Consolas,monospace}
@@ -393,6 +408,7 @@ dialog::backdrop{background:#0009}
           <option value="debug_frame">Unwind: .debug_frame</option>
           <option value="eh_frame">Unwind: .eh_frame</option>
         </select>
+        <button id="unwindSimBtn" style="display:none" title="Evaluate multiple caller frames from a register/memory snapshot">Simulate unwind</button>
         <select id="binaryScope" class="viewMode" style="display:none" title="Binary address-space focus">
           <option value="" data-i18n="allAddressSpaces">All address spaces</option>
         </select>
@@ -479,6 +495,36 @@ dialog::backdrop{background:#0009}
   </div>
 </dialog>
 
+<dialog id="unwindDialog" class="unwindDialog">
+  <div class="unwindDialogHead">
+    <strong>Simulate unwind</strong>
+    <span class="grow" id="unwindDialogTitle">CFI multi-frame evaluator</span>
+    <button id="unwindDialogClose">×</button>
+  </div>
+  <div class="unwindDialogBody">
+    <div class="unwindForm">
+      <div class="unwindFormGrid">
+        <label for="unwindPc">Runtime / static PC</label><input id="unwindPc" value="">
+        <label for="unwindDialogSource">Frame source</label><select id="unwindDialogSource"><option value="auto">auto</option><option value="debug_frame">.debug_frame</option><option value="eh_frame">.eh_frame</option></select>
+        <label for="unwindMaxFrames">Max frames</label><input id="unwindMaxFrames" type="number" min="1" max="256" value="32">
+        <label for="unwindPtrSize">Pointer size</label><select id="unwindPtrSize"><option value="8">8 bytes</option><option value="4">4 bytes</option></select>
+        <label for="unwindLoadBias">Module load bias</label><input id="unwindLoadBias" value="0x0">
+        <label for="unwindStaticBase">Static base</label><input id="unwindStaticBase" value="0x0">
+      </div>
+      <strong>Registers (JSON object)</strong>
+      <textarea id="unwindRegisters" spellcheck="false" placeholder='{"rsp":"0x7fffffffe000","rbp":"0x7fffffffe040","rip":"0x401000"}'></textarea>
+      <strong>Memory values (JSON address → scalar)</strong>
+      <textarea id="unwindMemory" spellcheck="false" placeholder='{"0x7fffffffe048":"0x401234","0x7fffffffe040":"0x7fffffffe080"}'></textarea>
+      <div class="path">The simulator uses the same CFI/DW_OP engine as the static inspector. Memory entries may represent complete pointer-sized scalar values at exact addresses.</div>
+    </div>
+    <div class="unwindResults" id="unwindResults"><div class="empty"><div><strong>No simulation yet</strong><span>Provide PC/registers/memory and run the evaluator.</span></div></div></div>
+  </div>
+  <div class="unwindDialogFoot">
+    <span class="grow" id="unwindDialogStatus"></span>
+    <button id="unwindRun" class="primary">Run unwind</button>
+  </div>
+</dialog>
+
 <script>
 (() => {
 'use strict';
@@ -496,11 +542,14 @@ const els = {
   traceToggle:$('#traceToggle'), tracePane:$('#tracePane'),
   traceTitle:$('#traceTitle'), traceFit:$('#traceFit'), traceCanvas:$('#traceCanvas'), traceCanvasWrap:$('#traceCanvasWrap'), traceEmpty:$('#traceEmpty'),
   graph:$('#graph'), graphPanel:$('#graphPanel'),
-  graphMode:$('#graphMode'), cfgView:$('#cfgView'), cfgEdgeMode:$('#cfgEdgeMode'), unwindSource:$('#unwindSource'), binaryScope:$('#binaryScope'), dataflowFilter:$('#dataflowFilter'), dataflowFocus:$('#dataflowFocus'), viewMode:$('#viewMode'), entrySelect:$('#entrySelect'), entryBtn:$('#entryBtn'), fitBtn:$('#fitBtn'), labelsBtn:$('#labelsBtn'),
+  graphMode:$('#graphMode'), cfgView:$('#cfgView'), cfgEdgeMode:$('#cfgEdgeMode'), unwindSource:$('#unwindSource'), unwindSimBtn:$('#unwindSimBtn'), binaryScope:$('#binaryScope'), dataflowFilter:$('#dataflowFilter'), dataflowFocus:$('#dataflowFocus'), viewMode:$('#viewMode'), entrySelect:$('#entrySelect'), entryBtn:$('#entryBtn'), fitBtn:$('#fitBtn'), labelsBtn:$('#labelsBtn'),
   entrySummary:$('#entrySummary'), inspector:$('#inspector'), legend:$('#legend'), emptyGraph:$('#emptyGraph'), status:$('#status'), stats:$('#stats'),
   zoomInfo:$('#zoomInfo'), divider:$('#divider'), codePanel:$('#codePanel'), workspace:$('#workspace'),
   pasteDialog:$('#pasteDialog'), pasteArea:$('#pasteArea'), pasteCancel:$('#pasteCancel'), pasteLoad:$('#pasteLoad'),
   hexDialog:$('#hexDialog'), hexTitle:$('#hexTitle'), hexInfo:$('#hexInfo'), hexGoto:$('#hexGoto'), hexClose:$('#hexClose'), hexViewport:$('#hexViewport'), hexSpacer:$('#hexSpacer'), hexLayer:$('#hexLayer'),
+  unwindDialog:$('#unwindDialog'), unwindDialogTitle:$('#unwindDialogTitle'), unwindDialogClose:$('#unwindDialogClose'), unwindDialogSource:$('#unwindDialogSource'),
+  unwindPc:$('#unwindPc'), unwindMaxFrames:$('#unwindMaxFrames'), unwindPtrSize:$('#unwindPtrSize'), unwindLoadBias:$('#unwindLoadBias'), unwindStaticBase:$('#unwindStaticBase'),
+  unwindRegisters:$('#unwindRegisters'), unwindMemory:$('#unwindMemory'), unwindResults:$('#unwindResults'), unwindDialogStatus:$('#unwindDialogStatus'), unwindRun:$('#unwindRun'),
   indexDialog:$('#indexDialog'), indexSymbolsTab:$('#indexSymbolsTab'), indexRelocsTab:$('#indexRelocsTab'), indexSearch:$('#indexSearch'), indexInfo:$('#indexInfo'), indexClose:$('#indexClose'), indexViewport:$('#indexViewport'), indexSpacer:$('#indexSpacer'), indexLayer:$('#indexLayer')
 };
 
@@ -581,7 +630,7 @@ function setLanguage(lang,{persist=true}={}){
   }else if(state.lines?.length)els.formatBadge.textContent=t('objdumpInput');
   if(state.editMode)els.editBtn.textContent=t('inspect');
   if(els.binaryScope.options.length)els.binaryScope.options[0].textContent=t('allAddressSpaces');
-  els.dataflowFilter.value=state.dataflowFilter||'important';els.unwindSource.value=state.unwindSource||'auto';els.unwindSource.style.display=workspaceHasUnwind()?'inline-flex':'none';els.binaryScope.style.display=state.mode==='binary'?'inline-flex':'none';els.dataflowFilter.style.display=state.mode==='dataflow'?'inline-flex':'none';els.dataflowFocus.style.display=state.mode==='dataflow'?'inline-flex':'none';els.viewMode.style.display=state.mode==='calls'?'inline-flex':'none';els.entrySelect.style.display=state.mode==='calls'?'inline-flex':'none';els.entryBtn.style.display=state.mode==='calls'?'inline-flex':'none';
+  els.dataflowFilter.value=state.dataflowFilter||'important';els.unwindSource.value=state.unwindSource||'auto';els.unwindSource.style.display=workspaceHasUnwind()?'inline-flex':'none';els.unwindSimBtn.style.display=workspaceHasUnwind()?'inline-flex':'none';els.binaryScope.style.display=state.mode==='binary'?'inline-flex':'none';els.dataflowFilter.style.display=state.mode==='dataflow'?'inline-flex':'none';els.dataflowFocus.style.display=state.mode==='dataflow'?'inline-flex':'none';els.viewMode.style.display=state.mode==='calls'?'inline-flex':'none';els.entrySelect.style.display=state.mode==='calls'?'inline-flex':'none';els.entryBtn.style.display=state.mode==='calls'?'inline-flex':'none';
   renderWorkspaceFiles();
   state.dirty=true;state.traceDirty=true;
 }
@@ -2001,19 +2050,31 @@ function normalizeUnwindSnapshot(snapshot={}){
     staticToRuntime:addr=>Number(addr)-staticBase+moduleLoadBias
   };
 }
+function unwindFailureKind(reason){
+  const text=String(reason||'').toLowerCase();
+  if(!text)return null;
+  if(text.includes('memory unavailable'))return 'unavailable-memory';
+  if(text.includes('unsupported'))return 'unsupported-dwarf-semantics';
+  if(text.includes('no fde')||text.includes('no decoded row')||text.includes('cfa rule unavailable'))return 'missing-cfi';
+  if(text.includes('undefined'))return 'undefined-register';
+  if(text.includes('truncated')||text.includes('invalid'))return 'invalid-cfi';
+  if(text.includes('register')&&text.includes('unavailable'))return 'unavailable-register';
+  return 'unwind-evaluation-failure';
+}
 function serializeUnwindEvaluation(result){
   if(!result)return null;
   const regRows=result.registers instanceof Map?[...result.registers.entries()].map(([register,v])=>({
-    register,name:v?.name||'',kind:v?.kind||'',known:!!v?.known,
+    register,name:v?.name||'',kind:v?.kind||'',known:!!v?.known,confidence:v?.known?'exact':'unknown',
     value:typeof v?.value==='bigint'?`0x${v.value.toString(16)}`:v?.value??null,
-    location:Number.isFinite(v?.location)?v.location:null,reason:v?.reason||null
+    location:Number.isFinite(v?.location)?v.location:null,reason:v?.reason||null,failureKind:unwindFailureKind(v?.reason),
+    evidence:v?.known?`CFI ${v?.kind||'rule'} from selected ${result.sourceLabel||result.sourceKind||'frame source'}`:v?.reason||null
   })):[];
   return {
     schema:'asm-graph.unwind-evaluation/v1',known:!!result.known,pc:result.pc??null,runtimePc:result.runtimePc??null,
     sourceKind:result.sourceKind||null,sourceLabel:result.sourceLabel||null,
-    cfa:result.cfa?{known:!!result.cfa.known,value:typeof result.cfa.value==='bigint'?`0x${result.cfa.value.toString(16)}`:result.cfa.value??null,reason:result.cfa.reason||null}:null,
-    returnAddress:result.returnAddress?{known:!!result.returnAddress.known,value:typeof result.returnAddress.value==='bigint'?`0x${result.returnAddress.value.toString(16)}`:result.returnAddress.value??null,reason:result.returnAddress.reason||null}:null,
-    registers:regRows,evidence:result.evidence||null,reason:result.reason||null
+    cfa:result.cfa?{known:!!result.cfa.known,confidence:result.cfa.known?'exact':'unknown',value:typeof result.cfa.value==='bigint'?`0x${result.cfa.value.toString(16)}`:result.cfa.value??null,reason:result.cfa.reason||null,failureKind:unwindFailureKind(result.cfa.reason)}:null,
+    returnAddress:result.returnAddress?{known:!!result.returnAddress.known,confidence:result.returnAddress.known?'exact':'unknown',value:typeof result.returnAddress.value==='bigint'?`0x${result.returnAddress.value.toString(16)}`:result.returnAddress.value??null,reason:result.returnAddress.reason||null,failureKind:unwindFailureKind(result.returnAddress.reason)}:null,
+    registers:regRows,evidence:result.evidence||null,reason:result.reason||null,failureKind:unwindFailureKind(result.reason)
   };
 }
 function evaluateUnwindRequest(unwind,request={}){
@@ -2042,6 +2103,94 @@ function evaluateStaticUnwindRecipe(unwind,pc,snapshot={},options={}){
     evidence:`${fde.sourceLabel||fde.sourceKind} FDE ${safeHex(fde.startAddress)}..${safeHex(fde.endAddress)} · ${fde.selectionEvidence||'exact PC coverage'}`};
 }
 
+
+function unwindControlRegisters(architecture,fde=null){
+  if(architecture==='x86-64')return {stackPointer:7,programCounter:16,stackName:'rsp',pcName:'rip',returnLookupAdjustment:1,stackDirection:'up-caller'};
+  if(architecture==='x86-32')return {stackPointer:4,programCounter:8,stackName:'esp',pcName:'eip',returnLookupAdjustment:1,stackDirection:'up-caller'};
+  return {stackPointer:null,programCounter:Number.isInteger(fde?.cie?.returnRegister)?fde.cie.returnRegister:null,stackName:null,pcName:null,returnLookupAdjustment:0,stackDirection:'unknown'};
+}
+function unwindKnownNumber(value){
+  if(typeof value==='bigint')return value>=BigInt(Number.MIN_SAFE_INTEGER)&&value<=BigInt(Number.MAX_SAFE_INTEGER)?Number(value):null;
+  return Number.isFinite(value)?Number(value):null;
+}
+function callerSnapshotFromUnwind(current,evaluation){
+  const snap=normalizeUnwindSnapshot(current),registers=new Map(snap.registers),control=unwindControlRegisters(evaluation?.architecture,evaluation?.fde);
+  for(const [reg,res] of evaluation?.registers||[]){
+    if(!res?.known)continue;
+    const value=typeof res.bigint==='bigint'?res.bigint:(Number.isFinite(res.value)?BigInt(Math.trunc(res.value)):null);
+    if(value==null)continue;
+    registers.set(reg,value);if(res.name)registers.set(res.name,value);
+  }
+  const cfaBig=typeof evaluation?.cfa?.bigint==='bigint'?evaluation.cfa.bigint:(Number.isFinite(evaluation?.cfa?.value)?BigInt(Math.trunc(evaluation.cfa.value)):null),
+        raBig=typeof evaluation?.returnAddress?.bigint==='bigint'?evaluation.returnAddress.bigint:(Number.isFinite(evaluation?.returnAddress?.value)?BigInt(Math.trunc(evaluation.returnAddress.value)):null);
+  if(cfaBig!=null&&Number.isInteger(control.stackPointer)){
+    registers.set(control.stackPointer,cfaBig);if(control.stackName)registers.set(control.stackName,cfaBig);
+  }
+  if(raBig!=null&&Number.isInteger(control.programCounter)){
+    registers.set(control.programCounter,raBig);if(control.pcName)registers.set(control.pcName,raBig);
+  }
+  return normalizeUnwindSnapshot({
+    registers,memory:snap.memory,readMemory:snap.readMemory,ptrSize:snap.ptrSize,littleEndian:snap.littleEndian,
+    moduleLoadBias:snap.moduleLoadBias,staticBase:snap.staticBase
+  });
+}
+function serializeUnwindStack(result){
+  const scalar=v=>typeof v==='bigint'?`0x${v.toString(16)}`:v;
+  return {
+    schema:'asm-graph.unwind-stack/v1',known:!!result?.known,complete:!!result?.complete,source:result?.source||'auto',
+    maxFrames:result?.maxFrames||0,stopReason:result?.stopReason||null,diagnostics:[...(result?.diagnostics||[])],
+    frames:(result?.frames||[]).map(f=>({
+      index:f.index,runtimePc:f.runtimePc,staticPc:f.staticPc,lookupStaticPc:f.lookupStaticPc,returnLookupAdjustment:f.returnLookupAdjustment,
+      sourceKind:f.sourceKind||null,sourceLabel:f.sourceLabel||null,architecture:f.architecture||null,
+      fde:f.fde?{address:f.fde.address,startAddress:f.fde.startAddress,endAddress:f.fde.endAddress}:null,
+      confidence:f.confidence||'unknown',
+      cfa:f.cfa?{known:!!f.cfa.known,value:scalar(f.cfa.value),reason:f.cfa.reason||null,failureKind:unwindFailureKind(f.cfa.reason)}:null,
+      returnAddress:f.returnAddress?{known:!!f.returnAddress.known,value:scalar(f.returnAddress.value),reason:f.returnAddress.reason||null,failureKind:unwindFailureKind(f.returnAddress.reason)}:null,
+      stopReason:f.stopReason||null,stopFailureKind:unwindFailureKind(f.stopReason||f.returnAddress?.reason||f.cfa?.reason),
+      warnings:[...(f.warnings||[])],evidence:f.evidence||null
+    }))
+  };
+}
+function unwindStackFrames(unwind,request={}){
+  const source=request.source||'auto',maxFrames=Math.max(1,Math.min(256,Number(request.maxFrames)||64)),
+        initial=normalizeUnwindSnapshot(request.snapshot||request),frames=[],diagnostics=[],visited=new Set();
+  let runtimePc=Number(request.runtimePc??request.pc),snapshot=initial,previousCfa=null,previousArchitecture=null,stopReason=null,complete=false;
+  if(!Number.isFinite(runtimePc))return {schema:'asm-graph.unwind-stack/v1',known:false,complete:false,source,maxFrames,frames,diagnostics,stopReason:'invalid-initial-pc'};
+  for(let index=0;index<maxFrames;index++){
+    const adjustment=index===0?0:unwindControlRegisters(previousArchitecture).returnLookupAdjustment,
+          lookupRuntimePc=runtimePc-adjustment,
+          staticPc=snapshot.runtimeToStatic(runtimePc),lookupStaticPc=snapshot.runtimeToStatic(lookupRuntimePc),
+          evaluation=evaluateStaticUnwindRecipe(unwind,lookupStaticPc,snapshot,{source}),
+          warnings=[],frame={
+            index,runtimePc,staticPc,lookupRuntimePc,lookupStaticPc,returnLookupAdjustment:adjustment,
+            sourceKind:evaluation.sourceKind||null,sourceLabel:evaluation.sourceLabel||null,architecture:evaluation.architecture||previousArchitecture||null,
+            fde:evaluation.fde||null,row:evaluation.row||null,cfa:evaluation.cfa||null,returnAddress:evaluation.returnAddress||null,
+            registers:evaluation.registers||new Map(),evidence:evaluation.evidence||null,warnings
+          };
+    frames.push(frame);
+    if(!evaluation.fde){frame.stopReason='no-fde';stopReason='no-fde';break}
+    if(!evaluation.row){frame.stopReason='no-cfi-row';stopReason='no-cfi-row';break}
+    const cfa=unwindKnownNumber(evaluation.cfa?.value),ra=unwindKnownNumber(evaluation.returnAddress?.value);
+    frame.confidence=Number.isFinite(cfa)&&Number.isFinite(ra)?'exact':evaluation.fde&&evaluation.row?'partial':'unknown';
+    if(!Number.isFinite(cfa)){frame.stopReason='unknown-cfa';stopReason='unknown-cfa';break}
+    if(!Number.isFinite(ra)){frame.stopReason='unknown-return-address';stopReason='unknown-return-address';break}
+    const key=`${lookupStaticPc}:${cfa}:${ra}`;
+    if(visited.has(key)){frame.stopReason='cycle-detected';stopReason='cycle-detected';diagnostics.push(`frame ${index}: repeated PC/CFA/RA state ${key}`);break}
+    visited.add(key);
+    if(previousCfa!=null){
+      const control=unwindControlRegisters(evaluation.architecture,evaluation.fde);
+      if(control.stackDirection==='up-caller'&&cfa<previousCfa)warnings.push(`caller CFA moved downward: ${safeHex(previousCfa)} → ${safeHex(cfa)}`);
+      if(cfa===previousCfa)warnings.push(`CFA did not advance: ${safeHex(cfa)}`);
+    }
+    if(ra===0){frame.stopReason='null-return-address';stopReason='null-return-address';complete=true;break}
+    if(ra===runtimePc&&cfa===previousCfa){frame.stopReason='non-progressing-frame';stopReason='non-progressing-frame';break}
+    snapshot=callerSnapshotFromUnwind(snapshot,evaluation);
+    previousCfa=cfa;previousArchitecture=evaluation.architecture;runtimePc=ra;
+  }
+  if(!stopReason&&frames.length>=maxFrames){stopReason='frame-limit';diagnostics.push(`frame limit ${maxFrames} reached`)}
+  const known=frames.length>0&&!!frames[0].fde;
+  return {schema:'asm-graph.unwind-stack/v1',known,complete,source,maxFrames,frames,diagnostics,stopReason,initialRuntimePc:Number(request.runtimePc??request.pc)};
+}
 function decodeLsdaTypeReference(section,typeTableAddress,ttypeEncoding,typeFilter,{ptrSize=8,textBase=null,dataBase=null,functionBase=null}={}){
   if(!section||!Number.isFinite(typeTableAddress)||!Number.isInteger(typeFilter)||typeFilter<=0||ttypeEncoding===DW_EH_PE.omit)return null;
   const width=ehFormatWidth(ttypeEncoding,ptrSize);if(!width)return {index:typeFilter,encoding:ttypeEncoding,confidence:'unknown',reason:'variable-width type-table encoding cannot be random-indexed safely'};
@@ -3931,7 +4080,7 @@ function configureEntrypoints(){
 }
 
 function updateStats(){
-  els.unwindSource.style.display=workspaceHasUnwind()?'inline-flex':'none';els.unwindSource.value=state.unwindSource||'auto';
+  els.unwindSource.style.display=workspaceHasUnwind()?'inline-flex':'none';els.unwindSimBtn.style.display=workspaceHasUnwind()?'inline-flex':'none';els.unwindSource.value=state.unwindSource||'auto';
   const direct=state.calls.filter(e=>e.to).length,indirect=state.calls.filter(e=>e.indirect).length,addrRefs=state.addressRefs.length,visibleFns=state.functions.filter(functionVisible).length,staticGroups=[...state.originGroups.values()].filter(g=>g.kind==='native-static').length;
   const kinds=new Set(state.workspaceOrder.map(id=>state.workspaceFiles.get(id)?.inputKind).filter(Boolean));
   const mappedLabel=kinds.size>1?'mapped':kinds.has('fasm-source')?t('sourceMapped'):t('dwarfMapped');
@@ -4363,7 +4512,7 @@ function openCfiTimeline(fde,pc=null){
     ${activeRow?`<div class="path"><b>ACTIVE UNWIND ROW</b><br>${escapeHtml(cfiRowSummary(activeRow,fde))}</div>`:''}
     ${conflict?.comparable?`<div class="path"><b>FRAME-SOURCE COMPARISON</b><br>${conflict.same?'equivalent':'DIFFERS'} · ${escapeHtml(conflict.evidence)}<br>.debug_frame: ${escapeHtml(conflict.debugSummary)}<br>.eh_frame: ${escapeHtml(conflict.ehSummary)}</div>`:''}
     ${recipe?`<div class="path"><b>NORMALIZED RECIPE IR</b><br>${escapeHtml(recipe.schema)} · ${escapeHtml(recipe.sourceLabel||recipe.sourceKind||'')} · ${safeHex(recipe.row.startAddress)}..${safeHex(recipe.row.endAddress)}<br>CFA ${escapeHtml(recipe.row.cfa?.kind||'unknown')} · ${num(recipe.row.registerRules.length)} register rules · ptr ${recipe.pointerSize} B · ${recipe.littleEndian?'LE':'BE'}</div>`:''}
-    <div class="actions"><button data-cfi-cie>Open CIE</button>${Number.isFinite(fde.address)?`<button data-cfi-fde-hex>FDE hex</button>`:''}</div>
+    <div class="actions"><button data-cfi-cie>Open CIE</button>${Number.isFinite(fde.address)?`<button data-cfi-fde-hex>FDE hex</button>`:''}${Number.isFinite(pc)?`<button data-cfi-simulate>Simulate unwind</button>`:''}</div>
     <div class="dataObjectList"><b>DW_CFA_* TIMELINE</b>${opRows}${ops.length>240?`<div class="path">… ${num(ops.length-240)} more operations</div>`:''}</div>`;
   els.inspector.classList.remove('hidden');
 
@@ -4383,6 +4532,7 @@ function openCfiTimeline(fde,pc=null){
     if(fde.section&&Number.isFinite(fde.address))openHexViewer({section:fde.section,address:fde.address,size:Math.max(4,(fde.length||0)+4),name:`FDE ${safeHex(fde.address)}`});
   });
   els.inspector.querySelector('[data-cfi-cie]')?.addEventListener('click',()=>openCieInspector(fde.cie,fde));
+  els.inspector.querySelector('[data-cfi-simulate]')?.addEventListener('click',()=>openUnwindSimulator({pc}));
 }
 function openCieInspector(cie,fde=null){
   if(!cie)return;
@@ -4403,6 +4553,121 @@ function openCieInspector(cie,fde=null){
   els.inspector.querySelectorAll('[data-cie-op-hex]').forEach(btn=>btn.addEventListener('click',()=>{
     const op=ops[Number(btn.dataset.cieOpHex)];if(op&&cie.section&&Number.isFinite(op.byteAddress))openHexViewer({section:cie.section,address:op.byteAddress,size:Math.max(1,(op.byteEnd??op.byteAddress+1)-op.byteAddress),name:`${op.name} · ${safeHex(op.byteAddress)}`});
   }));
+}
+
+function parseUnwindScalar(value){
+  if(typeof value==='bigint')return value;
+  if(Number.isFinite(value))return BigInt(Math.trunc(value));
+  if(typeof value!=='string')throw new Error(`invalid scalar ${String(value)}`);
+  const text=value.trim();if(!text)throw new Error('empty scalar');
+  if(/^-?0x[0-9a-f]+$/i.test(text)){
+    const neg=text.startsWith('-'),raw=neg?text.slice(1):text,v=BigInt(raw);return neg?-v:v;
+  }
+  if(/^-?\d+$/.test(text))return BigInt(text);
+  throw new Error(`invalid scalar "${text}"`);
+}
+function parseUnwindAddressNumber(value,label='address'){
+  const big=parseUnwindScalar(value);
+  if(big<BigInt(Number.MIN_SAFE_INTEGER)||big>BigInt(Number.MAX_SAFE_INTEGER))throw new Error(`${label} exceeds JavaScript safe integer range`);
+  return Number(big);
+}
+function parseUnwindJsonMap(text,{addresses=false}={}){
+  const raw=String(text||'').trim();if(!raw)return new Map();
+  const obj=JSON.parse(raw);if(!obj||Array.isArray(obj)||typeof obj!=='object')throw new Error('expected a JSON object');
+  const map=new Map();
+  for(const [key,value] of Object.entries(obj)){
+    const scalar=parseUnwindScalar(value);
+    if(addresses)map.set(parseUnwindAddressNumber(key,'memory address'),scalar);
+    else map.set(/^\d+$/.test(key)?Number(key):key.toLowerCase(),scalar);
+  }
+  return map;
+}
+function unwindFrameFunction(frame,fileId=null){
+  if(!frame||!Number.isFinite(frame.staticPc))return null;
+  if(frame.fde?.function)return frame.fde.function;
+  return state.functions.find(f=>(fileId==null||f.workspaceFileId===fileId)&&frame.staticPc>=f.addr&&frame.staticPc<=(f.endAddr??f.addr))
+      ||state.functions.find(f=>frame.staticPc>=f.addr&&frame.staticPc<=(f.endAddr??f.addr))||null;
+}
+function unwindFrameLabel(frame,fileId=null){
+  const fn=unwindFrameFunction(frame,fileId);
+  if(!fn)return safeHex(frame?.staticPc);
+  const off=frame.staticPc-fn.addr;return `${functionDisplayName(fn)}${off?` +0x${off.toString(16)}`:''}`;
+}
+function renderUnwindSimulation(result,record){
+  const frames=result?.frames||[],fileId=record?.id;
+  if(!frames.length){
+    els.unwindResults.innerHTML=`<div class="empty"><div><strong>No frames recovered</strong><span>${escapeHtml(result?.stopReason||'unknown failure')}</span></div></div>`;
+    els.unwindDialogStatus.textContent=result?.stopReason||'No frame';return;
+  }
+  els.unwindResults.innerHTML=`<div class="path"><b>${result.complete?'COMPLETE STACK':'PARTIAL STACK'}</b><br>${num(frames.length)} frame${frames.length===1?'':'s'} · stop ${escapeHtml(result.stopReason||'unknown')} · source ${escapeHtml(result.source||'auto')}${result.diagnostics?.length?`<br>${result.diagnostics.map(escapeHtml).join('<br>')}`:''}</div>`+
+    frames.map((frame,i)=>{
+      const fn=unwindFrameFunction(frame,fileId),label=unwindFrameLabel(frame,fileId),
+            cfa=unwindKnownNumber(frame.cfa?.value),ra=unwindKnownNumber(frame.returnAddress?.value);
+      return `<div class="unwindFrame${i===0?' current':''}${frame.stopReason&&!result.complete?' stop':''}">
+        <div class="unwindFrameHead"><span>#${i}</span><span>${escapeHtml(label)}</span><span class="grow"></span><span>${escapeHtml(frame.sourceLabel||frame.sourceKind||'—')}</span></div>
+        <div class="unwindFrameGrid">
+          <b>Runtime PC</b><span>${safeHex(frame.runtimePc)}</span>
+          <b>Static PC</b><span>${safeHex(frame.staticPc)}${frame.returnLookupAdjustment?` · lookup ${safeHex(frame.lookupStaticPc)} (-${frame.returnLookupAdjustment})`:''}</span>
+          <b>Function</b><span>${fn?escapeHtml(functionDisplayName(fn)):'unresolved'}</span>
+          <b>FDE</b><span>${frame.fde?`${safeHex(frame.fde.startAddress)}..${safeHex(frame.fde.endAddress)}`:'—'}</span>
+          <b>CFA</b><span>${Number.isFinite(cfa)?safeHex(cfa):escapeHtml(frame.cfa?.reason||'unknown')}</span>
+          <b>Return address</b><span>${Number.isFinite(ra)?safeHex(ra):escapeHtml(frame.returnAddress?.reason||'unknown')}</span>
+          <b>Architecture</b><span>${escapeHtml(frame.architecture||'unknown')}</span>
+          <b>Confidence</b><span>${escapeHtml(frame.confidence||'unknown')}</span>
+          <b>State</b><span>${escapeHtml(frame.stopReason||'recovered')}</span>
+        </div>
+        ${frame.warnings?.length?`<div class="unwindDiag">${frame.warnings.map(escapeHtml).join('<br>')}</div>`:''}
+        <div class="actions">${fn?`<button data-unwind-code="${i}">Code</button>`:''}${frame.fde?`<button data-unwind-cfi="${i}">CFI timeline</button>`:''}</div>
+      </div>`;
+    }).join('');
+  els.unwindDialogStatus.textContent=`${frames.length} frames · ${result.complete?'complete':`stopped: ${result.stopReason}`}`;
+  els.unwindResults.querySelectorAll('[data-unwind-code]').forEach(btn=>btn.addEventListener('click',()=>{
+    const frame=frames[Number(btn.dataset.unwindCode)],fn=unwindFrameFunction(frame,fileId);if(!fn)return;
+    selectFunction(fn);const inst=fn.instructions.find(x=>x.addr===frame.lookupStaticPc)||fn.instructions.find(x=>x.addr>=frame.lookupStaticPc)||fn.instructions[0];
+    if(inst){selectInstruction(inst,{origin:false});scrollToLine(inst.line,true)}
+    els.unwindDialog.close();
+  }));
+  els.unwindResults.querySelectorAll('[data-unwind-cfi]').forEach(btn=>btn.addEventListener('click',()=>{
+    const frame=frames[Number(btn.dataset.unwindCfi)];if(!frame?.fde)return;
+    els.unwindDialog.close();openCfiTimeline(frame.fde,frame.lookupStaticPc);
+  }));
+}
+function openUnwindSimulator({pc=null}={}){
+  const record=state.workspaceFiles.get(state.activeFileId)||[...state.workspaceFiles.values()].find(r=>r?.parsed?.unwind?.available),
+        unwind=record?.parsed?.unwind;
+  if(!unwind?.available){setStatus('No parsed unwind metadata in the workspace');return}
+  const selectedPc=Number.isFinite(pc)?pc:Number.isFinite(state.selectedInstruction?.addr)?state.selectedInstruction.addr:
+        Number.isFinite(state.selectedBlock?.startAddr)?state.selectedBlock.startAddr:Number.isFinite(state.selectedFunction?.addr)?state.selectedFunction.addr:
+        unwind.fdes?.[0]?.startAddress;
+  els.unwindPc.value=Number.isFinite(selectedPc)?safeHex(selectedPc):'';
+  els.unwindDialogSource.value=state.unwindSource||'auto';els.unwindPtrSize.value=String(unwind.ptrSize||8);
+  els.unwindMaxFrames.value='32';els.unwindLoadBias.value='0x0';els.unwindStaticBase.value='0x0';
+  const fde=Number.isFinite(selectedPc)?preferredFdeForPc(unwind,selectedPc,{source:state.unwindSource}):null,
+        arch=fde?fdeArchitecture(fde):state.selectedFunction?functionDataflow(state.selectedFunction)?.architecture:null,
+        pcName=unwindControlRegisters(arch,fde).pcName;
+  if(!els.unwindRegisters.value.trim()&&pcName&&Number.isFinite(selectedPc))els.unwindRegisters.value=JSON.stringify({[pcName]:safeHex(selectedPc)},null,2);
+  els.unwindDialogTitle.textContent=`${record.artifactLabel||record.path||'artifact'} · ${num(unwind.fdes?.length||0)} FDE`;
+  els.unwindResults.innerHTML='<div class="empty"><div><strong>No simulation yet</strong><span>Provide stack/register values and run the evaluator.</span></div></div>';
+  els.unwindDialogStatus.textContent='Ready';
+  els.unwindDialog.showModal();
+}
+function runUnwindSimulator(){
+  try{
+    const record=state.workspaceFiles.get(state.activeFileId)||[...state.workspaceFiles.values()].find(r=>r?.parsed?.unwind?.available),
+          unwind=record?.parsed?.unwind;if(!unwind?.available)throw new Error('no unwind metadata');
+    const runtimePc=parseUnwindAddressNumber(els.unwindPc.value,'PC'),
+          registers=parseUnwindJsonMap(els.unwindRegisters.value),memory=parseUnwindJsonMap(els.unwindMemory.value,{addresses:true}),
+          ptrSize=Number(els.unwindPtrSize.value)||unwind.ptrSize||8,maxFrames=Math.max(1,Math.min(256,Number(els.unwindMaxFrames.value)||32)),
+          moduleLoadBias=parseUnwindAddressNumber(els.unwindLoadBias.value||'0','load bias'),
+          staticBase=parseUnwindAddressNumber(els.unwindStaticBase.value||'0','static base'),
+          result=unwindStackFrames(unwind,{runtimePc,source:els.unwindDialogSource.value||'auto',maxFrames,snapshot:{
+            registers,memory,ptrSize,littleEndian:unwind.littleEndian!==false,moduleLoadBias,staticBase
+          }});
+    state.lastUnwindSimulation=result;renderUnwindSimulation(result,record);
+  }catch(err){
+    els.unwindDialogStatus.textContent='Input error';
+    els.unwindResults.innerHTML=`<div class="unwindFrame stop"><div class="unwindFrameHead">Simulation input error</div><div class="unwindDiag">${escapeHtml(String(err?.message||err))}</div></div>`;
+  }
 }
 
 function updateInspector(item){
@@ -6887,6 +7152,10 @@ els.folderInput.addEventListener('change',async()=>{
   els.folderInput.value='';
 });
 els.pasteBtn.addEventListener('click',()=>{els.pasteArea.value='';els.pasteDialog.showModal();setTimeout(()=>els.pasteArea.focus(),0)});
+els.unwindSimBtn.addEventListener('click',()=>openUnwindSimulator());
+els.unwindDialogClose.addEventListener('click',()=>els.unwindDialog.close());
+els.unwindRun.addEventListener('click',runUnwindSimulator);
+els.unwindDialogSource.addEventListener('change',()=>{els.unwindDialogStatus.textContent=`Source: ${els.unwindDialogSource.value}`});
 els.hexClose.addEventListener('click',()=>els.hexDialog.close());
 els.hexViewport.addEventListener('scroll',()=>renderHexViewer());
 els.hexGoto.addEventListener('keydown',e=>{
@@ -8915,7 +9184,7 @@ els.graphMode.addEventListener('change',()=>{
   els.entryBtn.disabled=!calls;
   els.cfgView.style.display=cfg?'inline-flex':'none';
   els.cfgEdgeMode.style.display=cfg?'inline-flex':'none';
-  els.unwindSource.style.display=workspaceHasUnwind()?'inline-flex':'none';
+  els.unwindSource.style.display=workspaceHasUnwind()?'inline-flex':'none';els.unwindSimBtn.style.display=workspaceHasUnwind()?'inline-flex':'none';
   els.binaryScope.style.display=binary?'inline-flex':'none';
   els.dataflowFilter.style.display=dataflow?'inline-flex':'none';
   els.dataflowFocus.style.display=dataflow?'inline-flex':'none';
@@ -8930,7 +9199,7 @@ els.graphMode.addEventListener('change',()=>{
   }
 });
 els.unwindSource.addEventListener('change',()=>{
-  state.unwindSource=els.unwindSource.value||'auto';state.dirty=true;
+  state.unwindSource=els.unwindSource.value||'auto';if(els.unwindDialog?.open)els.unwindDialogSource.value=state.unwindSource;state.dirty=true;
   const item=state.selectedInstruction?{kind:'instruction',instruction:state.selectedInstruction}:state.selectedBlock||state.selectedFunction;
   updateInspector(item);
   setStatus(`Unwind source: ${state.unwindSource==='auto'?'auto':'.'+state.unwindSource.replace('_','.')}`);
@@ -9047,8 +9316,8 @@ new ResizeObserver(()=>{resizeCanvas();resizeTraceCanvas();renderCode(true);stat
 // not depend on it; explicit load entry points exist only for harnesses.
 Object.defineProperty(window,'asmInspectorDebug',{value:{
   get state(){return state}, functionDataflow, analyzeAdvancedCfg, buildGraph, buildCfgGraph, buildDataflowGraph, fitGraph, resizeCanvas, groupAnalysisBarriers,
-  decodeDwarfCfiProgram, decodeDwarfExpression, evaluateDwarfExpression, parseDebugFrameSection, preferredFdeForPc, compareUnwindSourcesAtPc, normalizedUnwindRecipeIr, normalizeUnwindSnapshot, evaluateUnwindRequest, evaluateStaticUnwindRecipe, cfiRowForPc, cfiStateSummary,
-  openCfiTimeline, openCieInspector, openHexViewer, selectFunction, selectGraphNode, valueDisplay, dataflowUnknownReason,
+  decodeDwarfCfiProgram, decodeDwarfExpression, evaluateDwarfExpression, parseDebugFrameSection, preferredFdeForPc, compareUnwindSourcesAtPc, normalizedUnwindRecipeIr, normalizeUnwindSnapshot, evaluateUnwindRequest, evaluateStaticUnwindRecipe, unwindStackFrames, serializeUnwindStack, callerSnapshotFromUnwind, cfiRowForPc, cfiStateSummary,
+  openUnwindSimulator, runUnwindSimulator, renderUnwindSimulation, openCfiTimeline, openCieInspector, openHexViewer, selectFunction, selectGraphNode, valueDisplay, dataflowUnknownReason,
   // Explicit regression-harness entry points; normal UI code does not depend on them.
   addWorkspaceText, loadText
 },configurable:false,enumerable:false});
