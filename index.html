@@ -539,8 +539,10 @@ dialog::backdrop{background:#0009}
   <div class="environmentBody">
     <nav class="environmentNav">
       <button class="active" data-env-tab="vfs" data-i18n="virtualFilesystem">Virtual filesystem</button>
+      <button data-env-tab="artifacts">Artifacts / LoadedImage</button>
       <button data-env-tab="policy" data-i18n="executionPolicy">Execution policy</button>
       <button data-env-tab="runs" data-i18n="runConfigurations">Run configurations</button>
+      <button data-env-tab="sessions">Execution sessions</button>
       <button data-env-tab="io">I/O · FD 0/1/2</button>
       <button data-env-tab="overlay" data-i18n="runtimeOverlay">Runtime overlay</button>
     </nav>
@@ -835,6 +837,7 @@ const state = {
   workspaceName:'Workspace', functionsByNameMulti:new Map(), workspaceDependencies:new Map(),
   activeProjectId:null, activeProject:null, projectCatalog:[], selectedProjectId:null, projectStorage:null, projectAutosaveTimer:null, projectDirty:false, projectAuxFiles:new Map(),
   inspectorVfs:null, inspectorIo:null, environmentTab:'vfs', selectedRunConfigId:null, lastProjectSaveAt:null,
+  buildArtifacts:new Map(), loadedImages:new Map(), selectedArtifactPath:null, executionSessions:new Map(), selectedExecutionSessionId:null,
   dynamicMatches:[], matchDynamicImplementations:true,
   bridgeHidden:true,
   entryFunction:null, elfEntry:null, programEntry:null, reachableIds:new Set(), reachParent:new Map(), depthById:new Map(), detachedY:null,
@@ -878,6 +881,10 @@ const EXECUTION_POLICY_SCHEMA='asm-graph.execution-policy/v1';
 const RUN_CONFIG_SCHEMA='asm-graph.run-config/v1';
 const VFS_SCHEMA='asm-graph.vfs/v1';
 const INSPECTOR_IO_SCHEMA='asm-graph.io/v1';
+const BUILD_ARTIFACT_SCHEMA='asm-graph.build-artifact/v1';
+const LOADED_IMAGE_SCHEMA='asm-graph.loaded-image/v1';
+const EXECUTION_SESSION_SCHEMA='asm-graph.execution-session/v1';
+const EXECUTION_PROVIDER_SCHEMA='asm-graph.execution-provider/v1';
 const PROJECT_DB_NAME='asm-graph-inspector-projects';
 const PROJECT_DB_VERSION=1;
 
@@ -1032,6 +1039,221 @@ function inspectElfBytes(data){
   else if(type===3)kind=hasInterp?'elf-executable':'elf-shared-library';
   else if(type===1)kind='elf-relocatable';
   return {valid:true,kind,bits,littleEndian,type,machine,hasInterp,programHeaders:phnum};
+}
+
+function elfMachineName(machine){
+  return ({3:'x86',40:'arm',62:'x86_64',183:'aarch64',243:'riscv'})[machine]||`EM_${machine}`;
+}
+function elfTypeName(type){return ({1:'ET_REL',2:'ET_EXEC',3:'ET_DYN',4:'ET_CORE'})[type]||`ET_${type}`}
+function elfProgramTypeName(type){
+  return ({0:'PT_NULL',1:'PT_LOAD',2:'PT_DYNAMIC',3:'PT_INTERP',4:'PT_NOTE',5:'PT_SHLIB',6:'PT_PHDR',7:'PT_TLS',
+    0x6474e550:'PT_GNU_EH_FRAME',0x6474e551:'PT_GNU_STACK',0x6474e552:'PT_GNU_RELRO'})[type]||`PT_0x${Number(type).toString(16)}`;
+}
+function elfSegmentFlags(flags){
+  return `${flags&4?'r':'-'}${flags&2?'w':'-'}${flags&1?'x':'-'}`;
+}
+function readCStringBytes(data,offset,maxLength=4096){
+  const u=toUint8Array(data);if(!u||!Number.isFinite(offset)||offset<0||offset>=u.length)return '';
+  let end=offset,limit=Math.min(u.length,offset+maxLength);while(end<limit&&u[end]!==0)end++;
+  return new TextDecoder().decode(u.subarray(offset,end));
+}
+function fnv1a32Bytes(data){
+  const u=toUint8Array(data)||new Uint8Array();let h=0x811c9dc5;
+  for(let i=0;i<u.length;i++){h^=u[i];h=Math.imul(h,0x01000193)>>>0}
+  return h.toString(16).padStart(8,'0');
+}
+function parseElfLoadedImage(data,{path='/project/build/app'}={}){
+  const u=toUint8Array(data),summary=inspectElfBytes(u);
+  if(!summary.valid)return {valid:false,diagnostics:[{severity:'error',reason:summary.reason}]};
+  const bits=summary.bits,littleEndian=summary.littleEndian,min=bits===64?64:52;
+  if(u.length<min)return {valid:false,diagnostics:[{severity:'error',reason:`truncated ELF${bits} header`}]};
+  const dv=new DataView(u.buffer,u.byteOffset,u.byteLength),
+        u16=o=>dv.getUint16(o,littleEndian),u32=o=>dv.getUint32(o,littleEndian),
+        u64=o=>{const v=dv.getBigUint64(o,littleEndian);return v<=BigInt(Number.MAX_SAFE_INTEGER)?Number(v):null};
+  const diagnostics=[],type=u16(16),machine=u16(18),entry=bits===64?u64(24):u32(24),
+        phoff=bits===64?u64(32):u32(28),shoff=bits===64?u64(40):u32(32),
+        phentsize=bits===64?u16(54):u16(42),phnum=bits===64?u16(56):u16(44),
+        shentsize=bits===64?u16(58):u16(46),shnum=bits===64?u16(60):u16(48);
+  if(entry==null||phoff==null||shoff==null)diagnostics.push({severity:'warning',reason:'one or more ELF64 addresses exceed JavaScript safe integer range'});
+  const segments=[];
+  if(Number.isFinite(phoff)&&phnum<65536){
+    for(let i=0;i<phnum;i++){
+      const off=phoff+i*phentsize;
+      if(off<0||off+phentsize>u.length){diagnostics.push({severity:'error',reason:`program header ${i} is outside file bounds`});break}
+      let pType,pFlags,pOffset,pVaddr,pPaddr,pFileSz,pMemSz,pAlign;
+      if(bits===64){
+        pType=u32(off);pFlags=u32(off+4);pOffset=u64(off+8);pVaddr=u64(off+16);pPaddr=u64(off+24);pFileSz=u64(off+32);pMemSz=u64(off+40);pAlign=u64(off+48);
+      }else{
+        pType=u32(off);pOffset=u32(off+4);pVaddr=u32(off+8);pPaddr=u32(off+12);pFileSz=u32(off+16);pMemSz=u32(off+20);pFlags=u32(off+24);pAlign=u32(off+28);
+      }
+      if([pOffset,pVaddr,pFileSz,pMemSz].some(v=>v==null)){diagnostics.push({severity:'warning',reason:`program header ${i} contains an address/size outside safe integer range`});continue}
+      const fileEnd=pOffset+pFileSz;
+      if(pFileSz>0&&(pOffset<0||fileEnd>u.length))diagnostics.push({severity:'error',reason:`${elfProgramTypeName(pType)} #${i} file range exceeds artifact bytes`});
+      if(pMemSz<pFileSz)diagnostics.push({severity:'warning',reason:`${elfProgramTypeName(pType)} #${i} has p_memsz < p_filesz`});
+      segments.push({index:i,type:pType,typeName:elfProgramTypeName(pType),flags:pFlags,permissions:elfSegmentFlags(pFlags),
+        offset:pOffset,vaddr:pVaddr,paddr:pPaddr,filesz:pFileSz,memsz:pMemSz,align:pAlign,fileEnd,vaddrEnd:pVaddr+pMemSz,
+        executable:!!(pFlags&1),writable:!!(pFlags&2),readable:!!(pFlags&4),zeroFillBytes:Math.max(0,pMemSz-pFileSz)});
+    }
+  }else diagnostics.push({severity:'error',reason:'program-header table cannot be represented safely'});
+  const loads=segments.filter(x=>x.type===1).sort((a,b)=>a.vaddr-b.vaddr),
+        preferredBase=loads.length?Math.min(...loads.map(x=>x.vaddr)):0,
+        interpSeg=segments.find(x=>x.type===3),interpreter=interpSeg&&interpSeg.filesz?readCStringBytes(u,interpSeg.offset,interpSeg.filesz):null;
+  const vaddrToOffset=addr=>{
+    for(const seg of loads)if(addr>=seg.vaddr&&addr<seg.vaddr+seg.filesz)return seg.offset+(addr-seg.vaddr);
+    return null;
+  };
+  const dynSeg=segments.find(x=>x.type===2),dynamicEntries=[],neededOffsets=[];let strtabAddr=null,strtabSize=null,sonameOffset=null,runpathOffset=null,rpathOffset=null;
+  if(dynSeg&&dynSeg.filesz>0&&dynSeg.offset+dynSeg.filesz<=u.length){
+    const entSize=bits===64?16:8,max=Math.min(8192,Math.floor(dynSeg.filesz/entSize));
+    for(let i=0;i<max;i++){
+      const off=dynSeg.offset+i*entSize,tag=bits===64?u64(off):u32(off),value=bits===64?u64(off+8):u32(off+4);
+      if(tag==null||value==null){diagnostics.push({severity:'warning',reason:'dynamic entry exceeds safe integer range'});break}
+      dynamicEntries.push({index:i,tag,value});
+      if(tag===0)break;
+      if(tag===1)neededOffsets.push(value);else if(tag===5)strtabAddr=value;else if(tag===10)strtabSize=value;else if(tag===14)sonameOffset=value;else if(tag===15)rpathOffset=value;else if(tag===29)runpathOffset=value;
+    }
+  }
+  const dynString=offset=>{
+    if(!Number.isFinite(strtabAddr)||!Number.isFinite(offset))return null;
+    const fileOffset=vaddrToOffset(strtabAddr+offset);if(!Number.isFinite(fileOffset))return null;
+    return readCStringBytes(u,fileOffset,Number.isFinite(strtabSize)?Math.min(4096,Math.max(0,strtabSize-offset)):4096);
+  };
+  const dependencies=neededOffsets.map(dynString).filter(Boolean),soname=dynString(sonameOffset),runpath=dynString(runpathOffset),rpath=dynString(rpathOffset);
+  const executableRanges=loads.filter(x=>x.executable).map(x=>({start:x.vaddr,end:x.vaddr+x.memsz,fileStart:x.offset,fileEnd:x.offset+x.filesz,permissions:x.permissions,segmentIndex:x.index}));
+  const overlaps=[];
+  for(let i=0;i<loads.length;i++)for(let j=i+1;j<loads.length;j++)if(loads[i].vaddrEnd>loads[j].vaddr&&loads[j].vaddrEnd>loads[i].vaddr)
+    overlaps.push({a:loads[i].index,b:loads[j].index,start:Math.max(loads[i].vaddr,loads[j].vaddr),end:Math.min(loads[i].vaddrEnd,loads[j].vaddrEnd)});
+  if(overlaps.length)diagnostics.push({severity:'warning',reason:`${overlaps.length} overlapping PT_LOAD virtual range(s)`});
+  const imageKind=type===2?'elf-executable':type===3?(interpreter?'elf-executable':'elf-shared-library'):type===1?'elf-relocatable':'elf-unknown';
+  return {
+    valid:true,schema:LOADED_IMAGE_SCHEMA,id:`image:${path}:${u.length}:${fnv1a32Bytes(u)}`,artifactPath:vfsPath(path),kind:imageKind,
+    bits,littleEndian,elfType:type,elfTypeName:elfTypeName(type),machine,machineName:elfMachineName(machine),
+    entrypoint:entry,preferredBase,interpreter,hasInterpreter:!!interpreter,fileSize:u.length,
+    header:{phoff,phentsize,phnum,shoff,shentsize,shnum},
+    segments,loadSegments:loads,executableRanges,overlaps,
+    dynamic:{entries:dynamicEntries,dependencies,soname,runpath,rpath,strtabAddress:strtabAddr,strtabSize},
+    dependencies,diagnostics,
+    mappingEvidence:'ELF program headers from raw project artifact bytes'
+  };
+}
+function buildArtifactFromStoredFile(file,{origin='imported',project=state.activeProject}={}){
+  const f=normalizedStoredFile(file),path=`/project/${f.path}`,elf=f.elf?.valid?f.elf:inspectElfBytes(f.data),
+        diagnostics=[];
+  if(f.encoding!=='binary')diagnostics.push({severity:'error',reason:'BuildArtifact requires binary artifact bytes'});
+  if(!elf?.valid)diagnostics.push({severity:'error',reason:elf?.reason||'not a valid ELF artifact'});
+  return {
+    schema:BUILD_ARTIFACT_SCHEMA,id:`artifact:${project?.id||'detached'}:${f.path}:${f.size}:${f.encoding==='binary'?fnv1a32Bytes(f.data):'text'}`,
+    origin:{kind:origin,tool:origin==='imported'?'manual-import':'unconnected-build-tool',toolVersion:null,toolHash:null},
+    projectId:project?.id||null,outputPath:vfsPath(path),projectPath:f.path,kind:f.kind,byteLength:f.size,encoding:f.encoding,
+    target:{architecture:elf?.machine?elfMachineName(elf.machine):(project?.target?.architecture||'unknown'),os:project?.target?.os||'linux',abi:project?.target?.abi||'sysv',
+      bits:elf?.bits||null,littleEndian:elf?.littleEndian??null,machine:elf?.machine??null},
+    elf:elf?.valid?{...elf}:null,status:diagnostics.some(d=>d.severity==='error')?'invalid':'valid',
+    contentFingerprint:{algorithm:'fnv1a32',value:f.encoding==='binary'?fnv1a32Bytes(f.data):null,strength:'non-cryptographic-cache-key'},
+    diagnostics,evidence:origin==='imported'?'raw bytes imported explicitly into Project VFS':'future build output'
+  };
+}
+function loadedImageFromBuildArtifact(artifact,file){
+  const f=normalizedStoredFile(file),image=parseElfLoadedImage(f.data,{path:artifact.outputPath});
+  if(!image.valid)return {...image,artifactId:artifact.id};
+  image.artifactId=artifact.id;image.projectId=artifact.projectId;image.contentFingerprint=artifact.contentFingerprint;
+  image.byteSource={kind:'project-vfs-binary',path:artifact.outputPath,size:f.size};
+  return image;
+}
+function loadedImageReadBytes(image,address,size,{loadBias=0}={}){
+  if(!image?.valid||!Number.isFinite(address)||!Number.isFinite(size)||size<0)return {ok:false,reason:'invalid loaded-image read request'};
+  const staticAddress=address-loadBias,entry=[...state.projectAuxFiles.values()].find(f=>`/project/${f.path}`===image.artifactPath),
+        bytes=entry?.encoding==='binary'?entry.data:null;
+  if(!bytes)return {ok:false,reason:`artifact bytes unavailable for ${image.artifactPath}`};
+  for(const seg of image.loadSegments||[]){
+    if(staticAddress>=seg.vaddr&&staticAddress+size<=seg.vaddr+seg.memsz){
+      const rel=staticAddress-seg.vaddr;
+      if(rel+size<=seg.filesz)return {ok:true,data:bytes.slice(seg.offset+rel,seg.offset+rel+size),source:'file-backed',segmentIndex:seg.index,staticAddress};
+      const out=new Uint8Array(size),filePart=Math.max(0,Math.min(size,seg.filesz-rel));
+      if(filePart>0)out.set(bytes.slice(seg.offset+rel,seg.offset+rel+filePart));
+      return {ok:true,data:out,source:filePart===size?'file-backed':'file+zero-fill',segmentIndex:seg.index,staticAddress};
+    }
+  }
+  return {ok:false,reason:`address ${safeHex(staticAddress)} is outside PT_LOAD ranges`};
+}
+function rebuildExecutionArtifacts(){
+  const artifacts=new Map(),images=new Map();
+  for(const f of state.projectAuxFiles.values()){
+    if(f.encoding!=='binary'||!['elf-executable','elf-shared-library'].includes(f.kind))continue;
+    const artifact=buildArtifactFromStoredFile(f,{origin:'imported'});artifacts.set(artifact.outputPath,artifact);
+    if(artifact.status==='valid'){
+      const image=loadedImageFromBuildArtifact(artifact,f);if(image.valid)images.set(artifact.outputPath,image);
+    }
+  }
+  state.buildArtifacts=artifacts;state.loadedImages=images;
+  if(state.selectedArtifactPath&&!artifacts.has(state.selectedArtifactPath))state.selectedArtifactPath=null;
+  if(!state.selectedArtifactPath)state.selectedArtifactPath=[...artifacts.keys()][0]||null;
+  return {artifacts,images};
+}
+function executionProviderDescriptor(kind){
+  if(kind==='unicorn')return {schema:EXECUTION_PROVIDER_SCHEMA,id:'unicorn',label:'Unicorn Function Sandbox',status:'not-connected',
+    intendedFor:['function'],capabilities:{loadImage:true,stepInstruction:true,run:true,pause:true,registers:true,memoryHooks:true,linuxProcess:false,filesystem:false,syscalls:'adapter-required'}};
+  if(kind==='blink')return {schema:EXECUTION_PROVIDER_SCHEMA,id:'blink',label:'Blink Process Sandbox',status:'not-connected',
+    intendedFor:['process'],capabilities:{loadImage:true,stepInstruction:true,run:true,pause:true,registers:true,memoryHooks:'provider-dependent',linuxProcess:true,filesystem:'InspectorVFS-adapter-required',syscalls:'policy-adapter-required'}};
+  return {schema:EXECUTION_PROVIDER_SCHEMA,id:String(kind||'none'),label:String(kind||'No provider'),status:'unknown',intendedFor:[],capabilities:{}};
+}
+class ExecutionSession{
+  constructor({config,artifact,image,policyDecision,io}={}){
+    this.schema=EXECUTION_SESSION_SCHEMA;this.id=projectId();this.createdAt=nowIso();this.modifiedAt=this.createdAt;
+    this.state='created';this.prepared=false;this.config=cloneJson(config||null);this.provider=executionProviderDescriptor(config?.backend);
+    this.artifact=artifact?cloneJson(artifact):null;this.loadedImage=image?cloneJson(image):null;this.policyDecision=cloneJson(policyDecision||null);
+    this.io=io||null;this.events=[];this.sequence=0;this.stopReason=null;
+    this.resources={instructions:0,memoryBytes:0,openFiles:3,runtimeMs:0,threads:1,processes:config?.kind==='process'?1:0};
+    this.record('session-created',{provider:this.provider.id,artifactPath:config?.artifactPath||null});
+  }
+  record(kind,payload={}){
+    const event={sequence:++this.sequence,time:nowIso(),kind,...cloneJson(payload)};this.events.push(event);this.modifiedAt=event.time;return event;
+  }
+  transition(next,{reason=null,evidence=null}={}){
+    const allowed={
+      created:['loading','policy-blocked','faulted','reset'],loading:['ready','policy-blocked','faulted','reset'],
+      ready:['running','reset','faulted'],running:['paused','exited','faulted','policy-blocked'],paused:['running','exited','faulted','reset'],
+      exited:['reset'],faulted:['reset'], 'policy-blocked':['reset'], reset:['created','loading']
+    };
+    if(!(allowed[this.state]||[]).includes(next))throw new Error(`invalid ExecutionSession transition ${this.state} → ${next}`);
+    const before=this.state;this.state=next;this.stopReason=reason||this.stopReason;this.record('state-transition',{before,after:next,reason,evidence});return this;
+  }
+  markPrepared(){
+    this.prepared=true;this.record('session-prepared',{providerStatus:this.provider.status,loadedImage:this.loadedImage?.id||null,
+      policy:this.policyDecision?.allow?'allow':'block'});
+    return this;
+  }
+  reset(){
+    const before=this.state;if(before!=='reset')this.transition('reset',{reason:'user reset'});
+    this.resources={instructions:0,memoryBytes:0,openFiles:3,runtimeMs:0,threads:1,processes:this.config?.kind==='process'?1:0};
+    this.io?.clearOutput?.();state.inspectorVfs?.resetRuntime?.();this.stopReason=null;this.prepared=false;this.record('session-reset-complete');return this;
+  }
+  snapshot(){
+    return {schema:this.schema,id:this.id,state:this.state,prepared:this.prepared,createdAt:this.createdAt,modifiedAt:this.modifiedAt,
+      provider:cloneJson(this.provider),config:cloneJson(this.config),artifact:this.artifact?{id:this.artifact.id,outputPath:this.artifact.outputPath,kind:this.artifact.kind,status:this.artifact.status}:null,
+      loadedImage:this.loadedImage?{id:this.loadedImage.id,artifactPath:this.loadedImage.artifactPath,kind:this.loadedImage.kind,entrypoint:this.loadedImage.entrypoint,preferredBase:this.loadedImage.preferredBase}:null,
+      policyDecision:cloneJson(this.policyDecision),resources:cloneJson(this.resources),stopReason:this.stopReason,events:this.events.map(cloneJson),
+      io:this.io?.snapshot?.()||null};
+  }
+}
+function prepareExecutionSession(config=selectedRunConfig()){
+  rebuildInspectorVfs();rebuildExecutionArtifacts();
+  const validation=validateRunConfiguration(config,state.inspectorVfs,state.activeProject?.executionPolicy),
+        canonicalPath=config?canonicalArtifactVfsPath(config.artifactPath,state.inspectorVfs):null,
+        artifact=canonicalPath?state.buildArtifacts.get(canonicalPath):null,
+        image=canonicalPath?state.loadedImages.get(canonicalPath):null,
+        io=new InspectorIO(config,state.inspectorVfs),
+        session=new ExecutionSession({config,artifact,image,policyDecision:validation.decision,io});
+  if(!validation.valid){
+    if(validation.decision&&!validation.decision.allow)session.transition('policy-blocked',{reason:validation.reason,evidence:validation.decision.rule});
+    else session.transition('faulted',{reason:validation.reason});
+  }else if(!artifact||!image){
+    session.transition('faulted',{reason:validation.reason||'LoadedImage unavailable'});
+  }else{
+    session.markPrepared();
+    session.record('provider-pending',{provider:session.provider.id,reason:'execution provider is not connected in V14.9'});
+  }
+  state.executionSessions.set(session.id,session);state.selectedExecutionSessionId=session.id;state.inspectorIo=io;
+  return session;
 }
 function normalizedStoredFile(file){
   const path=safeProjectPath(file.path),binary=file.encoding==='binary'||!!toUint8Array(file.data);
@@ -1355,6 +1577,9 @@ function rebuildInspectorVfs(){
   state.inspectorVfs=next;return next;
 }
 function runConfigBackend(config){return config?.kind==='function'?'Unicorn function sandbox':'Blink process sandbox'}
+function canonicalArtifactVfsPath(path,vfs=state.inspectorVfs){
+  const p=vfsPath(path||''),entry=vfs?.resolve(p);return entry?.mountSource||p;
+}
 function validateRunConfiguration(config,vfs=state.inspectorVfs,policy=state.activeProject?.executionPolicy){
   if(!config)return {valid:false,ready:false,reason:'No run configuration selected',backend:null,decision:null};
   const path=vfsPath(config.artifactPath||''),kind=config.kind==='function'?'shared-library':'execute',
@@ -1364,11 +1589,14 @@ function validateRunConfiguration(config,vfs=state.inspectorVfs,policy=state.act
   if(!decision.allow)return {valid:false,ready:false,reason:decision.reason,backend:runConfigBackend(config),decision};
   if(config.kind==='function'&&!String(config.functionName||'').trim())return {valid:false,ready:false,reason:'Function configuration requires a symbol/name',backend:runConfigBackend(config),decision};
   const entry=vfs?.resolve(path);
-  if(!entry)return {valid:true,ready:false,artifactReady:false,reason:`Policy/config contract is valid, but artifact ${path} is not present in InspectorVFS`,backend:runConfigBackend(config),decision};
-  const artifactReady=entry.kind==='elf-executable'||entry.kind==='elf-shared-library';
-  return {valid:true,ready:false,artifactReady,
-    reason:artifactReady?'Artifact is classified, but the execution backend is not connected yet.':'Policy/config contract is valid. Current VFS entry is not an authoritative ELF image yet; binary ELF ingestion/validation remains pending.',
-    backend:runConfigBackend(config),decision,entry};
+  if(!entry)return {valid:true,ready:false,artifactReady:false,loadedImageReady:false,reason:`Policy/config contract is valid, but artifact ${path} is not present in InspectorVFS`,backend:runConfigBackend(config),decision};
+  const artifactReady=entry.kind==='elf-executable'||entry.kind==='elf-shared-library',
+        canonicalPath=entry.mountSource||path,image=state.loadedImages?.get(canonicalPath)||null,
+        loadedImageReady=!!image?.valid;
+  if(config.kind==='process'&&image&&image.kind!=='elf-executable')return {valid:false,ready:false,artifactReady:true,loadedImageReady:true,reason:`LoadedImage ${canonicalPath} is ${image.kind}, not an executable process image`,backend:runConfigBackend(config),decision,entry,image,canonicalPath};
+  return {valid:true,ready:false,artifactReady,loadedImageReady,
+    reason:loadedImageReady?'LoadedImage is ready; execution provider is not connected yet.':artifactReady?'Raw ELF is classified but LoadedImage has not been prepared yet.':'Policy/config contract is valid. Current VFS entry is not an authoritative ELF image.',
+    backend:runConfigBackend(config),decision,entry,image,canonicalPath};
 }
 function sourcePathFromMarker(source){return normalizePath((source||'').replace(/:\d+(?:\s.*)?$/,''))}
 function semanticTail(name){
@@ -4920,7 +5148,7 @@ async function openProject(id){
   }else{
     renderWorkspaceFiles();enableWorkspaceControls();
   }
-  rebuildInspectorVfs();updateProjectChrome();
+  rebuildInspectorVfs();rebuildExecutionArtifacts();updateProjectChrome();
   if(els.projectDialog?.open){await refreshProjectCatalog({render:true})}
   setStatus(`Project opened: ${state.activeProject.name} · ${snap.files.length} files · ${state.activeProject.storageBackend}`);
 }
@@ -5032,8 +5260,8 @@ async function importExecutionArtifacts(fileList){
     }catch(err){rejected.push({name:file.name,reason:String(err?.message||err)})}
   }
   if(accepted.length){
-    state.projectDirty=true;rebuildInspectorVfs();await saveCurrentProject({quiet:true});
-    if(state.environmentTab==='vfs')renderEnvironment('vfs');
+    state.projectDirty=true;rebuildInspectorVfs();rebuildExecutionArtifacts();await saveCurrentProject({quiet:true});
+    if(['vfs','artifacts','runs','sessions'].includes(state.environmentTab))renderEnvironment(state.environmentTab);
   }
   setStatus(`${accepted.length} ELF artifact${accepted.length===1?'':'s'} imported${rejected.length?` · ${rejected.length} rejected`:''}`);
   return {accepted:accepted.map(f=>({path:f.path,kind:f.kind,size:f.size,elf:f.elf})),rejected};
@@ -5046,6 +5274,72 @@ function environmentVfsRows(){
     <span>${escapeHtml(e.path)}</span><span class="${e.layer==='runtime-overlay'?'vfsOverlay':e.layer==='virtual'?'vfsVirtual':'vfsLayer'}">${escapeHtml(e.layer||'')}</span>
     <span class="${e.persistent?'vfsPersistent':''}">${e.persistent?'yes':'no'}</span><span>${Number.isFinite(e.size)?`${formatBytesCompact(e.size)} · ${escapeHtml(e.kind||'file')}`:escapeHtml(e.note||e.kind||'')}</span>
   </div>`).join('')}</div>`;
+}
+function artifactJsonView(value){return JSON.stringify(value,null,2)}
+function environmentArtifactsHtml(){
+  rebuildExecutionArtifacts();
+  const artifacts=[...new Map([...state.buildArtifacts.values()].map(a=>[a.id,a])).values()];
+  if(!state.selectedArtifactPath||!state.buildArtifacts.has(state.selectedArtifactPath))state.selectedArtifactPath=artifacts[0]?.outputPath||null;
+  const artifact=state.selectedArtifactPath?state.buildArtifacts.get(state.selectedArtifactPath):null,
+        image=state.selectedArtifactPath?state.loadedImages.get(state.selectedArtifactPath):null;
+  if(!artifacts.length)return `<div class="projectEmpty"><div><strong>No raw ELF execution artifacts</strong><br>Import an ELF executable or shared library from Virtual filesystem.</div></div>`;
+  const entryRead=image&&Number.isFinite(image.entrypoint)&&image.kind==='elf-executable'?loadedImageReadBytes(image,image.entrypoint,Math.min(24,Math.max(1,image.executableRanges?.[0]?.end-image.entrypoint||24))):null,
+        entryHex=entryRead?.ok?[...entryRead.data].map(b=>b.toString(16).padStart(2,'0')).join(' '):'—';
+  return `<div class="runConfigList">
+    <div class="runConfigRows">${artifacts.map(a=>`<div class="runConfigRow${a.outputPath===state.selectedArtifactPath?' active':''}" data-artifact-path="${escapeHtml(a.outputPath)}"><b>${escapeHtml(a.outputPath)}</b><br><span class="muted">${escapeHtml(a.kind)} · ${formatBytesCompact(a.byteLength)} · ${escapeHtml(a.target.architecture)} · ${escapeHtml(a.status)}</span></div>`).join('')}</div>
+    <div>${artifact?`<section class="projectSection"><strong>BUILD ARTIFACT · ${escapeHtml(BUILD_ARTIFACT_SCHEMA)}</strong><div class="policyList">
+      <b>ID</b><span>${escapeHtml(artifact.id)}</span><b>Origin</b><span>${escapeHtml(artifact.origin.kind)} · ${escapeHtml(artifact.origin.tool)}</span>
+      <b>Output</b><span>${escapeHtml(artifact.outputPath)}</span><b>Kind</b><span>${escapeHtml(artifact.kind)}</span>
+      <b>Bytes</b><span>${formatBytesCompact(artifact.byteLength)}</span><b>Target</b><span>${escapeHtml(`${artifact.target.architecture} · ${artifact.target.bits||'?'}-bit · ${artifact.target.littleEndian?'LE':'BE'}`)}</span>
+      <b>Fingerprint</b><span>${escapeHtml(`${artifact.contentFingerprint.algorithm}:${artifact.contentFingerprint.value}`)} · cache identity only</span>
+      <b>Status</b><span class="${artifact.status==='valid'?'policyAllow':'policyBlock'}">${escapeHtml(artifact.status)}</span>
+    </div><div class="projectActions"><button data-artifact-export="artifact">Export BuildArtifact JSON</button>${image?'<button data-artifact-export="image">Export LoadedImage JSON</button>':''}</div></section>
+    ${image?`<section class="projectSection"><strong>LOADED IMAGE · ${escapeHtml(LOADED_IMAGE_SCHEMA)}</strong><div class="policyList">
+      <b>Kind</b><span>${escapeHtml(image.kind)} · ${escapeHtml(image.elfTypeName)}</span>
+      <b>Machine</b><span>${escapeHtml(image.machineName)} (${image.machine})</span>
+      <b>Entrypoint</b><span>${Number.isFinite(image.entrypoint)?safeHex(image.entrypoint):'—'}</span>
+      <b>Preferred base</b><span>${safeHex(image.preferredBase)}</span>
+      <b>Interpreter</b><span>${escapeHtml(image.interpreter||'none')}</span>
+      <b>PT_LOAD</b><span>${num(image.loadSegments.length)}</span>
+      <b>Executable ranges</b><span>${num(image.executableRanges.length)}</span>
+      <b>Dependencies</b><span>${image.dependencies.length?escapeHtml(image.dependencies.join(', ')):'none decoded'}</span>
+      <b>SONAME</b><span>${escapeHtml(image.dynamic?.soname||'—')}</span>
+      <b>RUNPATH / RPATH</b><span>${escapeHtml(image.dynamic?.runpath||image.dynamic?.rpath||'—')}</span>
+      <b>Entrypoint bytes</b><span>${escapeHtml(entryHex)}</span>
+    </div></section>
+    <section class="projectSection"><strong>PROGRAM-HEADER LOAD PLAN</strong><div class="vfsTree"><div class="vfsRow"><b>SEGMENT</b><b>PERMS</b><b>FILE</b><b>VIRTUAL</b></div>${image.loadSegments.map(seg=>`<div class="vfsRow"><span>#${seg.index} · ${escapeHtml(seg.typeName)}</span><span>${escapeHtml(seg.permissions)}</span><span>${safeHex(seg.offset)} + ${safeHex(seg.filesz)}</span><span>${safeHex(seg.vaddr)}..${safeHex(seg.vaddrEnd)}${seg.zeroFillBytes?` · +${formatBytesCompact(seg.zeroFillBytes)} zero`:''}</span></div>`).join('')}</div></section>
+    <section class="projectSection"><strong>EXECUTABLE RANGES FOR FUTURE DISASSEMBLER</strong>${image.executableRanges.length?`<div class="path">${image.executableRanges.map(r=>`${safeHex(r.start)}..${safeHex(r.end)} · ${escapeHtml(r.permissions)} · PT_LOAD #${r.segmentIndex}`).join('<br>')}</div>`:'<div class="path">No executable PT_LOAD range.</div>'}</section>
+    ${image.diagnostics.length?`<section class="projectSection"><strong>LOADER DIAGNOSTICS</strong><div class="path">${image.diagnostics.map(d=>`${escapeHtml(d.severity)} · ${escapeHtml(d.reason)}`).join('<br>')}</div></section>`:''}`:`<section class="projectSection"><strong>LOADED IMAGE</strong><div class="policyDecision block">Raw artifact exists but LoadedImage could not be produced.</div></section>`}
+    `:'Select an artifact.'}</div>
+  </div>`;
+}
+function selectedExecutionSession(){
+  return state.executionSessions.get(state.selectedExecutionSessionId)||null;
+}
+function environmentSessionsHtml(){
+  rebuildExecutionArtifacts();
+  const configs=state.activeProject?.runConfigurations||[],sessions=[...state.executionSessions.values()],
+        selected=selectedExecutionSession();
+  return `<section class="projectSection"><strong>${escapeHtml(EXECUTION_SESSION_SCHEMA)} · PREPARE SESSION</strong>
+    <div class="environmentGrid"><b>Run configuration</b><select data-session-config>${configs.length?configs.map(c=>`<option value="${escapeHtml(c.id)}"${c.id===state.selectedRunConfigId?' selected':''}>${escapeHtml(c.name)} · ${escapeHtml(c.kind)} · ${escapeHtml(c.artifactPath)}</option>`).join(''):'<option value="">No run configurations</option>'}</select></div>
+    <div class="projectActions"><button data-session-action="prepare" class="primary" ${configs.length?'':'disabled'}>Prepare ExecutionSession</button></div>
+    <div class="path">Preparation resolves policy + raw BuildArtifact + LoadedImage + InspectorIO. It does <b>not</b> execute machine code until the provider is connected.</div>
+  </section>
+  <div class="runConfigList">
+    <div class="runConfigRows">${sessions.length?sessions.slice().reverse().map(session=>`<div class="runConfigRow${session.id===state.selectedExecutionSessionId?' active':''}" data-session-id="${escapeHtml(session.id)}"><b>${escapeHtml(session.config?.name||session.id)}</b><br><span class="muted">${escapeHtml(session.state)} · ${escapeHtml(session.provider.label)} · ${escapeHtml(session.artifact?.outputPath||'no artifact')}</span></div>`).join(''):'<div class="projectEmpty"><div>No prepared sessions.</div></div>'}</div>
+    <div>${selected?(()=>{const snap=selected.snapshot();return `<section class="projectSection"><strong>SESSION</strong><div class="policyList">
+      <b>ID</b><span>${escapeHtml(snap.id)}</span><b>State</b><span>${escapeHtml(snap.state)}${snap.prepared?' · prepared':''}</span>
+      <b>Provider</b><span>${escapeHtml(snap.provider.label)} · ${escapeHtml(snap.provider.status)}</span>
+      <b>Config</b><span>${escapeHtml(snap.config?.name||'—')} · ${escapeHtml(snap.config?.kind||'—')}</span>
+      <b>Artifact</b><span>${escapeHtml(snap.artifact?.outputPath||'—')} · ${escapeHtml(snap.artifact?.kind||'—')}</span>
+      <b>LoadedImage</b><span>${snap.loadedImage?`${escapeHtml(snap.loadedImage.kind)} · entry ${safeHex(snap.loadedImage.entrypoint)} · base ${safeHex(snap.loadedImage.preferredBase)}`:'—'}</span>
+      <b>Policy</b><span class="${snap.policyDecision?.allow?'policyAllow':'policyBlock'}">${snap.policyDecision?`${snap.policyDecision.allow?'ALLOW':'BLOCK'} · ${escapeHtml(snap.policyDecision.reason)}`:'—'}</span>
+      <b>FD 0/1/2</b><span>${snap.io?.descriptors?.map(d=>`${d.fd}:${d.name}`).join(' · ')||'—'}</span>
+      <b>Resource budget</b><span>${num(state.activeProject?.executionPolicy?.limits?.maxInstructions||0)} instructions · ${formatBytesCompact(state.activeProject?.executionPolicy?.limits?.maxMemoryBytes||0)} memory · ${num(state.activeProject?.executionPolicy?.limits?.maxRuntimeMs||0)} ms</span>
+    </div><div class="projectActions"><button data-session-action="export">Export session JSON</button><button data-session-action="reset">Reset contract</button><button data-session-action="delete">Delete session</button></div></section>
+    <section class="projectSection"><strong>PROVIDER CONTRACT · ${escapeHtml(EXECUTION_PROVIDER_SCHEMA)}</strong><div class="path">${escapeHtml(JSON.stringify(snap.provider.capabilities,null,2))}</div></section>
+    <section class="projectSection"><strong>SESSION EVENTS</strong><div class="vfsTree">${snap.events.map(e=>`<div class="runtimeOverlayRow"><span>#${e.sequence} · ${escapeHtml(e.kind)}</span><span>${escapeHtml(e.time.slice(11,19))}</span><span>${escapeHtml(e.reason||e.providerStatus||e.provider||e.after||'')}</span></div>`).join('')}</div></section>`})():'<div class="projectEmpty"><div>Select or prepare a session.</div></div>'}</div>
+  </div>`;
 }
 function environmentPolicyHtml(){
   const p=state.activeProject?.executionPolicy||defaultExecutionPolicy(),l=p.limits||{};
@@ -5134,10 +5428,12 @@ function renderEnvironment(tab=state.environmentTab||'vfs'){
   state.environmentTab=tab;
   document.querySelectorAll('[data-env-tab]').forEach(b=>b.classList.toggle('active',b.dataset.envTab===tab));
   if(!state.activeProject){els.environmentPanel.innerHTML='<div class="projectEmpty"><div>No active project.</div></div>';return}
-  rebuildInspectorVfs();
+  rebuildInspectorVfs();rebuildExecutionArtifacts();
   if(tab==='vfs')els.environmentPanel.innerHTML=environmentVfsRows();
+  else if(tab==='artifacts')els.environmentPanel.innerHTML=environmentArtifactsHtml();
   else if(tab==='policy')els.environmentPanel.innerHTML=environmentPolicyHtml();
   else if(tab==='runs')els.environmentPanel.innerHTML=environmentRunConfigsHtml();
+  else if(tab==='sessions')els.environmentPanel.innerHTML=environmentSessionsHtml();
   else if(tab==='io')els.environmentPanel.innerHTML=environmentIoHtml();
   else els.environmentPanel.innerHTML=environmentOverlayHtml();
 }
@@ -5246,6 +5542,7 @@ function clearAll(){
   state.inputKind='objdump';state.inputMeta=null;state.explicitEntrySymbols=[];
   state.editMode=false;state.editRevision++;clearTimeout(state.editTimer);state.editTimer=null;
   state.workspaceFiles=new Map();state.workspaceOrder=[];state.activeFileId=null;state.workspaceRevision=0;state.projectAuxFiles=new Map();
+  state.buildArtifacts=new Map();state.loadedImages=new Map();state.selectedArtifactPath=null;state.executionSessions=new Map();state.selectedExecutionSessionId=null;state.inspectorIo=null;
   state.workspaceName='Workspace';state.functionsByNameMulti=new Map();state.workspaceDependencies=new Map();
   state.dynamicMatches=[];state.dataflowCache=new Map();state.cfgAnalysisCache=new Map();state.currentCfgAnalysis=null;
 
@@ -8332,6 +8629,34 @@ document.querySelectorAll('[data-env-tab]').forEach(btn=>btn.addEventListener('c
 els.environmentPanel.addEventListener('click',async e=>{
   try{
     if(e.target.closest('[data-vfs-import-artifact]')){els.vfsImportInput.click();return}
+    const artifactRow=e.target.closest('[data-artifact-path]');
+    if(artifactRow){state.selectedArtifactPath=artifactRow.dataset.artifactPath;renderEnvironment('artifacts');return}
+    const artifactExport=e.target.closest('[data-artifact-export]');
+    if(artifactExport){
+      const artifact=state.buildArtifacts.get(state.selectedArtifactPath),image=state.loadedImages.get(state.selectedArtifactPath);
+      if(artifactExport.dataset.artifactExport==='artifact'&&artifact)downloadJsonFile(`build-artifact-${basename(artifact.outputPath)}.json`,artifact);
+      else if(image)downloadJsonFile(`loaded-image-${basename(image.artifactPath)}.json`,image);
+      return;
+    }
+    const sessionRow=e.target.closest('[data-session-id]');
+    if(sessionRow){state.selectedExecutionSessionId=sessionRow.dataset.sessionId;renderEnvironment('sessions');return}
+    const sessionAction=e.target.closest('[data-session-action]');
+    if(sessionAction){
+      const action=sessionAction.dataset.sessionAction;
+      if(action==='prepare'){
+        const id=els.environmentPanel.querySelector('[data-session-config]')?.value||state.selectedRunConfigId;
+        if(id)state.selectedRunConfigId=id;
+        const config=selectedRunConfig();if(!config){setStatus('No run configuration selected');return}
+        const session=prepareExecutionSession(config);renderEnvironment('sessions');
+        setStatus(session.prepared?`ExecutionSession prepared · ${session.provider.label} pending`:`ExecutionSession ${session.state} · ${session.stopReason||'not prepared'}`);
+      }else{
+        const session=selectedExecutionSession();if(!session)return;
+        if(action==='export')downloadJsonFile(`execution-session-${session.id}.json`,session.snapshot());
+        else if(action==='reset'){session.reset();renderEnvironment('sessions');setStatus('ExecutionSession reset; no machine code executed.')}
+        else if(action==='delete'){state.executionSessions.delete(session.id);state.selectedExecutionSessionId=[...state.executionSessions.keys()].at(-1)||null;renderEnvironment('sessions')}
+      }
+      return;
+    }
     const newRun=e.target.closest('[data-run-new]');if(newRun){await createRunConfig(newRun.dataset.runNew);return}
     const runRow=e.target.closest('[data-run-id]');if(runRow){state.selectedRunConfigId=runRow.dataset.runId;renderEnvironment('runs');return}
     const runAction=e.target.closest('[data-run-action]');
@@ -8341,7 +8666,7 @@ els.environmentPanel.addEventListener('click',async e=>{
       else if(runAction.dataset.runAction==='validate'){
         const result=validateRunConfiguration(selectedRunConfig(),state.inspectorVfs,state.activeProject?.executionPolicy),
               out=els.environmentPanel.querySelector('[data-run-validation]');
-        if(out){out.className=`policyDecision ${result.valid?'allow':'block'}`;out.textContent=`${result.backend||'backend'} · ${result.valid?'POLICY/CONFIG OK':'CONFIG BLOCKED'} · ${result.ready?'EXECUTABLE READY':result.artifactReady?'BACKEND PENDING':'ARTIFACT NOT EXECUTABLE YET'} · ${result.reason}`}
+        if(out){out.className=`policyDecision ${result.valid?'allow':'block'}`;out.textContent=`${result.backend||'backend'} · ${result.valid?'POLICY/CONFIG OK':'CONFIG BLOCKED'} · ${result.loadedImageReady?'LOADED IMAGE READY / PROVIDER PENDING':result.artifactReady?'RAW ELF READY / LOADER PENDING':'ARTIFACT NOT EXECUTABLE YET'} · ${result.reason}`}
       }
       return;
     }
@@ -10566,7 +10891,9 @@ Object.defineProperty(window,'asmInspectorDebug',{value:{
   // Explicit regression-harness entry points; normal UI code does not depend on them.
   addWorkspaceText, loadText,
   projectStore, projectStoreReady, defaultProject, defaultExecutionPolicy, defaultRunConfiguration, executionPolicyDecision,
-  InspectorVFS, InspectorIO, createInspectorIO, inspectElfBytes, importExecutionArtifacts, rebuildInspectorVfs, validateRunConfiguration, saveCurrentProject, createProject, openProject, closeActiveProject,
+  InspectorVFS, InspectorIO, createInspectorIO, inspectElfBytes, parseElfLoadedImage, buildArtifactFromStoredFile, loadedImageFromBuildArtifact, loadedImageReadBytes,
+  rebuildExecutionArtifacts, ExecutionSession, executionProviderDescriptor, prepareExecutionSession, canonicalArtifactVfsPath,
+  importExecutionArtifacts, rebuildInspectorVfs, validateRunConfiguration, saveCurrentProject, createProject, openProject, closeActiveProject,
   refreshProjectCatalog, renderProjectManager, openProjectManager, openEnvironment, renderEnvironment
 },configurable:false,enumerable:false});
 
