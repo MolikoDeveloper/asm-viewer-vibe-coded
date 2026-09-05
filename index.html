@@ -78,6 +78,48 @@ html[dir="rtl"] .familyName,html[dir="rtl"] .inspector .title,html[dir="rtl"] .i
 .unwindFrameGrid{display:grid;grid-template-columns:120px 1fr;gap:3px 8px;font:11px ui-monospace,monospace}
 .unwindDiag{margin-top:6px;color:#d9b97a;font:11px ui-monospace,monospace}
 .unwindDialogFoot{height:46px;display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:0 10px;border-top:1px solid #26313a;background:#111820}
+.projectBadge{max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#91b7d8;font:11px ui-monospace,monospace}
+.projectDialog{width:min(1280px,96vw);height:min(840px,94vh);padding:0;background:#0d1217;color:#c8d2dc;border:1px solid #34414d;border-radius:8px}
+.projectDialog::backdrop{background:#000a}
+.projectDialogHead{height:44px;display:flex;align-items:center;gap:8px;padding:0 10px;border-bottom:1px solid #26313a;background:#111820}
+.projectDialogBody{height:calc(100% - 92px);display:grid;grid-template-columns:320px 1fr;min-height:0}
+.projectSidebar{border-right:1px solid #26313a;display:flex;flex-direction:column;min-height:0}
+.projectSidebarActions{display:flex;gap:6px;padding:8px;border-bottom:1px solid #26313a;flex-wrap:wrap}
+.projectList{overflow:auto;padding:6px;min-height:0;flex:1}
+.projectRow{border:1px solid #29343e;border-radius:6px;padding:8px;margin-bottom:6px;background:#10161d;cursor:pointer}
+.projectRow:hover{border-color:#466077}.projectRow.active{border-color:#5aa5d8;background:#111d27}
+.projectRowHead{display:flex;gap:7px;align-items:center;font:600 12px ui-monospace,monospace}
+.projectRowMeta{margin-top:4px;color:#8191a1;font:10px ui-monospace,monospace;line-height:1.45}
+.projectMain{overflow:auto;padding:12px;min-height:0}
+.projectEmpty{height:100%;display:grid;place-items:center;color:#738293;text-align:center}
+.projectSection{border:1px solid #29343e;border-radius:7px;background:#10161d;margin-bottom:10px;padding:10px}
+.projectSection>strong{display:block;margin-bottom:7px;font:600 12px ui-monospace,monospace;color:#a9c8e3}
+.projectMetaGrid,.environmentGrid{display:grid;grid-template-columns:150px 1fr;gap:5px 9px;font:11px ui-monospace,monospace;align-items:center}
+.projectMetaGrid input,.projectMetaGrid select,.environmentGrid input,.environmentGrid select,.runConfigForm input,.runConfigForm select,.runConfigForm textarea{
+  background:#0a0f14;color:#c9d6e2;border:1px solid #34414d;border-radius:4px;padding:5px 6px;font:11px ui-monospace,monospace
+}
+.projectActions{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
+.projectDialogFoot{height:48px;display:flex;align-items:center;gap:8px;padding:0 10px;border-top:1px solid #26313a;background:#111820}
+.storageMeter{height:6px;border-radius:4px;background:#1b252e;overflow:hidden;margin-top:5px}.storageMeter>i{display:block;height:100%;background:#5aa5d8;width:0}
+.environmentDialog{width:min(1380px,97vw);height:min(880px,95vh);padding:0;background:#0d1217;color:#c8d2dc;border:1px solid #34414d;border-radius:8px}
+.environmentDialog::backdrop{background:#000a}
+.environmentBody{height:calc(100% - 88px);display:grid;grid-template-columns:220px 1fr;min-height:0}
+.environmentNav{border-right:1px solid #26313a;padding:8px;display:flex;flex-direction:column;gap:6px}
+.environmentNav button{text-align:left}.environmentNav button.active{border-color:#5aa5d8;background:#152331}
+.environmentPanel{overflow:auto;padding:12px}
+.vfsTree{font:11px ui-monospace,monospace;border:1px solid #29343e;border-radius:6px;background:#0a0f14;overflow:auto;max-height:520px}
+.vfsRow{display:grid;grid-template-columns:1fr 90px 90px 110px;gap:7px;padding:5px 7px;border-bottom:1px solid #202a32;align-items:center}
+.vfsRow:last-child{border-bottom:0}.vfsLayer{color:#86a8c5}.vfsPersistent{color:#78c29c}.vfsVirtual{color:#c6a86b}.vfsOverlay{color:#d98980}
+.policyList{font:11px ui-monospace,monospace;display:grid;grid-template-columns:190px 1fr;gap:5px 9px}
+.policyAllow{color:#78c29c}.policyBlock{color:#e38b83}.policyLocked{color:#c9a969}
+.runConfigList{display:grid;grid-template-columns:minmax(240px,34%) 1fr;gap:10px;min-height:440px}
+.runConfigRows{border:1px solid #29343e;border-radius:6px;overflow:auto;background:#0a0f14}
+.runConfigRow{padding:8px;border-bottom:1px solid #202a32;cursor:pointer}.runConfigRow:last-child{border-bottom:0}.runConfigRow.active{background:#142331}.runConfigRow:hover{background:#111e29}
+.runConfigForm{display:grid;grid-template-columns:140px 1fr;gap:7px 9px;align-items:start}
+.runConfigForm textarea{min-height:72px;resize:vertical}
+.policyDecision{margin-top:8px;padding:7px;border:1px solid #29343e;border-radius:5px;font:11px ui-monospace,monospace}
+.policyDecision.allow{border-color:#31664b;color:#88c9a3}.policyDecision.block{border-color:#7a4541;color:#e0958d}
+.runtimeOverlayRow{display:grid;grid-template-columns:1fr 100px 1fr;gap:8px;padding:5px 7px;border-bottom:1px solid #202a32;font:11px ui-monospace,monospace}
 .hexDialogHead{height:38px;display:flex;align-items:center;gap:8px;padding:0 10px;border-bottom:1px solid #26313a;background:#111820}
 .hexDialogHead .grow{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .hexViewport{position:relative;height:calc(100% - 38px);overflow:auto;background:#090d11;font:12px/20px ui-monospace,SFMono-Regular,Consolas,monospace}
@@ -309,8 +351,14 @@ dialog::backdrop{background:#0009}
       <option value="en">English</option>
       <option value="he">עברית</option>
     </select>
+    <button id="projectsBtn" data-i18n="projects">Projects</button>
+    <button id="saveProjectBtn" data-i18n="saveProject" disabled>Save project</button>
+    <button id="environmentBtn" data-i18n="environment" disabled>Environment</button>
+    <span id="activeProjectBadge" class="projectBadge">No project</span>
     <input id="fileInput" type="file" accept=".txt,.asm,.fasm,.inc,.s,.S,.dump,.objdump,text/plain" multiple hidden>
     <input id="folderInput" type="file" webkitdirectory directory multiple hidden>
+    <input id="projectImportInput" type="file" accept=".json,.asmproj.json,application/json" hidden>
+    <input id="vfsImportInput" type="file" accept=".elf,.so,.bin,.out,application/octet-stream" multiple hidden>
     <button id="openBtn" class="primary" data-i18n="openFiles">Open files</button>
     <button id="openFolderBtn" data-i18n="openFolder">Open folder</button>
     <button id="pasteBtn" data-i18n="paste">Paste</button>
@@ -457,6 +505,53 @@ dialog::backdrop{background:#0009}
   </div>
 </div>
 
+<dialog id="projectDialog" class="projectDialog">
+  <div class="projectDialogHead">
+    <strong data-i18n="projectManager">Project Manager</strong>
+    <span class="grow" id="projectDialogTitle">Browser-local projects</span>
+    <button id="projectDialogClose">×</button>
+  </div>
+  <div class="projectDialogBody">
+    <aside class="projectSidebar">
+      <div class="projectSidebarActions">
+        <button id="projectNewBtn" class="primary" data-i18n="newProject">New</button>
+        <button id="projectImportBtn" data-i18n="importProject">Import</button>
+        <button id="projectRefreshBtn" data-i18n="refresh">Refresh</button>
+      </div>
+      <div class="projectList" id="projectList"></div>
+    </aside>
+    <main class="projectMain" id="projectMain">
+      <div class="projectEmpty"><div><strong data-i18n="selectProject">Select a project</strong><br><span data-i18n="projectLocalHint">Projects are stored locally in this browser origin.</span></div></div>
+    </main>
+  </div>
+  <div class="projectDialogFoot">
+    <span id="storageStatus" class="grow">Storage: checking…</span>
+    <button id="requestPersistenceBtn" data-i18n="requestPersistence">Request persistent storage</button>
+  </div>
+</dialog>
+
+<dialog id="environmentDialog" class="environmentDialog">
+  <div class="projectDialogHead">
+    <strong data-i18n="environment">Environment</strong>
+    <span class="grow" id="environmentTitle">No active project</span>
+    <button id="environmentClose">×</button>
+  </div>
+  <div class="environmentBody">
+    <nav class="environmentNav">
+      <button class="active" data-env-tab="vfs" data-i18n="virtualFilesystem">Virtual filesystem</button>
+      <button data-env-tab="policy" data-i18n="executionPolicy">Execution policy</button>
+      <button data-env-tab="runs" data-i18n="runConfigurations">Run configurations</button>
+      <button data-env-tab="io">I/O · FD 0/1/2</button>
+      <button data-env-tab="overlay" data-i18n="runtimeOverlay">Runtime overlay</button>
+    </nav>
+    <main class="environmentPanel" id="environmentPanel"></main>
+  </div>
+  <div class="projectDialogFoot">
+    <span id="environmentStatus" class="grow">Execution backend not connected.</span>
+    <button id="environmentSaveBtn" class="primary" data-i18n="saveProject">Save project</button>
+  </div>
+</dialog>
+
 <dialog id="pasteDialog">
   <div class="dialogHead" data-i18n="pasteAsm">Paste ASM / objdump</div>
   <div class="dialogBody"><textarea id="pasteArea" spellcheck="false" placeholder="Paste the complete content here…" data-i18n-placeholder="pastePlaceholder"></textarea></div>
@@ -506,6 +601,7 @@ dialog::backdrop{background:#0009}
       <div class="unwindFormGrid">
         <label for="unwindPc">Runtime / static PC</label><input id="unwindPc" value="">
         <label for="unwindDialogSource">Frame source</label><select id="unwindDialogSource"><option value="auto">auto</option><option value="debug_frame">.debug_frame</option><option value="eh_frame">.eh_frame</option></select>
+        <label for="unwindStrategy">Strategy</label><select id="unwindStrategy"><option value="cfi">CFI only</option><option value="cfi+frame-pointer">CFI + frame-pointer cross-check</option><option value="frame-pointer">Frame pointer only (heuristic)</option></select>
         <label for="unwindMaxFrames">Max frames</label><input id="unwindMaxFrames" type="number" min="1" max="256" value="32">
         <label for="unwindPtrSize">Pointer size</label><select id="unwindPtrSize"><option value="8">8 bytes</option><option value="4">4 bytes</option></select>
         <label for="unwindLoadBias">Module load bias</label><input id="unwindLoadBias" value="0x0">
@@ -521,6 +617,7 @@ dialog::backdrop{background:#0009}
   </div>
   <div class="unwindDialogFoot">
     <span class="grow" id="unwindDialogStatus"></span>
+    <button id="unwindExport">Export stack JSON</button>
     <button id="unwindRun" class="primary">Run unwind</button>
   </div>
 </dialog>
@@ -532,7 +629,9 @@ dialog::backdrop{background:#0009}
 const $ = s => document.querySelector(s);
 const els = {
   languageSelect:$('#languageSelect'),
-  fileInput:$('#fileInput'), folderInput:$('#folderInput'), openBtn:$('#openBtn'), openFolderBtn:$('#openFolderBtn'), pasteBtn:$('#pasteBtn'), clearBtn:$('#clearBtn'), binaryIndexBtn:$('#binaryIndexBtn'),
+  fileInput:$('#fileInput'), folderInput:$('#folderInput'), projectImportInput:$('#projectImportInput'), vfsImportInput:$('#vfsImportInput'),
+  projectsBtn:$('#projectsBtn'), saveProjectBtn:$('#saveProjectBtn'), environmentBtn:$('#environmentBtn'), activeProjectBadge:$('#activeProjectBadge'),
+  openBtn:$('#openBtn'), openFolderBtn:$('#openFolderBtn'), pasteBtn:$('#pasteBtn'), clearBtn:$('#clearBtn'), binaryIndexBtn:$('#binaryIndexBtn'),
   search:$('#search'), prevSearch:$('#prevSearch'), nextSearch:$('#nextSearch'),
   fileLabel:$('#fileLabel'), formatBadge:$('#formatBadge'), codeInfo:$('#codeInfo'), codeViewport:$('#codeViewport'), fileList:$('#fileList'), fileCount:$('#fileCount'),
   codeSpacer:$('#codeSpacer'), codeLayer:$('#codeLayer'), foldAction:$('#foldAction'),
@@ -548,14 +647,19 @@ const els = {
   pasteDialog:$('#pasteDialog'), pasteArea:$('#pasteArea'), pasteCancel:$('#pasteCancel'), pasteLoad:$('#pasteLoad'),
   hexDialog:$('#hexDialog'), hexTitle:$('#hexTitle'), hexInfo:$('#hexInfo'), hexGoto:$('#hexGoto'), hexClose:$('#hexClose'), hexViewport:$('#hexViewport'), hexSpacer:$('#hexSpacer'), hexLayer:$('#hexLayer'),
   unwindDialog:$('#unwindDialog'), unwindDialogTitle:$('#unwindDialogTitle'), unwindDialogClose:$('#unwindDialogClose'), unwindDialogSource:$('#unwindDialogSource'),
-  unwindPc:$('#unwindPc'), unwindMaxFrames:$('#unwindMaxFrames'), unwindPtrSize:$('#unwindPtrSize'), unwindLoadBias:$('#unwindLoadBias'), unwindStaticBase:$('#unwindStaticBase'),
-  unwindRegisters:$('#unwindRegisters'), unwindMemory:$('#unwindMemory'), unwindResults:$('#unwindResults'), unwindDialogStatus:$('#unwindDialogStatus'), unwindRun:$('#unwindRun'),
-  indexDialog:$('#indexDialog'), indexSymbolsTab:$('#indexSymbolsTab'), indexRelocsTab:$('#indexRelocsTab'), indexSearch:$('#indexSearch'), indexInfo:$('#indexInfo'), indexClose:$('#indexClose'), indexViewport:$('#indexViewport'), indexSpacer:$('#indexSpacer'), indexLayer:$('#indexLayer')
+  unwindPc:$('#unwindPc'), unwindStrategy:$('#unwindStrategy'), unwindMaxFrames:$('#unwindMaxFrames'), unwindPtrSize:$('#unwindPtrSize'), unwindLoadBias:$('#unwindLoadBias'), unwindStaticBase:$('#unwindStaticBase'),
+  unwindRegisters:$('#unwindRegisters'), unwindMemory:$('#unwindMemory'), unwindResults:$('#unwindResults'), unwindDialogStatus:$('#unwindDialogStatus'), unwindRun:$('#unwindRun'), unwindExport:$('#unwindExport'),
+  indexDialog:$('#indexDialog'), indexSymbolsTab:$('#indexSymbolsTab'), indexRelocsTab:$('#indexRelocsTab'), indexSearch:$('#indexSearch'), indexInfo:$('#indexInfo'), indexClose:$('#indexClose'), indexViewport:$('#indexViewport'), indexSpacer:$('#indexSpacer'), indexLayer:$('#indexLayer'),
+  projectDialog:$('#projectDialog'), projectDialogTitle:$('#projectDialogTitle'), projectDialogClose:$('#projectDialogClose'), projectList:$('#projectList'), projectMain:$('#projectMain'),
+  projectNewBtn:$('#projectNewBtn'), projectImportBtn:$('#projectImportBtn'), projectRefreshBtn:$('#projectRefreshBtn'), storageStatus:$('#storageStatus'), requestPersistenceBtn:$('#requestPersistenceBtn'),
+  environmentDialog:$('#environmentDialog'), environmentTitle:$('#environmentTitle'), environmentClose:$('#environmentClose'), environmentPanel:$('#environmentPanel'),
+  environmentStatus:$('#environmentStatus'), environmentSaveBtn:$('#environmentSaveBtn')
 };
 
 const I18N = {
   en:{
-    openAsm:'Open ASM',openFiles:'Open files',openFolder:'Open folder',paste:'Paste',clear:'Clear',files:'Files',noWorkspaceFiles:'No workspace files.',dropFiles:'Drop assembly files here',dropFilesSub:'Multiple objdump, ASM, FASM, and include files are supported.',workspace:'Workspace',mixedInput:'mixed input',searchPlaceholder:'Search symbol / code…',previous:'Previous',next:'Next',noFile:'No file',lines:'lines',line:'line',
+    openAsm:'Open ASM',openFiles:'Open files',openFolder:'Open folder',paste:'Paste',clear:'Clear',files:'Files',
+    projects:'Projects',saveProject:'Save project',environment:'Environment',projectManager:'Project Manager',newProject:'New',importProject:'Import',refresh:'Refresh',selectProject:'Select a project',projectLocalHint:'Projects are stored locally in this browser origin.',requestPersistence:'Request persistent storage',virtualFilesystem:'Virtual filesystem',executionPolicy:'Execution policy',runConfigurations:'Run configurations',runtimeOverlay:'Runtime overlay',noWorkspaceFiles:'No workspace files.',dropFiles:'Drop assembly files here',dropFilesSub:'Multiple objdump, ASM, FASM, and include files are supported.',workspace:'Workspace',mixedInput:'mixed input',searchPlaceholder:'Search symbol / code…',previous:'Previous',next:'Next',noFile:'No file',lines:'lines',line:'line',
     foldTitle:'Structural ASM folding',folding:'Folding…',collapseFunctions:'− Functions',expandFunctions:'+ Functions',collapseContents:'− Contents',expandContents:'+ Contents',collapseSections:'− Sections',expandSections:'+ Sections',
     groups:'Groups',groupsTitle:'Filter symbol families and sections',flow:'Flow',hideFlow:'Hide flow',flowTitle:'Show/hide flow below ASM',edit:'Edit',inspect:'Inspect',save:'Save',liveParsing:'Live parsing…',liveUpdated:'Graph updated',visibleGroups:'Visible groups',all:'All',none:'None',filterGroups:'Filter groups…',
     dropAsm:'Drop the ASM dump here',dropAsmSub:'It will be loaded as text, without validation.',selectFunctionInstruction:'Select a function or instruction',staticHeuristic:'static · x86-64 dataflow',fit:'Fit',noFlow:'No flow selected',selectCodeOrNode:'Select code or a graph node.',
@@ -574,7 +678,9 @@ const I18N = {
     dwarfMapped:'DWARF mapped',sourceMapped:'source-mapped',fasmSource:'FASM source',objdumpInput:'objdump',fasmLoaded:'FASM source loaded',dwarfUnavailable:'DWARF unavailable',displayNodes:'display nodes',staticGroups:'static groups'
   },
   he:{
-    openAsm:'פתח ASM',openFiles:'פתח קבצים',openFolder:'פתח תיקייה',paste:'הדבק',clear:'נקה',files:'קבצים',noWorkspaceFiles:'אין קבצים ב-workspace.',dropFiles:'גרור לכאן קבצי אסמבלי',dropFilesSub:'נתמכים מספר קובצי objdump, ASM, FASM וקובצי include.',workspace:'Workspace',mixedInput:'קלט מעורב',searchPlaceholder:'חיפוש סמל / קוד…',previous:'הקודם',next:'הבא',noFile:'אין קובץ',lines:'שורות',line:'שורה',
+    openAsm:'פתח ASM',openFiles:'פתח קבצים',openFolder:'פתח תיקייה',paste:'הדבק',clear:'נקה',
+    projects:'פרויקטים',saveProject:'שמור פרויקט',environment:'סביבה',projectManager:'מנהל פרויקטים',newProject:'חדש',importProject:'ייבוא',refresh:'רענן',selectProject:'בחר פרויקט',projectLocalHint:'הפרויקטים נשמרים מקומית ב-origin של הדפדפן.',requestPersistence:'בקש אחסון מתמשך',virtualFilesystem:'מערכת קבצים וירטואלית',executionPolicy:'מדיניות הרצה',runConfigurations:'תצורות הרצה',runtimeOverlay:'שכבת Runtime',
+    files:'קבצים',noWorkspaceFiles:'אין קבצים ב-workspace.',dropFiles:'גרור לכאן קבצי אסמבלי',dropFilesSub:'נתמכים מספר קובצי objdump, ASM, FASM וקובצי include.',workspace:'Workspace',mixedInput:'קלט מעורב',searchPlaceholder:'חיפוש סמל / קוד…',previous:'הקודם',next:'הבא',noFile:'אין קובץ',lines:'שורות',line:'שורה',
     foldTitle:'קיפול מבני של ASM',folding:'קיפול…',collapseFunctions:'− פונקציות',expandFunctions:'+ פונקציות',collapseContents:'− Contents',expandContents:'+ Contents',collapseSections:'− מקטעים',expandSections:'+ מקטעים',
     groups:'קבוצות',groupsTitle:'סינון משפחות סמלים ומקטעים',flow:'זרימה',hideFlow:'הסתר זרימה',flowTitle:'הצג/הסתר זרימה מתחת ל-ASM',edit:'עריכה',inspect:'תצוגה',save:'שמור',liveParsing:'מנתח בזמן אמת…',liveUpdated:'הגרף עודכן',visibleGroups:'קבוצות גלויות',all:'הכל',none:'ללא',filterGroups:'סינון קבוצות…',
     dropAsm:'גרור לכאן dump של ASM',dropAsmSub:'ייטען כטקסט, ללא אימות.',selectFunctionInstruction:'בחר פונקציה או הוראה',staticHeuristic:'סטטי · x86-64 dataflow',fit:'התאם',noFlow:'לא נבחרה זרימה',selectCodeOrNode:'בחר קוד או צומת בגרף.',
@@ -727,6 +833,8 @@ const state = {
   editMode:false, editTimer:null, editRevision:0,
   workspaceFiles:new Map(), workspaceOrder:[], activeFileId:null, workspaceRevision:0,
   workspaceName:'Workspace', functionsByNameMulti:new Map(), workspaceDependencies:new Map(),
+  activeProjectId:null, activeProject:null, projectCatalog:[], selectedProjectId:null, projectStorage:null, projectAutosaveTimer:null, projectDirty:false, projectAuxFiles:new Map(),
+  inspectorVfs:null, inspectorIo:null, environmentTab:'vfs', selectedRunConfigId:null, lastProjectSaveAt:null,
   dynamicMatches:[], matchDynamicImplementations:true,
   bridgeHidden:true,
   entryFunction:null, elfEntry:null, programEntry:null, reachableIds:new Set(), reachParent:new Map(), depthById:new Map(), detachedY:null,
@@ -763,6 +871,505 @@ function pathJoin(a,b){
   return normalizePath((a||'').replace(/\/$/,'')+'/'+b.replace(/^\//,''));
 }
 function basename(path){const p=normalizePath(path).replace(/\/$/,'');return p.slice(p.lastIndexOf('/')+1)||p}
+
+const PROJECT_SCHEMA='asm-graph.project/v1';
+const PROJECT_BUNDLE_SCHEMA='asm-graph.project-bundle/v1';
+const EXECUTION_POLICY_SCHEMA='asm-graph.execution-policy/v1';
+const RUN_CONFIG_SCHEMA='asm-graph.run-config/v1';
+const VFS_SCHEMA='asm-graph.vfs/v1';
+const INSPECTOR_IO_SCHEMA='asm-graph.io/v1';
+const PROJECT_DB_NAME='asm-graph-inspector-projects';
+const PROJECT_DB_VERSION=1;
+
+function projectId(){return crypto?.randomUUID?.()||`p-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`}
+function nowIso(){return new Date().toISOString()}
+function cloneJson(value){return value==null?value:JSON.parse(JSON.stringify(value))}
+function safeProjectPath(path){
+  const p=normalizePath(String(path||'').replace(/^\/+/,'')).split('/').filter(x=>x&&x!=='.');
+  if(!p.length||p.some(x=>x==='..'))throw new Error(`unsafe project path: ${path}`);
+  return p.join('/');
+}
+function vfsPath(path){
+  const parts=normalizePath('/'+String(path||'')).split('/').filter(Boolean);
+  const out=[];
+  for(const part of parts){if(part==='.')continue;if(part==='..')out.pop();else out.push(part)}
+  return '/'+out.join('/');
+}
+function pathWithin(path,root){
+  const p=vfsPath(path),r=vfsPath(root);return p===r||p.startsWith(r.endsWith('/')?r:r+'/');
+}
+function defaultExecutionPolicy(){
+  return {
+    schema:EXECUTION_POLICY_SCHEMA,version:1,lockedBaseline:true,
+    executableScope:'project-and-associated-libraries',
+    allowExecutable:true,allowSharedLibraryFunctions:true,allowDynamicLibraries:true,
+    network:false,hostFilesystem:false,hostProcesses:false,
+    filesystem:{
+      runtimeOverlay:true,
+      read:['/project','/lib','/tmp','/dev','/proc/self'],
+      write:['/project/output','/tmp'],
+      execute:['/project'],
+      sharedLibrary:['/project','/lib'],
+      denied:['/host','/proc/sys','/proc/kcore']
+    },
+    syscalls:{
+      mode:'allowlist',
+      allow:['read','write','readv','writev','open','openat','close','lseek','fstat','newfstatat','mmap','mprotect','munmap','brk','arch_prctl','set_tid_address','set_robust_list','rt_sigaction','rt_sigprocmask','rt_sigreturn','clock_gettime','gettimeofday','getpid','gettid','uname','getrandom','exit','exit_group'],
+      explicitBlock:['socket','connect','bind','listen','accept','accept4','sendto','recvfrom','mount','umount2','ptrace','reboot','kexec_load','bpf','perf_event_open']
+    },
+    limits:{
+      maxInstructions:10_000_000,maxMemoryBytes:256*1024*1024,maxOpenFiles:1024,maxFileBytes:64*1024*1024,
+      maxRuntimeMs:15_000,maxThreads:1,maxProcesses:1
+    }
+  };
+}
+function defaultRunConfiguration(kind='process'){
+  const id=projectId();
+  return {
+    schema:RUN_CONFIG_SCHEMA,id,name:kind==='function'?'Function call':'App default',kind,
+    artifactPath:kind==='function'?'/project/build/lib.so':'/project/build/app',
+    artifactType:kind==='function'?'elf-shared-library':'elf-executable',
+    functionName:kind==='function'?'function_name':'',
+    backend:kind==='function'?'unicorn':'blink',
+    argv:[],abi:'sysv',arguments:[],
+    stdin:{mode:'eof',text:'',file:''},
+    workingDirectory:'/project',
+    environment:{},
+    createdAt:nowIso(),modifiedAt:nowIso()
+  };
+}
+function defaultProject(name='Untitled project'){
+  const ts=nowIso();
+  return {
+    schema:PROJECT_SCHEMA,id:projectId(),name:String(name||'Untitled project').trim()||'Untitled project',
+    createdAt:ts,modifiedAt:ts,
+    target:{architecture:'x86_64',os:'linux',abi:'sysv'},
+    build:{kind:'none',entry:''},
+    executionPolicy:defaultExecutionPolicy(),
+    runConfigurations:[],activeRunConfigId:null,
+    ui:{activeFilePath:null,graphMode:'calls',viewMode:'boundaries'},
+    storageBackend:'unknown',files:[],
+    notes:'Execution is constrained to process ELF / shared-library function workflows. No host filesystem or network access.'
+  };
+}
+function normalizedProject(project){
+  const base=defaultProject(project?.name||'Untitled project');
+  return {
+    ...base,...cloneJson(project),
+    schema:PROJECT_SCHEMA,
+    target:{...base.target,...cloneJson(project?.target||{})},
+    build:{...base.build,...cloneJson(project?.build||{})},
+    executionPolicy:{...base.executionPolicy,...cloneJson(project?.executionPolicy||{}),
+      filesystem:{...base.executionPolicy.filesystem,...cloneJson(project?.executionPolicy?.filesystem||{})},
+      syscalls:{...base.executionPolicy.syscalls,...cloneJson(project?.executionPolicy?.syscalls||{})},
+      limits:{...base.executionPolicy.limits,...cloneJson(project?.executionPolicy?.limits||{})}},
+    runConfigurations:(project?.runConfigurations||[]).map(r=>({...defaultRunConfiguration(r.kind),...cloneJson(r),schema:RUN_CONFIG_SCHEMA}))
+  };
+}
+function executionPolicyDecision(policy,request={}){
+  const p=policy||defaultExecutionPolicy(),kind=request.kind||'filesystem',path=request.path?vfsPath(request.path):null;
+  const result=(allow,reason,rule)=>({allow,reason,rule,request:{...request,path}});
+  if(kind==='network')return result(!!p.network,p.network?'network explicitly enabled':'network disabled by ExecutionPolicy','network');
+  if(kind==='host-filesystem')return result(!!p.hostFilesystem,p.hostFilesystem?'host filesystem enabled':'host filesystem is never mounted into InspectorVFS','hostFilesystem');
+  if(kind==='host-process')return result(!!p.hostProcesses,p.hostProcesses?'host process access enabled':'host process access disabled','hostProcesses');
+  if(kind==='syscall'){
+    const name=String(request.syscall||'');
+    if(p.syscalls?.explicitBlock?.includes(name))return result(false,`syscall ${name} is explicitly blocked`,'syscalls.explicitBlock');
+    if(p.syscalls?.mode==='allowlist'&&!p.syscalls?.allow?.includes(name))return result(false,`syscall ${name} is not in the allowlist`,'syscalls.allow');
+    return result(true,`syscall ${name} is allowed`,'syscalls.allow');
+  }
+  if(path&&p.filesystem?.denied?.some(root=>pathWithin(path,root)))return result(false,`${path} is inside an explicitly denied VFS range`,'filesystem.denied');
+  if(kind==='read')return result(!!p.filesystem?.read?.some(root=>pathWithin(path,root)),
+    p.filesystem?.read?.some(root=>pathWithin(path,root))?`${path} is inside a readable VFS mount`:`${path} is outside readable VFS mounts`,'filesystem.read');
+  if(kind==='write')return result(!!p.filesystem?.write?.some(root=>pathWithin(path,root)),
+    p.filesystem?.write?.some(root=>pathWithin(path,root))?`${path} may be written to the runtime overlay`:`${path} is read-only or outside writable VFS mounts`,'filesystem.write');
+  if(kind==='execute'){
+    if(!p.allowExecutable)return result(false,'executable launch disabled','allowExecutable');
+    return result(!!p.filesystem?.execute?.some(root=>pathWithin(path,root)),
+      p.filesystem?.execute?.some(root=>pathWithin(path,root))?`${path} is inside the project execution scope`:`${path} is outside the executable scope`,'filesystem.execute');
+  }
+  if(kind==='shared-library'){
+    if(!p.allowSharedLibraryFunctions)return result(false,'shared-library function execution disabled','allowSharedLibraryFunctions');
+    return result(!!p.filesystem?.sharedLibrary?.some(root=>pathWithin(path,root)),
+      p.filesystem?.sharedLibrary?.some(root=>pathWithin(path,root))?`${path} is inside an associated library scope`:`${path} is outside associated library scopes`,'filesystem.sharedLibrary');
+  }
+  return result(false,`unknown policy request kind ${kind}`,'unknown');
+}
+
+
+function toUint8Array(data){
+  if(data instanceof Uint8Array)return data;
+  if(data instanceof ArrayBuffer)return new Uint8Array(data);
+  if(ArrayBuffer.isView(data))return new Uint8Array(data.buffer,data.byteOffset,data.byteLength);
+  return null;
+}
+function cloneBytes(data){const u=toUint8Array(data);return u?new Uint8Array(u):null}
+function bytesToBase64(data){
+  const u=toUint8Array(data)||new Uint8Array();let out='',step=0x8000;
+  for(let i=0;i<u.length;i+=step)out+=String.fromCharCode(...u.subarray(i,i+step));
+  return btoa(out);
+}
+function base64ToBytes(text){
+  const raw=atob(String(text||'')),u=new Uint8Array(raw.length);for(let i=0;i<raw.length;i++)u[i]=raw.charCodeAt(i);return u;
+}
+function inspectElfBytes(data){
+  const u=toUint8Array(data);if(!u||u.length<52)return {valid:false,reason:'file is too small for an ELF header'};
+  if(u[0]!==0x7f||u[1]!==0x45||u[2]!==0x4c||u[3]!==0x46)return {valid:false,reason:'ELF magic is missing'};
+  const cls=u[4],bits=cls===1?32:cls===2?64:0;if(!bits)return {valid:false,reason:`unsupported ELF class ${cls}`};
+  const enc=u[5],littleEndian=enc===1?true:enc===2?false:null;if(littleEndian==null)return {valid:false,reason:`unsupported ELF data encoding ${enc}`};
+  const dv=new DataView(u.buffer,u.byteOffset,u.byteLength),u16=o=>dv.getUint16(o,littleEndian),u32=o=>dv.getUint32(o,littleEndian),
+        u64=o=>{const lo=littleEndian?u32(o):u32(o+4),hi=littleEndian?u32(o+4):u32(o);return hi*0x100000000+lo};
+  const type=u16(16),machine=u16(18),phoff=bits===64?u64(32):u32(28),phentsize=bits===64?u16(54):u16(42),phnum=bits===64?u16(56):u16(44);
+  let hasInterp=false;
+  if(Number.isFinite(phoff)&&phentsize>=4&&phnum<65536){
+    for(let i=0;i<phnum;i++){
+      const off=phoff+i*phentsize;if(off+4>u.length)break;
+      if(u32(off)===3){hasInterp=true;break}
+    }
+  }
+  let kind='elf-unknown';
+  if(type===2)kind='elf-executable';
+  else if(type===3)kind=hasInterp?'elf-executable':'elf-shared-library';
+  else if(type===1)kind='elf-relocatable';
+  return {valid:true,kind,bits,littleEndian,type,machine,hasInterp,programHeaders:phnum};
+}
+function normalizedStoredFile(file){
+  const path=safeProjectPath(file.path),binary=file.encoding==='binary'||!!toUint8Array(file.data);
+  if(binary){
+    const data=cloneBytes(file.data)||new Uint8Array(),elf=file.elf||inspectElfBytes(data);
+    return {path,encoding:'binary',data,size:data.byteLength,kind:file.kind||elf.kind||'binary',elf};
+  }
+  const text=String(file.text??'');
+  return {path,encoding:'utf-8',text,size:new Blob([text]).size,kind:file.kind||'workspace-text',elf:null};
+}
+function cloneStoredFile(file){
+  const f=normalizedStoredFile(file);return f.encoding==='binary'?{...f,data:cloneBytes(f.data)}:{...f};
+}
+function idbRequest(req){return new Promise((resolve,reject)=>{req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error||new Error('IndexedDB request failed'))})}
+function idbTxDone(tx){return new Promise((resolve,reject)=>{tx.oncomplete=()=>resolve();tx.onabort=()=>reject(tx.error||new Error('IndexedDB transaction aborted'));tx.onerror=()=>reject(tx.error||new Error('IndexedDB transaction failed'))})}
+
+class BrowserProjectStore{
+  constructor(){this.db=null;this.memoryProjects=new Map();this.memoryFiles=new Map();this.mode='memory';this.opfsAvailable=false;this.lastError=null}
+  async init(){
+    try{
+      if(!('indexedDB' in window))throw new Error('IndexedDB unavailable');
+      this.db=await new Promise((resolve,reject)=>{
+        const req=indexedDB.open(PROJECT_DB_NAME,PROJECT_DB_VERSION);
+        req.onupgradeneeded=()=>{
+          const db=req.result;
+          if(!db.objectStoreNames.contains('projects'))db.createObjectStore('projects',{keyPath:'id'});
+          if(!db.objectStoreNames.contains('files')){
+            const store=db.createObjectStore('files',{keyPath:'key'});store.createIndex('projectId','projectId',{unique:false});
+          }
+        };
+        req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error||new Error('Could not open project database'));
+      });
+      this.mode='indexeddb';
+    }catch(err){this.lastError=err;this.mode='memory';this.db=null}
+    try{this.opfsAvailable=!!(navigator.storage?.getDirectory)&&!!(await navigator.storage.getDirectory())}
+    catch{this.opfsAvailable=false}
+    return this;
+  }
+  async _projectsStore(mode='readonly'){const tx=this.db.transaction('projects',mode);return {tx,store:tx.objectStore('projects')}}
+  async listProjects(){
+    if(!this.db)return [...this.memoryProjects.values()].map(cloneJson).sort((a,b)=>String(b.modifiedAt).localeCompare(String(a.modifiedAt)));
+    const {store}=await this._projectsStore();const all=await idbRequest(store.getAll());
+    return all.map(normalizedProject).sort((a,b)=>String(b.modifiedAt).localeCompare(String(a.modifiedAt)));
+  }
+  async getProject(id){
+    if(!id)return null;
+    if(!this.db)return this.memoryProjects.has(id)?cloneJson(this.memoryProjects.get(id)):null;
+    const {store}=await this._projectsStore();const p=await idbRequest(store.get(id));return p?normalizedProject(p):null;
+  }
+  async putProject(project){
+    const p=normalizedProject(project);p.modifiedAt=nowIso();
+    if(!this.db){this.memoryProjects.set(p.id,cloneJson(p));return p}
+    const {tx,store}=await this._projectsStore('readwrite');store.put(cloneJson(p));await idbTxDone(tx);return p;
+  }
+  async _deleteIdbFiles(projectId){
+    if(!this.db)return;
+    const tx=this.db.transaction('files','readwrite'),store=tx.objectStore('files'),index=store.index('projectId'),
+          range=IDBKeyRange.only(projectId);
+    await new Promise((resolve,reject)=>{
+      const req=index.openCursor(range);req.onerror=()=>reject(req.error);
+      req.onsuccess=()=>{const c=req.result;if(!c){resolve();return}c.delete();c.continue()};
+    });
+    await idbTxDone(tx);
+  }
+  async _writeIdbFiles(projectId,files){
+    const normalized=files.map(normalizedStoredFile);
+    if(!this.db){this.memoryFiles.set(projectId,normalized.map(cloneStoredFile));return}
+    await this._deleteIdbFiles(projectId);
+    const tx=this.db.transaction('files','readwrite'),store=tx.objectStore('files');
+    for(const file of normalized)store.put({
+      key:`${projectId}:${file.path}`,projectId,path:file.path,encoding:file.encoding,kind:file.kind,size:file.size,elf:file.elf||null,
+      text:file.encoding==='utf-8'?file.text:null,
+      data:file.encoding==='binary'?file.data.buffer.slice(file.data.byteOffset,file.data.byteOffset+file.data.byteLength):null
+    });
+    await idbTxDone(tx);
+  }
+  async _readIdbFiles(projectId){
+    if(!this.db)return (this.memoryFiles.get(projectId)||[]).map(cloneStoredFile);
+    const tx=this.db.transaction('files','readonly'),store=tx.objectStore('files'),index=store.index('projectId'),
+          all=await idbRequest(index.getAll(IDBKeyRange.only(projectId)));
+    return all.map(x=>normalizedStoredFile({path:x.path,encoding:x.encoding,kind:x.kind,text:x.text,data:x.data,elf:x.elf}));
+  }
+  async _opfsProjectRoot(projectId,{create=false}={}){
+    if(!this.opfsAvailable)return null;
+    const root=await navigator.storage.getDirectory();
+    let app,projects;
+    try{app=await root.getDirectoryHandle('asm-graph-inspector',{create})}catch{return null}
+    try{projects=await app.getDirectoryHandle('projects',{create})}catch{return null}
+    try{return await projects.getDirectoryHandle(projectId,{create})}catch{return null}
+  }
+  async _clearOpfsProject(projectId){
+    if(!this.opfsAvailable)return;
+    try{
+      const root=await navigator.storage.getDirectory(),app=await root.getDirectoryHandle('asm-graph-inspector',{create:true}),
+            projects=await app.getDirectoryHandle('projects',{create:true});
+      await projects.removeEntry(projectId,{recursive:true});
+    }catch{}
+  }
+  async _writeOpfsFiles(projectId,files){
+    await this._clearOpfsProject(projectId);
+    const dir=await this._opfsProjectRoot(projectId,{create:true});
+    if(!dir)throw new Error('Could not create OPFS project directory');
+    for(const raw of files){
+      const file=normalizedStoredFile(raw),parts=file.path.split('/');let parent=dir;
+      for(const part of parts.slice(0,-1))parent=await parent.getDirectoryHandle(part,{create:true});
+      const handle=await parent.getFileHandle(parts.at(-1),{create:true}),w=await handle.createWritable();
+      await w.write(file.encoding==='binary'?file.data:file.text);await w.close();
+    }
+  }
+  async _readOpfsFiles(project){
+    const root=await this._opfsProjectRoot(project.id,{create:false});if(!root)throw new Error(`OPFS data missing for project ${project.name}`);
+    const out=[];
+    for(const desc of project.files||[]){
+      const parts=safeProjectPath(desc.path).split('/');let parent=root;
+      for(const part of parts.slice(0,-1))parent=await parent.getDirectoryHandle(part);
+      const handle=await parent.getFileHandle(parts.at(-1)),file=await handle.getFile();
+      if(desc.encoding==='binary')out.push(normalizedStoredFile({path:desc.path,encoding:'binary',kind:desc.kind,data:new Uint8Array(await file.arrayBuffer()),elf:desc.elf||null}));
+      else out.push(normalizedStoredFile({path:desc.path,encoding:'utf-8',kind:desc.kind||'workspace-text',text:await file.text()}));
+    }
+    return out;
+  }
+  async saveSnapshot(project,files){
+    let p=normalizedProject(project);
+    const cleanFiles=(files||[]).map(normalizedStoredFile);
+    p.files=cleanFiles.map(f=>({path:f.path,size:f.size,encoding:f.encoding,kind:f.kind,elf:f.elf?{...f.elf}:null}));
+    if(this.opfsAvailable){
+      try{await this._writeOpfsFiles(p.id,cleanFiles);await this._deleteIdbFiles(p.id);p.storageBackend='opfs'}
+      catch(err){this.lastError=err;await this._writeIdbFiles(p.id,cleanFiles);p.storageBackend=this.db?'indexeddb':'memory'}
+    }else{await this._writeIdbFiles(p.id,cleanFiles);p.storageBackend=this.db?'indexeddb':'memory'}
+    p=await this.putProject(p);return p;
+  }
+  async loadSnapshot(id){
+    const project=await this.getProject(id);if(!project)return null;
+    let files=[];
+    if(project.storageBackend==='opfs'){
+      try{files=await this._readOpfsFiles(project)}
+      catch(err){this.lastError=err;files=await this._readIdbFiles(id)}
+    }else files=await this._readIdbFiles(id);
+    return {project,files};
+  }
+  async deleteProject(id){
+    if(!id)return;
+    await this._clearOpfsProject(id);await this._deleteIdbFiles(id);
+    if(!this.db){this.memoryProjects.delete(id);this.memoryFiles.delete(id);return}
+    const {tx,store}=await this._projectsStore('readwrite');store.delete(id);await idbTxDone(tx);
+  }
+  async duplicateProject(id,newName=null){
+    const snap=await this.loadSnapshot(id);if(!snap)throw new Error('Project not found');
+    const copy=normalizedProject({...snap.project,id:projectId(),name:newName||`${snap.project.name} copy`,createdAt:nowIso(),modifiedAt:nowIso()});
+    copy.runConfigurations=(copy.runConfigurations||[]).map(r=>({...r,id:projectId(),createdAt:nowIso(),modifiedAt:nowIso()}));
+    copy.activeRunConfigId=copy.runConfigurations[0]?.id||null;return this.saveSnapshot(copy,snap.files);
+  }
+  async exportBundle(id){
+    const snap=await this.loadSnapshot(id);if(!snap)throw new Error('Project not found');
+    return {schema:PROJECT_BUNDLE_SCHEMA,version:1,exportedAt:nowIso(),project:{...snap.project,storageBackend:'portable'},files:snap.files.map(f=>
+      f.encoding==='binary'?{path:f.path,encoding:'base64',kind:f.kind,elf:f.elf||null,data:bytesToBase64(f.data)}:{path:f.path,encoding:'utf-8',kind:f.kind,text:f.text}
+    )};
+  }
+  async importBundle(bundle){
+    if(bundle?.schema!==PROJECT_BUNDLE_SCHEMA||!bundle.project||!Array.isArray(bundle.files))throw new Error('Unsupported project bundle');
+    const project=normalizedProject({...bundle.project,id:projectId(),name:bundle.project.name||'Imported project',createdAt:nowIso(),modifiedAt:nowIso(),storageBackend:'unknown'});
+    project.runConfigurations=(project.runConfigurations||[]).map(r=>({...r,id:projectId()}));
+    project.activeRunConfigId=project.runConfigurations[0]?.id||null;
+    const files=bundle.files.map(f=>f.encoding==='base64'
+      ?{path:safeProjectPath(f.path),encoding:'binary',kind:f.kind,data:base64ToBytes(f.data),elf:f.elf||null}
+      :{path:safeProjectPath(f.path),encoding:'utf-8',kind:f.kind||'workspace-text',text:String(f.text??'')});
+    return this.saveSnapshot(project,files);
+  }
+  async storageInfo(){
+    let persisted=null,estimate=null;
+    try{persisted=await navigator.storage?.persisted?.()}catch{}
+    try{estimate=await navigator.storage?.estimate?.()}catch{}
+    return {mode:this.mode,opfs:this.opfsAvailable,persisted,usage:estimate?.usage??null,quota:estimate?.quota??null,error:this.lastError?.message||null};
+  }
+  async requestPersistence(){
+    try{return !!(await navigator.storage?.persist?.())}catch{return false}
+  }
+}
+const projectStore=new BrowserProjectStore();
+const projectStoreReady=projectStore.init();
+
+class InspectorVFS{
+  constructor(project,files=[]){
+    this.schema=VFS_SCHEMA;this.project=project||defaultProject('Detached workspace');this.policy=this.project.executionPolicy||defaultExecutionPolicy();
+    this.projectFiles=new Map();this.libraryFiles=new Map();this.runtimeOverlay=new Map();this.tmpFiles=new Map();
+    for(const f of files)this.mountProjectFile(f);
+    this.virtualFiles=new Map([
+      ['/dev/null',{path:'/dev/null',layer:'virtual',kind:'device',persistent:false,readable:true,writable:true}],
+      ['/dev/zero',{path:'/dev/zero',layer:'virtual',kind:'device',persistent:false,readable:true,writable:false}],
+      ['/proc/self/status',{path:'/proc/self/status',layer:'virtual',kind:'proc',persistent:false,readable:true,writable:false,text:'Name:\\tasm-inspector\\nState:\\tR (simulated)\\n'}]
+    ]);
+  }
+  mountProjectFile(file,text=''){
+    const raw=typeof file==='string'?{path:file,text,encoding:'utf-8',kind:'workspace-text'}:file,
+          f=normalizedStoredFile(raw),rel=f.path,
+          entry={path:`/project/${rel}`,projectPath:rel,layer:'project',kind:f.kind,persistent:true,size:f.size,encoding:f.encoding,elf:f.elf||null,
+            ...(f.encoding==='binary'?{data:cloneBytes(f.data)}:{text:f.text})};
+    this.projectFiles.set(entry.path,entry);
+    if(rel.startsWith('lib/')){
+      const libPath='/lib/'+rel.slice(4),lib={...entry,path:libPath,layer:'library',mountSource:entry.path};
+      this.libraryFiles.set(libPath,lib);
+    }
+    return entry;
+  }
+  list(){
+    const mounts=[
+      {path:'/project',layer:'mount',kind:'directory',persistent:true,note:'project files'},
+      {path:'/lib',layer:'mount',kind:'directory',persistent:true,note:'associated project libraries'},
+      {path:'/tmp',layer:'mount',kind:'directory',persistent:false,note:'session temporary files'},
+      {path:'/dev',layer:'mount',kind:'directory',persistent:false,note:'virtual devices'},
+      {path:'/proc/self',layer:'mount',kind:'directory',persistent:false,note:'minimal simulated process metadata'}
+    ];
+    return [...mounts,...this.projectFiles.values(),...this.libraryFiles.values(),...this.virtualFiles.values(),...this.tmpFiles.values(),...this.runtimeOverlay.values()]
+      .sort((a,b)=>a.path.localeCompare(b.path)||String(a.layer).localeCompare(String(b.layer)));
+  }
+  resolve(path){
+    const p=vfsPath(path);
+    if(this.runtimeOverlay.has(p))return this.runtimeOverlay.get(p);
+    return this.tmpFiles.get(p)||this.projectFiles.get(p)||this.libraryFiles.get(p)||this.virtualFiles.get(p)||null;
+  }
+  decision(kind,path,extra={}){return executionPolicyDecision(this.policy,{kind,path,...extra})}
+  readFile(path){
+    const p=vfsPath(path),decision=this.decision('read',p);if(!decision.allow)return {ok:false,decision};
+    const entry=this.resolve(p);if(!entry)return {ok:false,decision:{allow:false,reason:`${p} does not exist`,rule:'vfs.resolve'}};
+    if(p==='/dev/null')return {ok:true,text:'',entry,decision};
+    if(p==='/dev/zero')return {ok:true,data:new Uint8Array(4096),entry,decision};
+    if(entry.encoding==='binary')return {ok:true,data:cloneBytes(entry.data),entry,decision};
+    return {ok:true,text:String(entry.text??''),entry,decision};
+  }
+  writeFile(path,text,{operation='write'}={}){
+    const p=vfsPath(path),decision=this.decision('write',p);if(!decision.allow)return {ok:false,decision};
+    if(p==='/dev/null')return {ok:true,discarded:true,decision};
+    const previous=this.resolve(p),entry={path:p,layer:p.startsWith('/tmp/')?'tmp':'runtime-overlay',kind:'file',persistent:false,text:String(text??''),size:new Blob([String(text??'')]).size,
+      operation,previousLayer:previous?.layer||null,previousText:previous?.text??null};
+    if(p.startsWith('/tmp/'))this.tmpFiles.set(p,entry);else this.runtimeOverlay.set(p,entry);
+    return {ok:true,entry,decision};
+  }
+  resetRuntime(){this.runtimeOverlay.clear();this.tmpFiles.clear()}
+  runtimeDiff(){
+    return [...this.runtimeOverlay.values()].map(e=>({path:e.path,operation:e.previousLayer?'modified':'created',before:e.previousText,after:e.text,size:e.size}))
+      .concat([...this.tmpFiles.values()].map(e=>({path:e.path,operation:'temporary',before:null,after:e.text,size:e.size})));
+  }
+}
+
+class InspectorIO{
+  constructor(runConfig=null,vfs=null){
+    this.schema=INSPECTOR_IO_SCHEMA;this.runConfig=runConfig;this.vfs=vfs;this.encoder=new TextEncoder();this.decoder=new TextDecoder();
+    this.stdin=new Uint8Array();this.stdinOffset=0;this.stdout=[];this.stderr=[];this.events=[];
+    this.descriptors=new Map([
+      [0,{fd:0,name:'stdin',direction:'read',target:'InspectorIO.stdin'}],
+      [1,{fd:1,name:'stdout',direction:'write',target:'InspectorIO.stdout'}],
+      [2,{fd:2,name:'stderr',direction:'write',target:'InspectorIO.stderr'}]
+    ]);
+    this.configureStdin(runConfig?.stdin||{mode:'eof'});
+  }
+  configureStdin(stdin){
+    const mode=stdin?.mode||'eof';let data=new Uint8Array(),evidence='EOF';
+    if(mode==='text'){data=this.encoder.encode(String(stdin.text||''));evidence=`preloaded text · ${data.length} B`}
+    else if(mode==='file'&&stdin.file&&this.vfs){
+      const read=this.vfs.readFile(stdin.file);
+      if(read.ok){data=read.data?cloneBytes(read.data):this.encoder.encode(String(read.text||''));evidence=`VFS ${vfsPath(stdin.file)} · ${data.length} B`}
+      else evidence=`VFS input unavailable · ${read.decision?.reason||'read failed'}`;
+    }
+    this.stdin=data;this.stdinOffset=0;this.stdinMode=mode;this.stdinEvidence=evidence;return this;
+  }
+  feedStdin(value,{append=true}={}){
+    const bytes=typeof value==='string'?this.encoder.encode(value):cloneBytes(value)||new Uint8Array();
+    if(!append||this.stdinOffset>=this.stdin.length){this.stdin=bytes;this.stdinOffset=0}
+    else{
+      const remaining=this.stdin.subarray(this.stdinOffset),next=new Uint8Array(remaining.length+bytes.length);next.set(remaining);next.set(bytes,remaining.length);this.stdin=next;this.stdinOffset=0;
+    }
+    this.stdinMode='interactive';this.stdinEvidence=`interactive queue · ${this.stdin.length-this.stdinOffset} B`;
+  }
+  read(fd,size){
+    if(fd!==0)return {ok:false,fd,reason:`FD ${fd} is not bound to InspectorIO stdin`};
+    const n=Math.max(0,Math.min(Number(size)||0,this.stdin.length-this.stdinOffset)),data=this.stdin.slice(this.stdinOffset,this.stdinOffset+n);this.stdinOffset+=n;
+    const event={kind:'read',fd:0,size:n,eof:n===0&&this.stdinOffset>=this.stdin.length};this.events.push(event);
+    return {ok:true,fd:0,data,eof:event.eof};
+  }
+  write(fd,value){
+    if(fd!==1&&fd!==2)return {ok:false,fd,reason:`FD ${fd} is not a predefined stdio descriptor`};
+    const data=typeof value==='string'?this.encoder.encode(value):cloneBytes(value)||new Uint8Array(),
+          chunk={data,text:this.decoder.decode(data),size:data.length};
+    (fd===1?this.stdout:this.stderr).push(chunk);this.events.push({kind:'write',fd,size:data.length});
+    return {ok:true,fd,size:data.length};
+  }
+  clearOutput(){this.stdout=[];this.stderr=[];this.events=[]}
+  text(fd){return (fd===1?this.stdout:fd===2?this.stderr:[]).map(x=>x.text).join('')}
+  snapshot(){
+    return {schema:this.schema,stdin:{mode:this.stdinMode,evidence:this.stdinEvidence,remaining:this.stdin.length-this.stdinOffset},
+      stdout:{bytes:this.stdout.reduce((n,x)=>n+x.size,0),text:this.text(1)},stderr:{bytes:this.stderr.reduce((n,x)=>n+x.size,0),text:this.text(2)},
+      descriptors:[...this.descriptors.values()].map(x=>({...x})),events:this.events.map(x=>({...x}))};
+  }
+}
+function createInspectorIO(config=selectedRunConfig(),vfs=state.inspectorVfs||rebuildInspectorVfs()){
+  state.inspectorIo=new InspectorIO(config,vfs);return state.inspectorIo;
+}
+
+function projectFilesFromWorkspace(){
+  return state.workspaceOrder.map(id=>state.workspaceFiles.get(id)).filter(Boolean).map(rec=>({path:rec.path||rec.name||'source.asm',text:state.editMode&&rec.id===state.activeFileId?els.codeEditor.value:rec.text||'',encoding:'utf-8',kind:'workspace-text'}));
+}
+function allProjectFilesForSnapshot(){
+  return [...projectFilesFromWorkspace(),...[...state.projectAuxFiles.values()].map(cloneStoredFile)];
+}
+function projectNameSuggestion(){
+  const label=state.workspaceName&&state.workspaceName!=='Workspace'?state.workspaceName:'ASM project';
+  return String(label).replace(/\.(?:txt|asm|dump|objdump)$/i,'')||'ASM project';
+}
+function projectSnapshotMetadata(project=state.activeProject){
+  const p=normalizedProject(project||defaultProject(projectNameSuggestion()));
+  p.ui={...(p.ui||{}),activeFilePath:state.workspaceFiles.get(state.activeFileId)?.path||null,graphMode:state.mode,viewMode:state.viewMode,cfgView:state.cfgView};
+  p.modifiedAt=nowIso();return p;
+}
+function rebuildInspectorVfs(){
+  const project=state.activeProject||defaultProject('Detached workspace'),files=allProjectFilesForSnapshot(),previous=state.inspectorVfs;
+  const next=new InspectorVFS(project,files);
+  if(previous?.project?.id===project.id){
+    next.runtimeOverlay=new Map(previous.runtimeOverlay||[]);
+    next.tmpFiles=new Map(previous.tmpFiles||[]);
+  }
+  state.inspectorVfs=next;return next;
+}
+function runConfigBackend(config){return config?.kind==='function'?'Unicorn function sandbox':'Blink process sandbox'}
+function validateRunConfiguration(config,vfs=state.inspectorVfs,policy=state.activeProject?.executionPolicy){
+  if(!config)return {valid:false,ready:false,reason:'No run configuration selected',backend:null,decision:null};
+  const path=vfsPath(config.artifactPath||''),kind=config.kind==='function'?'shared-library':'execute',
+        decision=executionPolicyDecision(policy||defaultExecutionPolicy(),{kind,path});
+  if(config.kind==='process'&&config.artifactType!=='elf-executable')return {valid:false,ready:false,reason:'Process Sandbox accepts ELF executables only',backend:runConfigBackend(config),decision};
+  if(config.kind==='function'&&!['elf-executable','elf-shared-library'].includes(config.artifactType))return {valid:false,ready:false,reason:'Function Sandbox accepts functions from ELF executables or shared libraries only',backend:runConfigBackend(config),decision};
+  if(!decision.allow)return {valid:false,ready:false,reason:decision.reason,backend:runConfigBackend(config),decision};
+  if(config.kind==='function'&&!String(config.functionName||'').trim())return {valid:false,ready:false,reason:'Function configuration requires a symbol/name',backend:runConfigBackend(config),decision};
+  const entry=vfs?.resolve(path);
+  if(!entry)return {valid:true,ready:false,artifactReady:false,reason:`Policy/config contract is valid, but artifact ${path} is not present in InspectorVFS`,backend:runConfigBackend(config),decision};
+  const artifactReady=entry.kind==='elf-executable'||entry.kind==='elf-shared-library';
+  return {valid:true,ready:false,artifactReady,
+    reason:artifactReady?'Artifact is classified, but the execution backend is not connected yet.':'Policy/config contract is valid. Current VFS entry is not an authoritative ELF image yet; binary ELF ingestion/validation remains pending.',
+    backend:runConfigBackend(config),decision,entry};
+}
 function sourcePathFromMarker(source){return normalizePath((source||'').replace(/:\d+(?:\s.*)?$/,''))}
 function semanticTail(name){
   if(!name)return '';
@@ -1631,17 +2238,34 @@ function dwarfSnapshotRegister(snapshot,reg,architecture='x86-64'){
   if(typeof v==='bigint')return v;if(Number.isFinite(v))return BigInt(Math.trunc(v));return null;
 }
 function dwarfReadMemoryValue(snapshot,address,width,littleEndian=true){
-  const addr=typeof address==='bigint'?address:BigInt(address),memory=snapshot?.memory;
+  const addr=typeof address==='bigint'?address:BigInt(address),memory=snapshot?.memory,trace=snapshot?.memoryReads;
+  const record=(source,success,value=null,reason=null)=>{
+    if(Array.isArray(trace))trace.push({address:Number(addr),addressHex:`0x${addr.toString(16)}`,width,littleEndian,source,success,
+      value:typeof value==='bigint'?value:(Number.isFinite(value)?BigInt(Math.trunc(value)):null),reason});
+  };
   if(typeof snapshot?.readMemory==='function'){
     const got=snapshot.readMemory(Number(addr),width);
-    if(typeof got==='bigint')return got;if(Number.isFinite(got))return BigInt(Math.trunc(got));
-    if(got instanceof Uint8Array||Array.isArray(got)){let v=0n;const b=[...got];if(b.length<width)return null;for(let i=0;i<width;i++)v=littleEndian?v|(BigInt(b[i])<<(8n*BigInt(i))):(v<<8n)|BigInt(b[i]);return v}
+    if(typeof got==='bigint'){record('readMemory',true,got);return got}
+    if(Number.isFinite(got)){const v=BigInt(Math.trunc(got));record('readMemory',true,v);return v}
+    if(got instanceof Uint8Array||Array.isArray(got)){
+      let v=0n;const b=[...got];if(b.length<width){record('readMemory',false,null,'partial read');return null}
+      for(let i=0;i<width;i++)v=littleEndian?v|(BigInt(b[i])<<(8n*BigInt(i))):(v<<8n)|BigInt(b[i]);
+      record('readMemory',true,v);return v
+    }
   }
   if(memory instanceof Map){
     const direct=memory.get(Number(addr))??memory.get(addr)??memory.get(`0x${addr.toString(16)}`);
-    if(typeof direct==='bigint')return direct;if(Number.isFinite(direct))return BigInt(Math.trunc(direct));
-    let v=0n;for(let i=0;i<width;i++){const b=memory.get(Number(addr)+i)??memory.get(addr+BigInt(i));if(!Number.isFinite(b))return null;v=littleEndian?v|(BigInt(b&255)<<(8n*BigInt(i))):(v<<8n)|BigInt(b&255)}return v;
+    if(typeof direct==='bigint'){record('memory-map-scalar',true,direct);return direct}
+    if(Number.isFinite(direct)){const v=BigInt(Math.trunc(direct));record('memory-map-scalar',true,v);return v}
+    let v=0n;
+    for(let i=0;i<width;i++){
+      const b=memory.get(Number(addr)+i)??memory.get(addr+BigInt(i));
+      if(!Number.isFinite(b)){record('memory-map-bytes',false,null,`byte +${i} unavailable`);return null}
+      v=littleEndian?v|(BigInt(b&255)<<(8n*BigInt(i))):(v<<8n)|BigInt(b&255)
+    }
+    record('memory-map-bytes',true,v);return v;
   }
+  record('none',false,null,'no memory provider');
   return null;
 }
 function evaluateDwarfExpression(ir,snapshot={},ctx={}){
@@ -2042,9 +2666,10 @@ function normalizeUnwindSnapshot(snapshot={}){
   const registers=snapshot.registers instanceof Map?new Map(snapshot.registers):new Map(Object.entries(snapshot.registers||{})),
         ptrSize=Number(snapshot.ptrSize)||8,littleEndian=snapshot.littleEndian!==false,
         moduleLoadBias=Number.isFinite(snapshot.moduleLoadBias)?snapshot.moduleLoadBias:0,
-        staticBase=Number.isFinite(snapshot.staticBase)?snapshot.staticBase:0;
+        staticBase=Number.isFinite(snapshot.staticBase)?snapshot.staticBase:0,
+        memoryReads=Array.isArray(snapshot.memoryReads)?snapshot.memoryReads:[];
   return {
-    registers,memory:snapshot.memory||null,readMemory:typeof snapshot.readMemory==='function'?snapshot.readMemory:null,
+    registers,memory:snapshot.memory||null,readMemory:typeof snapshot.readMemory==='function'?snapshot.readMemory:null,memoryReads,
     ptrSize,littleEndian,moduleLoadBias,staticBase,
     runtimeToStatic:addr=>Number(addr)-moduleLoadBias+staticBase,
     staticToRuntime:addr=>Number(addr)-staticBase+moduleLoadBias
@@ -2092,22 +2717,99 @@ function evaluateUnwindRequest(unwind,request={}){
   return serializeUnwindEvaluation(result);
 }
 function evaluateStaticUnwindRecipe(unwind,pc,snapshot={},options={}){
-  const fde=preferredFdeForPc(unwind,pc,options);if(!fde)return {known:false,pc,reason:'no FDE covers PC'};
-  const row=cfiRowForPc(fde,pc);if(!row)return {known:false,pc,fde,reason:'FDE has no decoded row for PC'};
-  const cfa=evaluateCfiCfa(row,fde,snapshot),registers=new Map(),architecture=fdeArchitecture(fde),
+  const normalized=normalizeUnwindSnapshot(snapshot),readStart=normalized.memoryReads.length,
+        fde=preferredFdeForPc(unwind,pc,options);if(!fde)return {known:false,pc,reason:'no FDE covers PC',memoryReads:[]};
+  const row=cfiRowForPc(fde,pc);if(!row)return {known:false,pc,fde,reason:'FDE has no decoded row for PC',memoryReads:[]};
+  const cfa=evaluateCfiCfa(row,fde,normalized),registers=new Map(),architecture=fdeArchitecture(fde),
         wanted=new Set([...(row.registerRules?.keys?.()||[])]);
   if(Number.isInteger(fde.cie?.returnRegister))wanted.add(fde.cie.returnRegister);
-  for(const reg of wanted)registers.set(reg,evaluateCfiRegisterRule(cfiRuleForRegister(row,reg),reg,row,fde,snapshot,cfa));
-  const ra=Number.isInteger(fde.cie?.returnRegister)?registers.get(fde.cie.returnRegister):null;
-  return {known:!!cfa.known,pc,fde,row,sourceKind:fde.sourceKind,sourceLabel:fde.sourceLabel,cfa,registers,returnAddress:ra,architecture,
+  for(const reg of wanted)registers.set(reg,evaluateCfiRegisterRule(cfiRuleForRegister(row,reg),reg,row,fde,normalized,cfa));
+  const ra=Number.isInteger(fde.cie?.returnRegister)?registers.get(fde.cie.returnRegister):null,
+        memoryReads=normalized.memoryReads.slice(readStart);
+  return {known:!!cfa.known,pc,fde,row,sourceKind:fde.sourceKind,sourceLabel:fde.sourceLabel,cfa,registers,returnAddress:ra,architecture,memoryReads,
     evidence:`${fde.sourceLabel||fde.sourceKind} FDE ${safeHex(fde.startAddress)}..${safeHex(fde.endAddress)} · ${fde.selectionEvidence||'exact PC coverage'}`};
 }
 
 
 function unwindControlRegisters(architecture,fde=null){
-  if(architecture==='x86-64')return {stackPointer:7,programCounter:16,stackName:'rsp',pcName:'rip',returnLookupAdjustment:1,stackDirection:'up-caller'};
-  if(architecture==='x86-32')return {stackPointer:4,programCounter:8,stackName:'esp',pcName:'eip',returnLookupAdjustment:1,stackDirection:'up-caller'};
-  return {stackPointer:null,programCounter:Number.isInteger(fde?.cie?.returnRegister)?fde.cie.returnRegister:null,stackName:null,pcName:null,returnLookupAdjustment:0,stackDirection:'unknown'};
+  if(architecture==='x86-64')return {
+    stackPointer:7,programCounter:16,basePointer:6,stackName:'rsp',pcName:'rip',baseName:'rbp',
+    returnLookupAdjustment:1,stackDirection:'up-caller',framePointer:{savedBaseOffset:0,returnAddressOffset:8,callerStackOffset:16,pointerSize:8}
+  };
+  if(architecture==='x86-32')return {
+    stackPointer:4,programCounter:8,basePointer:5,stackName:'esp',pcName:'eip',baseName:'ebp',
+    returnLookupAdjustment:1,stackDirection:'up-caller',framePointer:{savedBaseOffset:0,returnAddressOffset:4,callerStackOffset:8,pointerSize:4}
+  };
+  return {stackPointer:null,programCounter:Number.isInteger(fde?.cie?.returnRegister)?fde.cie.returnRegister:null,basePointer:null,
+    stackName:null,pcName:null,baseName:null,returnLookupAdjustment:0,stackDirection:'unknown',framePointer:null};
+}
+function evaluateFramePointerStep(snapshot,architecture,fde=null){
+  const snap=normalizeUnwindSnapshot(snapshot),control=unwindControlRegisters(architecture,fde),layout=control.framePointer,
+        start=snap.memoryReads.length;
+  if(!layout||!Number.isInteger(control.basePointer))return {known:false,architecture,reason:'frame-pointer heuristic unsupported for architecture',memoryReads:[]};
+  const bpBig=dwarfSnapshotRegister(snap,control.basePointer,architecture);
+  if(bpBig==null)return {known:false,architecture,reason:`${control.baseName||'base pointer'} unavailable`,memoryReads:[]};
+  const bp=unwindKnownNumber(bpBig);
+  if(!Number.isFinite(bp))return {known:false,architecture,reason:'frame pointer exceeds safe address range',memoryReads:[]};
+  if(bp===0)return {known:false,architecture,basePointer:bp,reason:'null frame pointer',memoryReads:[]};
+  const ptr=layout.pointerSize||snap.ptrSize,
+        callerBpBig=dwarfReadMemoryValue(snap,BigInt(bp+layout.savedBaseOffset),ptr,snap.littleEndian),
+        raBig=dwarfReadMemoryValue(snap,BigInt(bp+layout.returnAddressOffset),ptr,snap.littleEndian),
+        memoryReads=snap.memoryReads.slice(start),
+        callerBasePointer=unwindKnownNumber(callerBpBig),returnAddress=unwindKnownNumber(raBig),
+        callerStackPointer=bp+layout.callerStackOffset;
+  return {
+    known:Number.isFinite(callerBasePointer)&&Number.isFinite(returnAddress),architecture,basePointer:bp,callerBasePointer,returnAddress,callerStackPointer,
+    memoryReads,confidence:'heuristic',strategy:'frame-pointer',
+    evidence:`conventional ${architecture} frame chain: [${control.baseName}] = caller ${control.baseName}, [${control.baseName}+${layout.returnAddressOffset}] = return address`,
+    reason:!Number.isFinite(callerBasePointer)?'saved frame pointer unavailable':!Number.isFinite(returnAddress)?'frame-pointer return address unavailable':null
+  };
+}
+function compareCfiAndFramePointer(evaluation,fp){
+  if(!evaluation||!fp)return {available:false,status:'not-compared',evidence:'one evidence path is unavailable'};
+  if(!fp.known)return {available:false,status:'frame-pointer-unavailable',evidence:fp.reason||'frame-pointer chain unavailable'};
+  const cfa=unwindKnownNumber(evaluation.cfa?.value),ra=unwindKnownNumber(evaluation.returnAddress?.value),
+        bpReg=unwindControlRegisters(evaluation.architecture,evaluation.fde).basePointer,
+        cfiBp=Number.isInteger(bpReg)?unwindKnownNumber(evaluation.registers?.get(bpReg)?.value):null,
+        checks=[];
+  if(Number.isFinite(ra))checks.push({field:'return-address',cfi:ra,framePointer:fp.returnAddress,match:ra===fp.returnAddress});
+  if(Number.isFinite(cfa))checks.push({field:'caller-stack/CFA',cfi:cfa,framePointer:fp.callerStackPointer,match:cfa===fp.callerStackPointer});
+  if(Number.isFinite(cfiBp))checks.push({field:'caller-base-pointer',cfi:cfiBp,framePointer:fp.callerBasePointer,match:cfiBp===fp.callerBasePointer});
+  const mismatches=checks.filter(x=>!x.match),matches=checks.filter(x=>x.match);
+  return {
+    available:checks.length>0,status:mismatches.length?'disagree':matches.length?'agree':'insufficient-cfi',checks,
+    evidence:mismatches.length?`${mismatches.length} CFI/frame-pointer disagreement(s)`:`${matches.length} compared field(s) agree`,
+    confidence:'cross-check'
+  };
+}
+function registerDiffFromUnwind(current,caller,evaluation){
+  const architecture=evaluation?.architecture||'unknown',control=unwindControlRegisters(architecture,evaluation?.fde),
+        regs=new Set([...(evaluation?.registers?.keys?.()||[])]);
+  for(const r of [control.stackPointer,control.programCounter,control.basePointer])if(Number.isInteger(r))regs.add(r);
+  const rows=[];
+  for(const reg of [...regs].sort((a,b)=>a-b)){
+    const name=dwarfRegisterName(reg,architecture),beforeBig=dwarfSnapshotRegister(current,reg,architecture),afterBig=dwarfSnapshotRegister(caller,reg,architecture),
+          before=unwindKnownNumber(beforeBig),after=unwindKnownNumber(afterBig),rule=evaluation?.registers?.get(reg),
+          status=rule?.kind==='undefined'?'undefined':rule?.known?(rule.kind==='same-value'?'preserved':'recovered'):Number.isFinite(after)?'derived/preserved':'unavailable';
+    rows.push({register:reg,name,before,after,changed:Number.isFinite(before)&&Number.isFinite(after)?before!==after:null,status,
+      ruleKind:rule?.kind||((reg===control.stackPointer||reg===control.programCounter)?'derived-control':'not-explicit'),known:Number.isFinite(after),
+      location:Number.isFinite(rule?.location)?rule.location:null,reason:rule?.reason||null});
+  }
+  return rows;
+}
+function callerSnapshotFromFramePointer(current,fp){
+  const snap=normalizeUnwindSnapshot(current),registers=new Map(snap.registers),control=unwindControlRegisters(fp.architecture);
+  if(Number.isFinite(fp.callerBasePointer)&&Number.isInteger(control.basePointer)){
+    const v=BigInt(Math.trunc(fp.callerBasePointer));registers.set(control.basePointer,v);if(control.baseName)registers.set(control.baseName,v);
+  }
+  if(Number.isFinite(fp.callerStackPointer)&&Number.isInteger(control.stackPointer)){
+    const v=BigInt(Math.trunc(fp.callerStackPointer));registers.set(control.stackPointer,v);if(control.stackName)registers.set(control.stackName,v);
+  }
+  if(Number.isFinite(fp.returnAddress)&&Number.isInteger(control.programCounter)){
+    const v=BigInt(Math.trunc(fp.returnAddress));registers.set(control.programCounter,v);if(control.pcName)registers.set(control.pcName,v);
+  }
+  return normalizeUnwindSnapshot({registers,memory:snap.memory,readMemory:snap.readMemory,memoryReads:snap.memoryReads,ptrSize:snap.ptrSize,littleEndian:snap.littleEndian,
+    moduleLoadBias:snap.moduleLoadBias,staticBase:snap.staticBase});
 }
 function unwindKnownNumber(value){
   if(typeof value==='bigint')return value>=BigInt(Number.MIN_SAFE_INTEGER)&&value<=BigInt(Number.MAX_SAFE_INTEGER)?Number(value):null;
@@ -2130,14 +2832,14 @@ function callerSnapshotFromUnwind(current,evaluation){
     registers.set(control.programCounter,raBig);if(control.pcName)registers.set(control.pcName,raBig);
   }
   return normalizeUnwindSnapshot({
-    registers,memory:snap.memory,readMemory:snap.readMemory,ptrSize:snap.ptrSize,littleEndian:snap.littleEndian,
+    registers,memory:snap.memory,readMemory:snap.readMemory,memoryReads:snap.memoryReads,ptrSize:snap.ptrSize,littleEndian:snap.littleEndian,
     moduleLoadBias:snap.moduleLoadBias,staticBase:snap.staticBase
   });
 }
 function serializeUnwindStack(result){
   const scalar=v=>typeof v==='bigint'?`0x${v.toString(16)}`:v;
   return {
-    schema:'asm-graph.unwind-stack/v1',known:!!result?.known,complete:!!result?.complete,source:result?.source||'auto',
+    schema:'asm-graph.unwind-stack/v1',known:!!result?.known,complete:!!result?.complete,source:result?.source||'auto',strategy:result?.strategy||'cfi',
     maxFrames:result?.maxFrames||0,stopReason:result?.stopReason||null,diagnostics:[...(result?.diagnostics||[])],
     frames:(result?.frames||[]).map(f=>({
       index:f.index,runtimePc:f.runtimePc,staticPc:f.staticPc,lookupStaticPc:f.lookupStaticPc,returnLookupAdjustment:f.returnLookupAdjustment,
@@ -2147,31 +2849,72 @@ function serializeUnwindStack(result){
       cfa:f.cfa?{known:!!f.cfa.known,value:scalar(f.cfa.value),reason:f.cfa.reason||null,failureKind:unwindFailureKind(f.cfa.reason)}:null,
       returnAddress:f.returnAddress?{known:!!f.returnAddress.known,value:scalar(f.returnAddress.value),reason:f.returnAddress.reason||null,failureKind:unwindFailureKind(f.returnAddress.reason)}:null,
       stopReason:f.stopReason||null,stopFailureKind:unwindFailureKind(f.stopReason||f.returnAddress?.reason||f.cfa?.reason),
+      framePointer:f.framePointer?{
+        known:!!f.framePointer.known,confidence:f.framePointer.confidence||'heuristic',basePointer:f.framePointer.basePointer??null,
+        callerBasePointer:f.framePointer.callerBasePointer??null,callerStackPointer:f.framePointer.callerStackPointer??null,
+        returnAddress:f.framePointer.returnAddress??null,reason:f.framePointer.reason||null,evidence:f.framePointer.evidence||null
+      }:null,
+      framePointerComparison:f.framePointerComparison?{
+        available:!!f.framePointerComparison.available,status:f.framePointerComparison.status,evidence:f.framePointerComparison.evidence,
+        checks:(f.framePointerComparison.checks||[]).map(x=>({field:x.field,cfi:x.cfi,framePointer:x.framePointer,match:!!x.match}))
+      }:null,
+      registerDiff:(f.registerDiff||[]).map(r=>({...r})),
+      memoryReads:(f.memoryReads||[]).map(r=>({address:r.address,addressHex:r.addressHex,width:r.width,source:r.source,success:!!r.success,
+        value:typeof r.value==='bigint'?`0x${r.value.toString(16)}`:r.value??null,reason:r.reason||null})),
+      framePointerMemoryReads:(f.framePointer?.memoryReads||[]).map(r=>({address:r.address,addressHex:r.addressHex,width:r.width,source:r.source,success:!!r.success,
+        value:typeof r.value==='bigint'?`0x${r.value.toString(16)}`:r.value??null,reason:r.reason||null})),
       warnings:[...(f.warnings||[])],evidence:f.evidence||null
     }))
   };
 }
 function unwindStackFrames(unwind,request={}){
-  const source=request.source||'auto',maxFrames=Math.max(1,Math.min(256,Number(request.maxFrames)||64)),
+  const source=request.source||'auto',strategy=request.strategy||'cfi',
+        maxFrames=Math.max(1,Math.min(256,Number(request.maxFrames)||64)),
         initial=normalizeUnwindSnapshot(request.snapshot||request),frames=[],diagnostics=[],visited=new Set();
-  let runtimePc=Number(request.runtimePc??request.pc),snapshot=initial,previousCfa=null,previousArchitecture=null,stopReason=null,complete=false;
-  if(!Number.isFinite(runtimePc))return {schema:'asm-graph.unwind-stack/v1',known:false,complete:false,source,maxFrames,frames,diagnostics,stopReason:'invalid-initial-pc'};
+  let runtimePc=Number(request.runtimePc??request.pc),snapshot=initial,previousCfa=null,previousArchitecture=request.architecture||null,stopReason=null,complete=false;
+  if(!Number.isFinite(runtimePc))return {schema:'asm-graph.unwind-stack/v1',known:false,complete:false,source,strategy,maxFrames,frames,diagnostics,stopReason:'invalid-initial-pc'};
   for(let index=0;index<maxFrames;index++){
-    const adjustment=index===0?0:unwindControlRegisters(previousArchitecture).returnLookupAdjustment,
-          lookupRuntimePc=runtimePc-adjustment,
-          staticPc=snapshot.runtimeToStatic(runtimePc),lookupStaticPc=snapshot.runtimeToStatic(lookupRuntimePc),
-          evaluation=evaluateStaticUnwindRecipe(unwind,lookupStaticPc,snapshot,{source}),
-          warnings=[],frame={
-            index,runtimePc,staticPc,lookupRuntimePc,lookupStaticPc,returnLookupAdjustment:adjustment,
-            sourceKind:evaluation.sourceKind||null,sourceLabel:evaluation.sourceLabel||null,architecture:evaluation.architecture||previousArchitecture||null,
+    const staticPc=snapshot.runtimeToStatic(runtimePc),
+          provisionalFde=preferredFdeForPc(unwind,staticPc,{source}),
+          architecture=request.architecture||fdeArchitecture(provisionalFde)||previousArchitecture||null,
+          adjustment=index===0?0:unwindControlRegisters(previousArchitecture||architecture,provisionalFde).returnLookupAdjustment,
+          lookupRuntimePc=runtimePc-adjustment,lookupStaticPc=snapshot.runtimeToStatic(lookupRuntimePc),
+          warnings=[];
+    if(strategy==='frame-pointer'){
+      const fp=evaluateFramePointerStep(snapshot,architecture,provisionalFde),
+            frame={index,runtimePc,staticPc,lookupRuntimePc,lookupStaticPc,returnLookupAdjustment:adjustment,strategy,
+              sourceKind:'frame-pointer',sourceLabel:'frame-pointer heuristic',architecture,fde:provisionalFde||null,row:null,
+              cfa:fp.known?{known:true,value:fp.callerStackPointer,bigint:BigInt(fp.callerStackPointer),kind:'frame-pointer'}:{known:false,reason:fp.reason},
+              returnAddress:fp.known?{known:true,value:fp.returnAddress,bigint:BigInt(fp.returnAddress),kind:'frame-pointer'}:{known:false,reason:fp.reason},
+              registers:new Map(),memoryReads:fp.memoryReads||[],framePointer:fp,framePointerComparison:null,evidence:fp.evidence||fp.reason,warnings,
+              confidence:fp.known?'heuristic':'unknown',registerDiff:[]};
+      frames.push(frame);
+      if(!fp.known){frame.stopReason='frame-pointer-unavailable';stopReason='frame-pointer-unavailable';break}
+      const cfa=fp.callerStackPointer,ra=fp.returnAddress,key=`fp:${lookupStaticPc}:${cfa}:${ra}:${fp.callerBasePointer}`;
+      if(visited.has(key)){frame.stopReason='cycle-detected';stopReason='cycle-detected';diagnostics.push(`frame ${index}: repeated frame-pointer state ${key}`);break}
+      visited.add(key);
+      if(previousCfa!=null&&cfa<previousCfa)warnings.push(`frame-pointer caller stack moved downward: ${safeHex(previousCfa)} → ${safeHex(cfa)}`);
+      const next=callerSnapshotFromFramePointer(snapshot,fp);frame.registerDiff=registerDiffFromUnwind(snapshot,next,{architecture,fde:provisionalFde,registers:new Map()});
+      if(ra===0){frame.stopReason='null-return-address';stopReason='null-return-address';complete=true;break}
+      snapshot=next;previousCfa=cfa;previousArchitecture=architecture;runtimePc=ra;continue;
+    }
+
+    const evaluation=evaluateStaticUnwindRecipe(unwind,lookupStaticPc,snapshot,{source}),
+          fp=strategy==='cfi+frame-pointer'?evaluateFramePointerStep(snapshot,evaluation.architecture||architecture,evaluation.fde||provisionalFde):null,
+          comparison=fp?compareCfiAndFramePointer(evaluation,fp):null,
+          frame={
+            index,runtimePc,staticPc,lookupRuntimePc,lookupStaticPc,returnLookupAdjustment:adjustment,strategy,
+            sourceKind:evaluation.sourceKind||null,sourceLabel:evaluation.sourceLabel||null,architecture:evaluation.architecture||architecture||previousArchitecture||null,
             fde:evaluation.fde||null,row:evaluation.row||null,cfa:evaluation.cfa||null,returnAddress:evaluation.returnAddress||null,
-            registers:evaluation.registers||new Map(),evidence:evaluation.evidence||null,warnings
+            registers:evaluation.registers||new Map(),memoryReads:evaluation.memoryReads||[],framePointer:fp,framePointerComparison:comparison,
+            evidence:evaluation.evidence||null,warnings,registerDiff:[]
           };
     frames.push(frame);
     if(!evaluation.fde){frame.stopReason='no-fde';stopReason='no-fde';break}
     if(!evaluation.row){frame.stopReason='no-cfi-row';stopReason='no-cfi-row';break}
     const cfa=unwindKnownNumber(evaluation.cfa?.value),ra=unwindKnownNumber(evaluation.returnAddress?.value);
     frame.confidence=Number.isFinite(cfa)&&Number.isFinite(ra)?'exact':evaluation.fde&&evaluation.row?'partial':'unknown';
+    if(comparison?.status==='disagree')warnings.push(`CFI vs frame-pointer disagree: ${comparison.checks.filter(x=>!x.match).map(x=>x.field).join(', ')}`);
     if(!Number.isFinite(cfa)){frame.stopReason='unknown-cfa';stopReason='unknown-cfa';break}
     if(!Number.isFinite(ra)){frame.stopReason='unknown-return-address';stopReason='unknown-return-address';break}
     const key=`${lookupStaticPc}:${cfa}:${ra}`;
@@ -2182,14 +2925,14 @@ function unwindStackFrames(unwind,request={}){
       if(control.stackDirection==='up-caller'&&cfa<previousCfa)warnings.push(`caller CFA moved downward: ${safeHex(previousCfa)} → ${safeHex(cfa)}`);
       if(cfa===previousCfa)warnings.push(`CFA did not advance: ${safeHex(cfa)}`);
     }
+    const next=callerSnapshotFromUnwind(snapshot,evaluation);frame.registerDiff=registerDiffFromUnwind(snapshot,next,evaluation);
     if(ra===0){frame.stopReason='null-return-address';stopReason='null-return-address';complete=true;break}
     if(ra===runtimePc&&cfa===previousCfa){frame.stopReason='non-progressing-frame';stopReason='non-progressing-frame';break}
-    snapshot=callerSnapshotFromUnwind(snapshot,evaluation);
-    previousCfa=cfa;previousArchitecture=evaluation.architecture;runtimePc=ra;
+    snapshot=next;previousCfa=cfa;previousArchitecture=evaluation.architecture;runtimePc=ra;
   }
   if(!stopReason&&frames.length>=maxFrames){stopReason='frame-limit';diagnostics.push(`frame limit ${maxFrames} reached`)}
-  const known=frames.length>0&&!!frames[0].fde;
-  return {schema:'asm-graph.unwind-stack/v1',known,complete,source,maxFrames,frames,diagnostics,stopReason,initialRuntimePc:Number(request.runtimePc??request.pc)};
+  const known=frames.length>0&&(strategy==='frame-pointer'?!!frames[0].framePointer?.known:!!frames[0].fde);
+  return {schema:'asm-graph.unwind-stack/v1',known,complete,source,strategy,maxFrames,frames,diagnostics,stopReason,initialRuntimePc:Number(request.runtimePc??request.pc)};
 }
 function decodeLsdaTypeReference(section,typeTableAddress,ttypeEncoding,typeFilter,{ptrSize=8,textBase=null,dataBase=null,functionBase=null}={}){
   if(!section||!Number.isFinite(typeTableAddress)||!Number.isInteger(typeFilter)||typeFilter<=0||ttypeEncoding===DW_EH_PE.omit)return null;
@@ -3961,6 +4704,8 @@ async function addWorkspaceFileObjects(fileList,{replace=false}={}){
   rebuildWorkspaceAnalysis({preserveView:false});
   if(lastId)activateWorkspaceFile(lastId);
   enableWorkspaceControls();
+  if(state.activeProjectId){rebuildInspectorVfs();scheduleProjectAutosave('files added')}
+  updateProjectChrome();
   setStatus(`${num(state.workspaceOrder.length)} files · ${num(state.functions.length)} functions`);
 }
 function addWorkspaceText(text,name='pasted.asm'){
@@ -3969,20 +4714,27 @@ function addWorkspaceText(text,name='pasted.asm'){
   const rec={id:workspaceFileId(base),name:workspaceBasename(base),path:base,text,dirty:true,viewState:null,editorState:null};
   state.workspaceFiles.set(rec.id,rec);state.workspaceOrder.push(rec.id);state.workspaceName=workspaceProjectLabel();
   parseWorkspaceRecord(rec);state.activeFileId=rec.id;rebuildWorkspaceAnalysis({preserveView:false});activateWorkspaceFile(rec.id);enableWorkspaceControls();
+  if(state.activeProjectId){rebuildInspectorVfs();scheduleProjectAutosave('file added')}
+  updateProjectChrome();
   setStatus(`${num(state.workspaceOrder.length)} files · ${num(state.functions.length)} functions`);
 }
 function removeWorkspaceFile(id){
   const rec=state.workspaceFiles.get(id);if(!rec)return;if(rec.dirty&&!confirm(`Remove unsaved file "${rec.path}"?`))return;
   const ix=state.workspaceOrder.indexOf(id);state.workspaceFiles.delete(id);state.workspaceOrder=state.workspaceOrder.filter(x=>x!==id);
   if(state.activeFileId===id)state.activeFileId=state.workspaceOrder[Math.min(ix,state.workspaceOrder.length-1)]||null;
-  if(!state.workspaceOrder.length){clearAll();return}
+  if(!state.workspaceOrder.length){
+    if(state.activeProjectId){state.workspaceFiles=new Map();state.workspaceOrder=[];state.activeFileId=null;rebuildInspectorVfs();scheduleProjectAutosave('last file removed');renderWorkspaceFiles();updateProjectChrome();return}
+    clearAll();return
+  }
   rebuildWorkspaceAnalysis({preserveView:true});activateWorkspaceFile(state.activeFileId);
+  if(state.activeProjectId){rebuildInspectorVfs();scheduleProjectAutosave('file removed')}
 }
 function enableWorkspaceControls(){
   const enabled=state.workspaceOrder.length>0;
   els.clearBtn.disabled=!enabled;els.binaryIndexBtn.disabled=!enabled;els.search.disabled=!enabled;els.prevSearch.disabled=!enabled;els.nextSearch.disabled=!enabled;
   els.graphMode.disabled=!enabled;els.entrySelect.disabled=!enabled;els.entryBtn.disabled=!enabled;els.fitBtn.disabled=!enabled;els.labelsBtn.disabled=!enabled;
   els.traceToggle.disabled=!enabled;els.traceFit.disabled=!enabled;els.foldAction.disabled=!enabled;els.filterToggle.disabled=!enabled;els.viewMode.disabled=!enabled;els.editBtn.disabled=!enabled;
+  updateProjectChrome();
 }
 
 function loadText(text,name='pasted.asm',opts={}){
@@ -4045,6 +4797,11 @@ function setEditMode(on){
   }
 }
 
+function downloadJsonFile(name,value){
+  const text=JSON.stringify(value,null,2),blob=new Blob([text],{type:'application/json;charset=utf-8'}),
+        url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
 function saveEditedSource(){
   const rec=state.workspaceFiles.get(state.activeFileId),text=state.editMode?els.codeEditor.value:(rec?.text??state.text);
   if(!text)return;
@@ -4056,6 +4813,366 @@ function saveEditedSource(){
 }
 
 
+
+
+function formatBytesCompact(bytes){
+  if(!Number.isFinite(bytes))return '—';
+  const units=['B','KiB','MiB','GiB','TiB'];let v=Math.max(0,bytes),i=0;
+  while(v>=1024&&i<units.length-1){v/=1024;i++}
+  return `${v>=100||i===0?v.toFixed(0):v>=10?v.toFixed(1):v.toFixed(2)} ${units[i]}`;
+}
+function projectTotalBytes(project){return (project?.files||[]).reduce((n,f)=>n+(Number(f.size)||0),0)}
+function updateProjectChrome(){
+  const p=state.activeProject;
+  els.activeProjectBadge.textContent=p?p.name:'No project';
+  els.activeProjectBadge.title=p?`${p.name} · ${p.storageBackend||'not saved'}`:'No active persistent project';
+  els.saveProjectBtn.disabled=!(p||state.workspaceOrder.length);
+  els.environmentBtn.disabled=!p;
+  if(p)els.environmentTitle.textContent=`${p.name} · ${p.target?.architecture||'unknown'}-${p.target?.os||'unknown'}-${p.target?.abi||'unknown'}`;
+  else els.environmentTitle.textContent='No active project';
+}
+async function refreshStorageStatus(){
+  await projectStoreReady;
+  const info=await projectStore.storageInfo();
+  const used=Number.isFinite(info.usage)?formatBytesCompact(info.usage):'—',quota=Number.isFinite(info.quota)?formatBytesCompact(info.quota):'—',
+        pct=Number.isFinite(info.usage)&&Number.isFinite(info.quota)&&info.quota>0?Math.min(100,info.usage/info.quota*100):0;
+  els.storageStatus.innerHTML=`${info.mode}${info.opfs?' + OPFS':''} · persistent ${info.persisted===true?'yes':info.persisted===false?'no':'unknown'} · ${used} / ${quota}<div class="storageMeter"><i style="width:${pct.toFixed(2)}%"></i></div>${info.error?`<span class="muted">${escapeHtml(info.error)}</span>`:''}`;
+  return info;
+}
+async function refreshProjectCatalog({render=true}={}){
+  await projectStoreReady;
+  state.projectCatalog=await projectStore.listProjects();
+  if(state.selectedProjectId&&!state.projectCatalog.some(p=>p.id===state.selectedProjectId))state.selectedProjectId=null;
+  if(!state.selectedProjectId)state.selectedProjectId=state.activeProjectId||state.projectCatalog[0]?.id||null;
+  if(render)renderProjectManager();
+  return state.projectCatalog;
+}
+async function saveCurrentProject({quiet=false,name=null}={}){
+  await projectStoreReady;
+  clearTimeout(state.projectAutosaveTimer);state.projectAutosaveTimer=null;
+  if(state.editMode){
+    const rec=state.workspaceFiles.get(state.activeFileId);
+    if(rec&&els.codeEditor.value!==rec.text){rec.text=els.codeEditor.value;state.text=rec.text;rec.dirty=true}
+  }
+  let project=state.activeProject;
+  if(!project){
+    const chosen=String(name||projectNameSuggestion()||'ASM project').trim()||'ASM project';
+    project=defaultProject(chosen);state.activeProject=project;state.activeProjectId=project.id;state.selectedProjectId=project.id;
+  }
+  project=projectSnapshotMetadata(project);
+  const saved=await projectStore.saveSnapshot(project,allProjectFilesForSnapshot());
+  state.activeProject=saved;state.activeProjectId=saved.id;state.selectedProjectId=saved.id;state.projectDirty=false;state.lastProjectSaveAt=Date.now();
+  for(const rec of state.workspaceFiles.values())rec.dirty=false;
+  rebuildInspectorVfs();updateProjectChrome();renderWorkspaceFiles();
+  await refreshProjectCatalog({render:els.projectDialog?.open});
+  if(!quiet)setStatus(`Project saved locally: ${saved.name} · ${saved.files.length} files · ${formatBytesCompact(projectTotalBytes(saved))} · ${saved.storageBackend}`);
+  return saved;
+}
+function scheduleProjectAutosave(reason='workspace change'){
+  if(!state.activeProjectId)return;
+  state.projectDirty=true;updateProjectChrome();clearTimeout(state.projectAutosaveTimer);
+  state.projectAutosaveTimer=setTimeout(async()=>{
+    try{await saveCurrentProject({quiet:true});setStatus(`Autosaved project · ${reason}`)}
+    catch(err){state.projectDirty=true;setStatus(`Project autosave failed: ${err.message}`)}
+  },700);
+}
+async function createProject({name='Untitled project',open=true,fromWorkspace=false}={}){
+  await projectStoreReady;
+  if(state.activeProjectId&&state.projectDirty)await saveCurrentProject({quiet:true});
+  const project=defaultProject(name);
+  const files=fromWorkspace?allProjectFilesForSnapshot():[];
+  const saved=await projectStore.saveSnapshot(project,files);
+  state.selectedProjectId=saved.id;
+  await refreshProjectCatalog({render:false});
+  if(open)await openProject(saved.id);
+  else renderProjectManager();
+  return saved;
+}
+async function openProject(id){
+  await projectStoreReady;
+  if(!id)return;
+  if(state.activeProjectId&&state.activeProjectId!==id&&state.projectDirty)await saveCurrentProject({quiet:true});
+  setStatus('Opening project…');
+  const snap=await projectStore.loadSnapshot(id);if(!snap)throw new Error('Project not found');
+  clearAll();
+  state.activeProject=normalizedProject(snap.project);state.activeProjectId=state.activeProject.id;state.selectedProjectId=id;state.projectDirty=false;
+  const touched=[];state.projectAuxFiles=new Map();
+  for(const raw of snap.files){
+    const file=normalizedStoredFile(raw),path=file.path;
+    if(file.kind!=='workspace-text'||file.encoding==='binary'){state.projectAuxFiles.set(path,cloneStoredFile(file));continue}
+    const rec={id:workspaceFileId(path),name:workspaceBasename(path),path,text:String(file.text??''),dirty:false,viewState:null,editorState:null};
+    state.workspaceFiles.set(rec.id,rec);state.workspaceOrder.push(rec.id);touched.push(rec);
+  }
+  state.workspaceOrder.sort((a,b)=>(state.workspaceFiles.get(a)?.path||'').localeCompare(state.workspaceFiles.get(b)?.path||''));
+  for(const rec of touched){
+    try{parseWorkspaceRecord(rec)}catch(err){rec.error=err}
+  }
+  state.workspaceName=state.activeProject.name;
+  const preferred=state.activeProject.ui?.activeFilePath,
+        preferredRec=preferred?[...state.workspaceFiles.values()].find(r=>r.path===preferred):null;
+  state.activeFileId=preferredRec?.id||state.workspaceOrder[0]||null;
+  if(state.workspaceOrder.length){
+    rebuildWorkspaceAnalysis({preserveView:false});
+    if(state.activeFileId)activateWorkspaceFile(state.activeFileId);
+    enableWorkspaceControls();
+    const mode=state.activeProject.ui?.graphMode;
+    if(['calls','cfg','dataflow','binary'].includes(mode)){state.mode=mode;els.graphMode.value=mode;els.graphMode.dispatchEvent(new Event('change'))}
+  }else{
+    renderWorkspaceFiles();enableWorkspaceControls();
+  }
+  rebuildInspectorVfs();updateProjectChrome();
+  if(els.projectDialog?.open){await refreshProjectCatalog({render:true})}
+  setStatus(`Project opened: ${state.activeProject.name} · ${snap.files.length} files · ${state.activeProject.storageBackend}`);
+}
+async function closeActiveProject({save=true}={}){
+  if(save&&state.activeProjectId&&state.projectDirty)await saveCurrentProject({quiet:true});
+  clearAll();state.activeProject=null;state.activeProjectId=null;state.selectedProjectId=null;state.projectDirty=false;state.inspectorVfs=null;
+  updateProjectChrome();setStatus('Project closed.');
+}
+async function deleteProjectById(id){
+  await projectStoreReady;
+  const project=await projectStore.getProject(id);if(!project)return;
+  if(!confirm(`Delete project "${project.name}"?\\n\\nThis removes ${project.files?.length||0} browser-local project files.`))return;
+  const wasActive=id===state.activeProjectId;await projectStore.deleteProject(id);
+  if(wasActive)await closeActiveProject({save:false});
+  state.selectedProjectId=null;await refreshProjectCatalog({render:true});setStatus(`Deleted project: ${project.name}`);
+}
+async function duplicateProjectById(id){
+  await projectStoreReady;
+  const p=await projectStore.getProject(id);if(!p)return;
+  const copy=await projectStore.duplicateProject(id,`${p.name} copy`);state.selectedProjectId=copy.id;await refreshProjectCatalog({render:true});setStatus(`Duplicated project: ${copy.name}`);
+}
+async function exportProjectById(id){
+  await projectStoreReady;
+  const bundle=await projectStore.exportBundle(id),name=(bundle.project.name||'project').replace(/[^a-z0-9._-]+/gi,'-');
+  downloadJsonFile(`${name}.asmproj.json`,bundle);setStatus(`Exported project bundle: ${bundle.project.name}`);
+}
+async function importProjectFile(file){
+  await projectStoreReady;
+  const text=await file.text(),bundle=JSON.parse(text),project=await projectStore.importBundle(bundle);
+  state.selectedProjectId=project.id;await refreshProjectCatalog({render:true});setStatus(`Imported project: ${project.name}`);
+}
+function renderProjectManager(){
+  const projects=state.projectCatalog||[];
+  els.projectList.innerHTML=projects.length?projects.map(p=>`<div class="projectRow${p.id===state.selectedProjectId?' active':''}" data-project-id="${escapeHtml(p.id)}">
+    <div class="projectRowHead"><span>${escapeHtml(p.name)}</span><span class="grow"></span>${p.id===state.activeProjectId?'<span class="vfsPersistent">OPEN</span>':''}</div>
+    <div class="projectRowMeta">${escapeHtml(p.target?.architecture||'?')} · ${escapeHtml(p.target?.os||'?')} · ${escapeHtml(p.target?.abi||'?')}<br>${num(p.files?.length||0)} files · ${formatBytesCompact(projectTotalBytes(p))} · ${escapeHtml(p.storageBackend||'unsaved')}<br>${escapeHtml(new Date(p.modifiedAt||p.createdAt).toLocaleString())}</div>
+  </div>`).join(''):`<div class="projectEmpty"><div><strong>No saved projects</strong><br>Create one or import an .asmproj.json bundle.</div></div>`;
+  const p=projects.find(x=>x.id===state.selectedProjectId)||null;
+  if(!p){
+    els.projectMain.innerHTML=`<div class="projectEmpty"><div><strong>${escapeHtml(t('selectProject'))}</strong><br><span>${escapeHtml(t('projectLocalHint'))}</span></div></div>`;
+    return;
+  }
+  els.projectMain.innerHTML=`<section class="projectSection"><strong>PROJECT</strong>
+    <div class="projectMetaGrid">
+      <b>Name</b><input data-project-field="name" value="${escapeHtml(p.name)}">
+      <b>ID</b><span>${escapeHtml(p.id)}</span>
+      <b>Created</b><span>${escapeHtml(new Date(p.createdAt).toLocaleString())}</span>
+      <b>Modified</b><span>${escapeHtml(new Date(p.modifiedAt).toLocaleString())}</span>
+      <b>Storage</b><span>${escapeHtml(p.storageBackend||'unknown')} · ${num(p.files?.length||0)} files · ${formatBytesCompact(projectTotalBytes(p))}</span>
+    </div>
+    <div class="projectActions">
+      <button data-project-action="open" class="primary">${p.id===state.activeProjectId?'Reload':'Open'}</button>
+      <button data-project-action="update">Update metadata</button>
+      <button data-project-action="duplicate">Duplicate</button>
+      <button data-project-action="export">Export</button>
+      <button data-project-action="delete">Delete</button>
+    </div>
+  </section>
+  <section class="projectSection"><strong>TARGET</strong><div class="projectMetaGrid">
+    <b>Architecture</b><select data-project-field="architecture"><option value="x86_64"${p.target?.architecture==='x86_64'?' selected':''}>x86_64</option><option value="x86"${p.target?.architecture==='x86'?' selected':''}>x86</option></select>
+    <b>OS</b><select data-project-field="os"><option value="linux"${p.target?.os==='linux'?' selected':''}>linux</option></select>
+    <b>ABI</b><select data-project-field="abi"><option value="sysv"${p.target?.abi==='sysv'?' selected':''}>sysv</option></select>
+  </div></section>
+  <section class="projectSection"><strong>BUILD INPUT</strong><div class="projectMetaGrid">
+    <b>Kind</b><select data-project-field="build-kind">
+      ${['none','fasm','nasm','gnu-as','binary'].map(v=>`<option value="${v}"${p.build?.kind===v?' selected':''}>${v}</option>`).join('')}
+    </select>
+    <b>Entry</b><input data-project-field="build-entry" value="${escapeHtml(p.build?.entry||'')}" placeholder="src/main.asm or /project/build/app">
+  </div><div class="path">Build tools are not connected yet. This metadata is persisted now so FASM/NASM/GNU as/Blink can share one project contract later.</div></section>
+  <section class="projectSection"><strong>EXECUTION BOUNDARY</strong>
+    <div class="policyList">
+      <b>Executable</b><span>project VFS only</span>
+      <b>Shared functions</b><span>/project or /lib</span>
+      <b>Host filesystem</b><span class="policyBlock">blocked</span>
+      <b>Network</b><span class="policyBlock">blocked</span>
+      <b>Runtime writes</b><span>/project/output and /tmp, through overlay</span>
+    </div>
+  </section>`;
+}
+async function openProjectManager(){
+  await refreshProjectCatalog({render:true});await refreshStorageStatus();if(!els.projectDialog.open)els.projectDialog.showModal();
+}
+async function updateSelectedProjectMetadata(){
+  const p=await projectStore.getProject(state.selectedProjectId);if(!p)return;
+  const get=field=>els.projectMain.querySelector(`[data-project-field="${field}"]`);
+  p.name=String(get('name')?.value||p.name).trim()||p.name;
+  p.target={...p.target,architecture:get('architecture')?.value||p.target.architecture,os:get('os')?.value||p.target.os,abi:get('abi')?.value||p.target.abi};
+  p.build={...p.build,kind:get('build-kind')?.value||'none',entry:String(get('build-entry')?.value||'').trim()};
+  const saved=await projectStore.putProject(p);
+  if(saved.id===state.activeProjectId){state.activeProject=saved;rebuildInspectorVfs();updateProjectChrome()}
+  await refreshProjectCatalog({render:true});setStatus(`Project metadata updated: ${saved.name}`);
+}
+
+async function importExecutionArtifacts(fileList){
+  if(!state.activeProject)throw new Error('Open or save a project before importing execution artifacts');
+  const accepted=[],rejected=[];
+  for(const file of [...fileList]){
+    try{
+      const data=new Uint8Array(await file.arrayBuffer()),elf=inspectElfBytes(data);
+      if(!elf.valid)throw new Error(elf.reason);
+      if(!['elf-executable','elf-shared-library'].includes(elf.kind))throw new Error(`ELF type ${elf.kind} is not an executable/shared-library execution artifact`);
+      const folder=elf.kind==='elf-shared-library'?'lib':'build',base=safeProjectPath(`${folder}/${file.name}`),
+            dot=base.lastIndexOf('.'),stem=dot>=0?base.slice(0,dot):base,ext=dot>=0?base.slice(dot):'';
+      let path=base,n=2;
+      const used=new Set([...state.projectAuxFiles.keys(),...projectFilesFromWorkspace().map(f=>f.path)]);
+      while(used.has(path))path=`${stem}-${n++}${ext}`;
+      const stored=normalizedStoredFile({path,encoding:'binary',kind:elf.kind,data,elf});
+      state.projectAuxFiles.set(path,stored);accepted.push(stored);
+    }catch(err){rejected.push({name:file.name,reason:String(err?.message||err)})}
+  }
+  if(accepted.length){
+    state.projectDirty=true;rebuildInspectorVfs();await saveCurrentProject({quiet:true});
+    if(state.environmentTab==='vfs')renderEnvironment('vfs');
+  }
+  setStatus(`${accepted.length} ELF artifact${accepted.length===1?'':'s'} imported${rejected.length?` · ${rejected.length} rejected`:''}`);
+  return {accepted:accepted.map(f=>({path:f.path,kind:f.kind,size:f.size,elf:f.elf})),rejected};
+}
+function environmentVfsRows(){
+  const vfs=rebuildInspectorVfs(),rows=vfs.list();
+  return `<div class="path"><b>InspectorVFS ${escapeHtml(VFS_SCHEMA)}</b><br>All project paths are deterministic. Original host paths are never mounted. Runtime writes are isolated in a session overlay.</div>
+  <div class="projectActions"><button data-vfs-import-artifact>Import ELF executable / library</button></div>
+  <div class="vfsTree"><div class="vfsRow"><b>PATH</b><b>LAYER</b><b>PERSIST</b><b>SIZE / ROLE</b></div>${rows.map(e=>`<div class="vfsRow">
+    <span>${escapeHtml(e.path)}</span><span class="${e.layer==='runtime-overlay'?'vfsOverlay':e.layer==='virtual'?'vfsVirtual':'vfsLayer'}">${escapeHtml(e.layer||'')}</span>
+    <span class="${e.persistent?'vfsPersistent':''}">${e.persistent?'yes':'no'}</span><span>${Number.isFinite(e.size)?`${formatBytesCompact(e.size)} · ${escapeHtml(e.kind||'file')}`:escapeHtml(e.note||e.kind||'')}</span>
+  </div>`).join('')}</div>`;
+}
+function environmentPolicyHtml(){
+  const p=state.activeProject?.executionPolicy||defaultExecutionPolicy(),l=p.limits||{};
+  return `<section class="projectSection"><strong>LOCKED BASELINE · ${escapeHtml(EXECUTION_POLICY_SCHEMA)}</strong>
+    <div class="policyList">
+      <b>Processes</b><span class="policyAllow">project executables only</span>
+      <b>Shared-library functions</b><span class="policyAllow">project / associated /lib only</span>
+      <b>Dynamic libraries</b><span class="policyAllow">${p.allowDynamicLibraries?'allowed inside VFS':'blocked'}</span>
+      <b>Host filesystem</b><span class="policyBlock">${p.hostFilesystem?'enabled':'blocked'}</span>
+      <b>Host processes</b><span class="policyBlock">${p.hostProcesses?'enabled':'blocked'}</span>
+      <b>Network</b><span class="policyBlock">${p.network?'enabled':'blocked'}</span>
+      <b>Readable paths</b><span>${escapeHtml(p.filesystem.read.join(', '))}</span>
+      <b>Writable paths</b><span>${escapeHtml(p.filesystem.write.join(', '))} · runtime overlay only</span>
+      <b>Executable paths</b><span>${escapeHtml(p.filesystem.execute.join(', '))}</span>
+      <b>Library paths</b><span>${escapeHtml(p.filesystem.sharedLibrary.join(', '))}</span>
+      <b>Syscalls</b><span>allowlist · ${num(p.syscalls.allow.length)} allowed · ${num(p.syscalls.explicitBlock.length)} explicit blocks</span>
+      <b>Instruction limit</b><span>${num(l.maxInstructions)}</span>
+      <b>Memory limit</b><span>${formatBytesCompact(l.maxMemoryBytes)}</span>
+      <b>Runtime limit</b><span>${num(l.maxRuntimeMs)} ms</span>
+      <b>Threads / processes</b><span>${num(l.maxThreads)} / ${num(l.maxProcesses)}</span>
+      <b>FD 0</b><span>InspectorIO.stdin · read only</span>
+      <b>FD 1</b><span>InspectorIO.stdout · captured stream</span>
+      <b>FD 2</b><span>InspectorIO.stderr · captured stream</span>
+    </div>
+    <div class="path">The policy is intentionally non-editable in V14.8. Future backends must consume this contract; they may not bypass it.</div>
+  </section>
+  <section class="projectSection"><strong>SYSCALL ALLOWLIST</strong><div class="path">${escapeHtml(p.syscalls.allow.join(' · '))}</div></section>
+  <section class="projectSection"><strong>EXPLICITLY BLOCKED</strong><div class="path policyBlock">${escapeHtml(p.syscalls.explicitBlock.join(' · '))}</div></section>
+  <section class="projectSection"><strong>POLICY PROBE</strong><div class="environmentGrid">
+    <b>Operation</b><select data-policy-probe-kind><option value="read">read</option><option value="write">write</option><option value="execute">execute</option><option value="shared-library">shared-library</option><option value="syscall">syscall</option><option value="network">network</option></select>
+    <b>Path / syscall</b><input data-policy-probe-value value="/project/build/app">
+  </div><button data-policy-probe-run>Evaluate</button><div data-policy-probe-result class="policyDecision">No probe yet.</div></section>`;
+}
+function environmentRunConfigsHtml(){
+  const p=state.activeProject,configs=p?.runConfigurations||[];
+  if(!state.selectedRunConfigId||!configs.some(r=>r.id===state.selectedRunConfigId))state.selectedRunConfigId=p?.activeRunConfigId||configs[0]?.id||null;
+  const selected=configs.find(r=>r.id===state.selectedRunConfigId)||null;
+  return `<div class="projectActions"><button data-run-new="process">+ Process</button><button data-run-new="function">+ Function</button></div>
+  <div class="runConfigList">
+    <div class="runConfigRows">${configs.length?configs.map(r=>`<div class="runConfigRow${r.id===state.selectedRunConfigId?' active':''}" data-run-id="${escapeHtml(r.id)}"><b>${escapeHtml(r.name)}</b><br><span class="muted">${escapeHtml(r.kind)} · ${escapeHtml(r.artifactPath||'—')} · ${escapeHtml(runConfigBackend(r))}</span></div>`).join(''):'<div class="projectEmpty"><div>No run configurations.<br>Create a process or function configuration.</div></div>'}</div>
+    <div>${selected?`<div class="runConfigForm">
+      <b>Name</b><input data-run-field="name" value="${escapeHtml(selected.name)}">
+      <b>Kind</b><select data-run-field="kind"><option value="process"${selected.kind==='process'?' selected':''}>process</option><option value="function"${selected.kind==='function'?' selected':''}>function</option></select>
+      <b>Backend</b><span>${escapeHtml(runConfigBackend(selected))} · not connected</span>
+      <b>Artifact type</b><select data-run-field="artifact-type"><option value="elf-executable"${selected.artifactType==='elf-executable'?' selected':''}>ELF executable</option><option value="elf-shared-library"${selected.artifactType==='elf-shared-library'?' selected':''}>ELF shared library</option></select>
+      <b>Artifact VFS path</b><input data-run-field="artifact" value="${escapeHtml(selected.artifactPath||'')}">
+      <b>Function symbol</b><input data-run-field="function" value="${escapeHtml(selected.functionName||'')}" ${selected.kind==='function'?'':'disabled'}>
+      <b>ABI</b><select data-run-field="abi"><option value="sysv"${selected.abi==='sysv'?' selected':''}>sysv</option></select>
+      <b>Working directory</b><input data-run-field="cwd" value="${escapeHtml(selected.workingDirectory||'/project')}">
+      <b>argv JSON</b><textarea data-run-field="argv">${escapeHtml(JSON.stringify(selected.argv||[]))}</textarea>
+      <b>ABI arguments JSON</b><textarea data-run-field="arguments">${escapeHtml(JSON.stringify(selected.arguments||[]))}</textarea>
+      <b>stdin mode</b><select data-run-field="stdin-mode"><option value="eof"${selected.stdin?.mode==='eof'?' selected':''}>EOF</option><option value="text"${selected.stdin?.mode==='text'?' selected':''}>preloaded text</option><option value="file"${selected.stdin?.mode==='file'?' selected':''}>project file</option></select>
+      <b>stdin text/file</b><textarea data-run-field="stdin-value">${escapeHtml(selected.stdin?.mode==='file'?(selected.stdin.file||''):(selected.stdin?.text||''))}</textarea>
+    </div><div class="projectActions"><button data-run-action="save" class="primary">Save config</button><button data-run-action="validate">Validate</button><button data-run-action="delete">Delete</button></div><div data-run-validation class="policyDecision">${escapeHtml(validateRunConfiguration(selected,state.inspectorVfs,p.executionPolicy).reason)}</div>`:'<div class="projectEmpty"><div>Select a run configuration.</div></div>'}</div>
+  </div>`;
+}
+function environmentIoHtml(){
+  const io=createInspectorIO(),snap=io.snapshot(),config=selectedRunConfig();
+  return `<div class="path"><b>InspectorIO ${escapeHtml(INSPECTOR_IO_SCHEMA)}</b><br>STDIO is inspector-owned. It never inherits the browser/host terminal. Blink/Unicorn adapters must bind Linux/ABI I/O to these descriptors explicitly.</div>
+    <section class="projectSection"><strong>PREDEFINED DESCRIPTORS</strong><div class="policyList">
+      <b>FD 0 · stdin</b><span>read → InspectorIO.stdin · ${escapeHtml(snap.stdin.mode)} · ${escapeHtml(snap.stdin.evidence)}</span>
+      <b>FD 1 · stdout</b><span>write → InspectorIO.stdout · captured, session-local</span>
+      <b>FD 2 · stderr</b><span>write → InspectorIO.stderr · captured separately from stdout</span>
+      <b>FD ≥ 3</b><span>unbound until a future VFS open/openat adapter allocates them</span>
+      <b>Run config</b><span>${config?escapeHtml(config.name):'none selected'}</span>
+    </div></section>
+    <section class="projectSection"><strong>I/O PROBE</strong><div class="environmentGrid">
+      <b>stdin feed</b><input data-io-stdin value="hello\\n">
+      <b>stdout write</b><input data-io-stdout value="stdout sample\\n">
+      <b>stderr write</b><input data-io-stderr value="stderr sample\\n">
+    </div><div class="projectActions"><button data-io-probe>Apply probe</button><button data-io-clear>Clear output</button></div>
+    <div data-io-result class="policyDecision">No I/O events yet.</div></section>
+    <section class="projectSection"><strong>CAPTURED OUTPUT</strong><div class="path"><b>stdout</b><br><pre data-io-stdout-preview>${escapeHtml(io.text(1)||'')}</pre><br><b>stderr</b><br><pre data-io-stderr-preview>${escapeHtml(io.text(2)||'')}</pre></div></section>`;
+}
+function environmentOverlayHtml(){
+  const vfs=state.inspectorVfs||rebuildInspectorVfs(),diff=vfs.runtimeDiff();
+  return `<div class="path"><b>RUNTIME OVERLAY</b><br>Execution never writes directly into persistent project files. V14.8 exposes the overlay contract before an emulator is connected.</div>
+    <section class="projectSection"><strong>STAGE A VFS WRITE / POLICY TEST</strong><div class="environmentGrid">
+      <b>Path</b><input data-overlay-path value="/project/output/example.txt">
+      <b>Text</b><input data-overlay-text value="runtime output">
+    </div><div class="projectActions"><button data-overlay-stage>Stage write</button><button data-overlay-reset>Reset runtime overlay</button></div><div data-overlay-result class="policyDecision">No write staged.</div></section>
+    <section class="projectSection"><strong>CHANGES</strong>${diff.length?`<div class="vfsTree">${diff.map(d=>`<div class="runtimeOverlayRow"><span>${escapeHtml(d.path)}</span><span>${escapeHtml(d.operation)}</span><span>${formatBytesCompact(d.size)}</span></div>`).join('')}</div>`:'<div class="path">No runtime changes.</div>'}</section>
+    <div class="path">Applying runtime changes to persistent project storage is intentionally not implemented yet. The execution overlay is discardable by default.</div>`;
+}
+function renderEnvironment(tab=state.environmentTab||'vfs'){
+  state.environmentTab=tab;
+  document.querySelectorAll('[data-env-tab]').forEach(b=>b.classList.toggle('active',b.dataset.envTab===tab));
+  if(!state.activeProject){els.environmentPanel.innerHTML='<div class="projectEmpty"><div>No active project.</div></div>';return}
+  rebuildInspectorVfs();
+  if(tab==='vfs')els.environmentPanel.innerHTML=environmentVfsRows();
+  else if(tab==='policy')els.environmentPanel.innerHTML=environmentPolicyHtml();
+  else if(tab==='runs')els.environmentPanel.innerHTML=environmentRunConfigsHtml();
+  else if(tab==='io')els.environmentPanel.innerHTML=environmentIoHtml();
+  else els.environmentPanel.innerHTML=environmentOverlayHtml();
+}
+function openEnvironment(tab='vfs'){
+  if(!state.activeProject){setStatus('Save or open a project first.');return}
+  renderEnvironment(tab);els.environmentStatus.textContent='Execution backend not connected · policy/VFS/run contracts are active';if(!els.environmentDialog.open)els.environmentDialog.showModal();
+}
+function selectedRunConfig(){
+  return state.activeProject?.runConfigurations?.find(r=>r.id===state.selectedRunConfigId)||null;
+}
+async function saveRunConfigFromForm(){
+  const p=state.activeProject,config=selectedRunConfig();if(!p||!config)return;
+  const get=f=>els.environmentPanel.querySelector(`[data-run-field="${f}"]`);
+  let argv=[],args=[];
+  try{argv=JSON.parse(get('argv')?.value||'[]');if(!Array.isArray(argv))throw new Error('argv must be an array')}catch(err){setStatus(`Run config: ${err.message}`);return}
+  try{args=JSON.parse(get('arguments')?.value||'[]');if(!Array.isArray(args))throw new Error('arguments must be an array')}catch(err){setStatus(`Run config: ${err.message}`);return}
+  config.name=String(get('name')?.value||config.name).trim()||config.name;
+  config.kind=get('kind')?.value==='function'?'function':'process';config.backend=config.kind==='function'?'unicorn':'blink';
+  config.artifactType=get('artifact-type')?.value||config.artifactType||(config.kind==='function'?'elf-shared-library':'elf-executable');
+  if(config.kind==='process')config.artifactType='elf-executable';
+  config.artifactPath=vfsPath(get('artifact')?.value||config.artifactPath);config.functionName=String(get('function')?.value||'').trim();
+  config.abi=get('abi')?.value||'sysv';config.workingDirectory=vfsPath(get('cwd')?.value||'/project');config.argv=argv;config.arguments=args;
+  const mode=get('stdin-mode')?.value||'eof',value=get('stdin-value')?.value||'';
+  config.stdin={mode,text:mode==='text'?value:'',file:mode==='file'?vfsPath(value):''};config.modifiedAt=nowIso();
+  p.activeRunConfigId=config.id;state.projectDirty=true;await saveCurrentProject({quiet:true});renderEnvironment('runs');setStatus(`Run configuration saved: ${config.name}`);
+}
+async function createRunConfig(kind){
+  const p=state.activeProject;if(!p)return;const config=defaultRunConfiguration(kind);p.runConfigurations.push(config);p.activeRunConfigId=config.id;state.selectedRunConfigId=config.id;
+  state.projectDirty=true;await saveCurrentProject({quiet:true});renderEnvironment('runs');
+}
+async function deleteRunConfig(){
+  const p=state.activeProject,id=state.selectedRunConfigId;if(!p||!id)return;
+  p.runConfigurations=p.runConfigurations.filter(r=>r.id!==id);p.activeRunConfigId=p.runConfigurations[0]?.id||null;state.selectedRunConfigId=p.activeRunConfigId;
+  state.projectDirty=true;await saveCurrentProject({quiet:true});renderEnvironment('runs');
+}
 
 function configureEntrypoints(){
   const explicit=(state.explicitEntrySymbols||[]).map(x=>state.functionsByName.get(x)).find(Boolean)||null;
@@ -4128,7 +5245,7 @@ function clearAll(){
   state.groupViewStack=[];state.dwarf=null;state.projectRoots=[];state.selectedOriginGroupId=null;
   state.inputKind='objdump';state.inputMeta=null;state.explicitEntrySymbols=[];
   state.editMode=false;state.editRevision++;clearTimeout(state.editTimer);state.editTimer=null;
-  state.workspaceFiles=new Map();state.workspaceOrder=[];state.activeFileId=null;state.workspaceRevision=0;
+  state.workspaceFiles=new Map();state.workspaceOrder=[];state.activeFileId=null;state.workspaceRevision=0;state.projectAuxFiles=new Map();
   state.workspaceName='Workspace';state.functionsByNameMulti=new Map();state.workspaceDependencies=new Map();
   state.dynamicMatches=[];state.dataflowCache=new Map();state.cfgAnalysisCache=new Map();state.currentCfgAnalysis=null;
 
@@ -4512,14 +5629,14 @@ function openCfiTimeline(fde,pc=null){
     ${activeRow?`<div class="path"><b>ACTIVE UNWIND ROW</b><br>${escapeHtml(cfiRowSummary(activeRow,fde))}</div>`:''}
     ${conflict?.comparable?`<div class="path"><b>FRAME-SOURCE COMPARISON</b><br>${conflict.same?'equivalent':'DIFFERS'} · ${escapeHtml(conflict.evidence)}<br>.debug_frame: ${escapeHtml(conflict.debugSummary)}<br>.eh_frame: ${escapeHtml(conflict.ehSummary)}</div>`:''}
     ${recipe?`<div class="path"><b>NORMALIZED RECIPE IR</b><br>${escapeHtml(recipe.schema)} · ${escapeHtml(recipe.sourceLabel||recipe.sourceKind||'')} · ${safeHex(recipe.row.startAddress)}..${safeHex(recipe.row.endAddress)}<br>CFA ${escapeHtml(recipe.row.cfa?.kind||'unknown')} · ${num(recipe.row.registerRules.length)} register rules · ptr ${recipe.pointerSize} B · ${recipe.littleEndian?'LE':'BE'}</div>`:''}
-    <div class="actions"><button data-cfi-cie>Open CIE</button>${Number.isFinite(fde.address)?`<button data-cfi-fde-hex>FDE hex</button>`:''}${Number.isFinite(pc)?`<button data-cfi-simulate>Simulate unwind</button>`:''}</div>
+    <div class="actions"><input data-cfi-goto-input value="${Number.isFinite(pc)?safeHex(pc):safeHex(fde.startAddress)}" style="width:120px" title="PC/address"><button data-cfi-goto>Go to PC</button> <button data-cfi-cie>Open CIE</button>${Number.isFinite(fde.address)?`<button data-cfi-fde-hex>FDE hex</button>`:''}${Number.isFinite(pc)?`<button data-cfi-recipe>Export recipe JSON</button> <button data-cfi-simulate>Simulate unwind</button>`:''}</div>
     <div class="dataObjectList"><b>DW_CFA_* TIMELINE</b>${opRows}${ops.length>240?`<div class="path">… ${num(ops.length-240)} more operations</div>`:''}</div>`;
   els.inspector.classList.remove('hidden');
 
   const goPc=addr=>{
     const fn=fde.function||state.functions.find(f=>f.addr<=addr&&f.endAddr>=addr);
     const inst=fn?.instructions?.find(i=>i.addr===addr)||fn?.instructions?.find(i=>i.addr>=addr);
-    if(inst){selectInstruction(inst,{origin:false});scrollToLine(inst.line,true)}
+    if(inst){goToFlowInstruction(inst);scrollToLine(inst.line,true)}
   };
   els.inspector.querySelectorAll('[data-cfi-op-hex]').forEach(btn=>btn.addEventListener('click',()=>{
     const op=ops[Number(btn.dataset.cfiOpHex)];
@@ -4531,7 +5648,18 @@ function openCfiTimeline(fde,pc=null){
   els.inspector.querySelector('[data-cfi-fde-hex]')?.addEventListener('click',()=>{
     if(fde.section&&Number.isFinite(fde.address))openHexViewer({section:fde.section,address:fde.address,size:Math.max(4,(fde.length||0)+4),name:`FDE ${safeHex(fde.address)}`});
   });
+  els.inspector.querySelector('[data-cfi-goto]')?.addEventListener('click',()=>{
+    try{
+      const value=els.inspector.querySelector('[data-cfi-goto-input]')?.value||'',target=parseUnwindAddressNumber(value,'CFI PC');
+      if(target<fde.startAddress||target>=fde.endAddress){setStatus(`PC ${safeHex(target)} is outside FDE ${safeHex(fde.startAddress)}..${safeHex(fde.endAddress)}`);return}
+      openCfiTimeline(fde,target);
+    }catch(err){setStatus(String(err?.message||err))}
+  });
   els.inspector.querySelector('[data-cfi-cie]')?.addEventListener('click',()=>openCieInspector(fde.cie,fde));
+  els.inspector.querySelector('[data-cfi-recipe]')?.addEventListener('click',()=>{
+    const recipe=normalizedUnwindRecipeIr(unwind,pc,{source:state.unwindSource});
+    if(recipe)downloadJsonFile(`unwind-recipe-${Number(pc).toString(16)}.json`,recipe);
+  });
   els.inspector.querySelector('[data-cfi-simulate]')?.addEventListener('click',()=>openUnwindSimulator({pc}));
 }
 function openCieInspector(cie,fde=null){
@@ -4599,24 +5727,31 @@ function renderUnwindSimulation(result,record){
     els.unwindResults.innerHTML=`<div class="empty"><div><strong>No frames recovered</strong><span>${escapeHtml(result?.stopReason||'unknown failure')}</span></div></div>`;
     els.unwindDialogStatus.textContent=result?.stopReason||'No frame';return;
   }
-  els.unwindResults.innerHTML=`<div class="path"><b>${result.complete?'COMPLETE STACK':'PARTIAL STACK'}</b><br>${num(frames.length)} frame${frames.length===1?'':'s'} · stop ${escapeHtml(result.stopReason||'unknown')} · source ${escapeHtml(result.source||'auto')}${result.diagnostics?.length?`<br>${result.diagnostics.map(escapeHtml).join('<br>')}`:''}</div>`+
+  els.unwindResults.innerHTML=`<div class="path"><b>${result.complete?'COMPLETE STACK':'PARTIAL STACK'}</b><br>${num(frames.length)} frame${frames.length===1?'':'s'} · stop ${escapeHtml(result.stopReason||'unknown')} · strategy ${escapeHtml(result.strategy||'cfi')} · source ${escapeHtml(result.source||'auto')}${result.diagnostics?.length?`<br>${result.diagnostics.map(escapeHtml).join('<br>')}`:''}</div>`+
     frames.map((frame,i)=>{
       const fn=unwindFrameFunction(frame,fileId),label=unwindFrameLabel(frame,fileId),
-            cfa=unwindKnownNumber(frame.cfa?.value),ra=unwindKnownNumber(frame.returnAddress?.value);
+            cfa=unwindKnownNumber(frame.cfa?.value),ra=unwindKnownNumber(frame.returnAddress?.value),
+            fp=frame.framePointer,cmp=frame.framePointerComparison,reads=frame.memoryReads||[],fpReads=fp?.memoryReads||[],
+            diffs=frame.registerDiff||[];
       return `<div class="unwindFrame${i===0?' current':''}${frame.stopReason&&!result.complete?' stop':''}">
         <div class="unwindFrameHead"><span>#${i}</span><span>${escapeHtml(label)}</span><span class="grow"></span><span>${escapeHtml(frame.sourceLabel||frame.sourceKind||'—')}</span></div>
         <div class="unwindFrameGrid">
           <b>Runtime PC</b><span>${safeHex(frame.runtimePc)}</span>
-          <b>Static PC</b><span>${safeHex(frame.staticPc)}${frame.returnLookupAdjustment?` · lookup ${safeHex(frame.lookupStaticPc)} (-${frame.returnLookupAdjustment})`:''}</span>
+          <b>Static PC</b><span>${safeHex(frame.staticPc)}${frame.returnLookupAdjustment?` · lookup ${safeHex(frame.lookupStaticPc)} (RA-${frame.returnLookupAdjustment})`:''}</span>
           <b>Function</b><span>${fn?escapeHtml(functionDisplayName(fn)):'unresolved'}</span>
           <b>FDE</b><span>${frame.fde?`${safeHex(frame.fde.startAddress)}..${safeHex(frame.fde.endAddress)}`:'—'}</span>
           <b>CFA</b><span>${Number.isFinite(cfa)?safeHex(cfa):escapeHtml(frame.cfa?.reason||'unknown')}</span>
           <b>Return address</b><span>${Number.isFinite(ra)?safeHex(ra):escapeHtml(frame.returnAddress?.reason||'unknown')}</span>
           <b>Architecture</b><span>${escapeHtml(frame.architecture||'unknown')}</span>
           <b>Confidence</b><span>${escapeHtml(frame.confidence||'unknown')}</span>
+          <b>Strategy</b><span>${escapeHtml(frame.strategy||result.strategy||'cfi')}</span>
           <b>State</b><span>${escapeHtml(frame.stopReason||'recovered')}</span>
         </div>
+        ${cmp?`<div class="path"><b>CFI ↔ FRAME POINTER CROSS-CHECK</b><br>${escapeHtml(cmp.status)} · ${escapeHtml(cmp.evidence||'')}${cmp.checks?.length?`<br>${cmp.checks.map(x=>`${escapeHtml(x.field)}: CFI ${safeHex(x.cfi)} · FP ${safeHex(x.framePointer)} · ${x.match?'MATCH':'DIFFERS'}`).join('<br>')}`:''}</div>`:''}
+        ${fp&&frame.strategy==='frame-pointer'?`<div class="path"><b>FRAME-POINTER HEURISTIC</b><br>base ${safeHex(fp.basePointer)} · caller base ${safeHex(fp.callerBasePointer)} · caller SP ${safeHex(fp.callerStackPointer)} · RA ${safeHex(fp.returnAddress)}<br>${escapeHtml(fp.evidence||fp.reason||'')}</div>`:''}
         ${frame.warnings?.length?`<div class="unwindDiag">${frame.warnings.map(escapeHtml).join('<br>')}</div>`:''}
+        ${diffs.length?`<details><summary>Register recovery / diff (${num(diffs.length)})</summary><div class="dataObjectList">${diffs.map(r=>`<div class="dataObjectRow"><span>${escapeHtml(r.name)}</span><span>${escapeHtml(r.status)} · ${escapeHtml(r.ruleKind)}${Number.isFinite(r.location)?` · [${safeHex(r.location)}]`:''}<br><span class="muted">${Number.isFinite(r.before)?safeHex(r.before):'—'} → ${Number.isFinite(r.after)?safeHex(r.after):'—'}${r.changed===true?' · changed':r.changed===false?' · same':''}</span></span><span>${r.known?'known':'unknown'}</span></div>`).join('')}</div></details>`:''}
+        ${(reads.length||fpReads.length)?`<details><summary>Memory-read evidence (${num(reads.length+fpReads.length)})</summary><div class="dataObjectList">${[...reads.map(r=>({...r,path:'CFI'})),...fpReads.map(r=>({...r,path:'FP'}))].map(r=>`<div class="dataObjectRow"><span>${escapeHtml(r.path)} · ${r.addressHex||safeHex(r.address)}</span><span>${num(r.width)} B · ${escapeHtml(r.source||'memory')} · ${r.success?'read':'FAILED'}${r.reason?` · ${escapeHtml(r.reason)}`:''}</span><span>${typeof r.value==='bigint'?`0x${r.value.toString(16)}`:Number.isFinite(r.value)?safeHex(r.value):'—'}</span></div>`).join('')}</div></details>`:''}
         <div class="actions">${fn?`<button data-unwind-code="${i}">Code</button>`:''}${frame.fde?`<button data-unwind-cfi="${i}">CFI timeline</button>`:''}</div>
       </div>`;
     }).join('');
@@ -4624,7 +5759,7 @@ function renderUnwindSimulation(result,record){
   els.unwindResults.querySelectorAll('[data-unwind-code]').forEach(btn=>btn.addEventListener('click',()=>{
     const frame=frames[Number(btn.dataset.unwindCode)],fn=unwindFrameFunction(frame,fileId);if(!fn)return;
     selectFunction(fn);const inst=fn.instructions.find(x=>x.addr===frame.lookupStaticPc)||fn.instructions.find(x=>x.addr>=frame.lookupStaticPc)||fn.instructions[0];
-    if(inst){selectInstruction(inst,{origin:false});scrollToLine(inst.line,true)}
+    if(inst){goToFlowInstruction(inst);scrollToLine(inst.line,true)}
     els.unwindDialog.close();
   }));
   els.unwindResults.querySelectorAll('[data-unwind-cfi]').forEach(btn=>btn.addEventListener('click',()=>{
@@ -4640,11 +5775,12 @@ function openUnwindSimulator({pc=null}={}){
         Number.isFinite(state.selectedBlock?.startAddr)?state.selectedBlock.startAddr:Number.isFinite(state.selectedFunction?.addr)?state.selectedFunction.addr:
         unwind.fdes?.[0]?.startAddress;
   els.unwindPc.value=Number.isFinite(selectedPc)?safeHex(selectedPc):'';
-  els.unwindDialogSource.value=state.unwindSource||'auto';els.unwindPtrSize.value=String(unwind.ptrSize||8);
+  els.unwindDialogSource.value=state.unwindSource||'auto';els.unwindStrategy.value='cfi+frame-pointer';els.unwindPtrSize.value=String(unwind.ptrSize||8);
   els.unwindMaxFrames.value='32';els.unwindLoadBias.value='0x0';els.unwindStaticBase.value='0x0';
   const fde=Number.isFinite(selectedPc)?preferredFdeForPc(unwind,selectedPc,{source:state.unwindSource}):null,
         arch=fde?fdeArchitecture(fde):state.selectedFunction?functionDataflow(state.selectedFunction)?.architecture:null,
         pcName=unwindControlRegisters(arch,fde).pcName;
+  els.unwindDialog.dataset.architecture=arch||'';
   if(!els.unwindRegisters.value.trim()&&pcName&&Number.isFinite(selectedPc))els.unwindRegisters.value=JSON.stringify({[pcName]:safeHex(selectedPc)},null,2);
   els.unwindDialogTitle.textContent=`${record.artifactLabel||record.path||'artifact'} · ${num(unwind.fdes?.length||0)} FDE`;
   els.unwindResults.innerHTML='<div class="empty"><div><strong>No simulation yet</strong><span>Provide stack/register values and run the evaluator.</span></div></div>';
@@ -4660,7 +5796,8 @@ function runUnwindSimulator(){
           ptrSize=Number(els.unwindPtrSize.value)||unwind.ptrSize||8,maxFrames=Math.max(1,Math.min(256,Number(els.unwindMaxFrames.value)||32)),
           moduleLoadBias=parseUnwindAddressNumber(els.unwindLoadBias.value||'0','load bias'),
           staticBase=parseUnwindAddressNumber(els.unwindStaticBase.value||'0','static base'),
-          result=unwindStackFrames(unwind,{runtimePc,source:els.unwindDialogSource.value||'auto',maxFrames,snapshot:{
+          result=unwindStackFrames(unwind,{runtimePc,source:els.unwindDialogSource.value||'auto',strategy:els.unwindStrategy.value||'cfi',
+            architecture:els.unwindDialog.dataset.architecture||null,maxFrames,snapshot:{
             registers,memory,ptrSize,littleEndian:unwind.littleEndian!==false,moduleLoadBias,staticBase
           }});
     state.lastUnwindSimulation=result;renderUnwindSimulation(result,record);
@@ -4824,7 +5961,8 @@ function updateInspector(item){
           memoryReads=info?.memoryReads||[],memoryWrites=info?.memoryWrites||[],memoryInvalidations=info?.memoryInvalidations||[],
           instUnwind=state.workspaceFiles.get(inst.function?.workspaceFileId)?.parsed?.unwind||null,
           instFde=preferredFdeForPc(instUnwind,inst.addr,{source:state.unwindSource}),
-          instCfi=instFde?cfiRowForPc(instFde,inst.addr):null;
+          instCfi=instFde?cfiRowForPc(instFde,inst.addr):null,
+          instFrameCompare=compareUnwindSourcesAtPc(instUnwind,inst.addr);
     html=`<div class="title">${escapeHtml(`${inst.mnemonic} ${inst.operands}`.trim())}</div><div class="meta">
       <b>${t('function')}</b><span>${escapeHtml(functionDisplayName(inst.function))}</span>
       <b>${inst.syntheticAddress?t('line'):t('address')}</b><span>${inst.syntheticAddress?num(inst.line+1):safeHex(inst.addr)}</span>
@@ -4839,6 +5977,7 @@ function updateInspector(item){
       <b>RBP base</b><span>${Number.isFinite(info?.rbpEntryDelta)?`entry RSP ${info.rbpEntryDelta>=0?'+':''}${info.rbpEntryDelta}`:'unknown'}</span>
       <b>CFI unwind</b><span>${instCfi?escapeHtml(cfiStateSummary(instCfi,instFde?.cie?.returnRegister,fdeArchitecture(instFde))):'—'}</span>
       <b>CFI source</b><span>${instFde?`${escapeHtml(instFde.sourceLabel||instFde.sourceKind||'frame')} · ${escapeHtml(instFde.selectionEvidence||'exact PC coverage')}`:'—'}</span>
+      <b>Frame-source conflict</b><span>${instFrameCompare?.comparable?(instFrameCompare.same?'none · equivalent rows':'DIFFERS · inspect timeline'):'not comparable'}</span>
       <b>Recipe evaluator</b><span>${instCfi?'ready for register/memory snapshot':'—'}</span>
       <b>${t('uses')}</b><span>${num(uses.length)}</span>
       <b>${t('defines')}</b><span>${num(defs.length)}</span>
@@ -4925,7 +6064,8 @@ function updateInspector(item){
           exceptionIn=db?(advanced?.exceptionEdges||[]).filter(e=>e.to===db):[],
           blockPc=Number.isFinite(item.startAddr)?item.startAddr:item.instructions?.[0]?.addr,
           blockFde=preferredFdeForPc(advanced?.unwind,blockPc,{source:state.unwindSource}),
-          blockCfi=blockFde?cfiRowForPc(blockFde,blockPc):null;
+          blockCfi=blockFde?cfiRowForPc(blockFde,blockPc):null,
+          blockFrameCompare=compareUnwindSourcesAtPc(advanced?.unwind,blockPc);
     html=`<div class="title">${escapeHtml(item.label)}</div><div class="meta">
       <b>${t('function')}</b><span>${escapeHtml(functionDisplayName(item.function))}</span>
       <b>Range</b><span>${item.function?.syntheticAddress?`${t('line')} ${item.startLine+1}–${item.endLine+1}`:`${safeHex(item.startAddr)} – ${safeHex(item.endAddr)}`}</span>
@@ -4944,6 +6084,7 @@ function updateInspector(item){
       <b>Exit state</b><span>${escapeHtml(summarize(exit))}</span>
       <b>State convergence</b><span>${df?.stateFixedPointConverged?'converged':'partial'} · ${num(df?.stateFixedPointIterations||0)} iterations</span>
       <b>CFI unwind row</b><span>${blockCfi?escapeHtml(cfiStateSummary(blockCfi,blockFde?.cie?.returnRegister,fdeArchitecture(blockFde))):'—'}</span>
+      <b>Frame-source conflict</b><span>${blockFrameCompare?.comparable?(blockFrameCompare.same?'none · equivalent rows':'DIFFERS · inspect timeline'):'not comparable'}</span>
     </div>
     ${path.length?`<div class="path"><b>${t('pathFromEntry')}</b><br>${path.map(b=>escapeHtml(cfgBlockTitle(b,item.function))).join(' → ')}</div>`:''}
     ${doms.length?`<div class="path"><b>${t('dominators')}</b><br>${doms.map(b=>`${b===db?'<strong>':''}${escapeHtml(cfgBlockTitle(b,item.function))}${b===db?'</strong>':''}`).join(' → ')}</div>`:''}
@@ -7140,6 +8281,100 @@ async function loadFile(file){
 // Language
 els.languageSelect.addEventListener('change',()=>setLanguage(els.languageSelect.value));
 
+// Persistent projects / execution environment
+els.projectsBtn.addEventListener('click',()=>openProjectManager().catch(err=>setStatus(`Project Manager: ${err.message}`)));
+els.saveProjectBtn.addEventListener('click',async()=>{
+  try{
+    if(!state.activeProject){
+      const name=prompt('Project name',projectNameSuggestion());if(name==null)return;
+      state.activeProject=defaultProject(name);state.activeProjectId=state.activeProject.id;state.selectedProjectId=state.activeProject.id;
+    }
+    await saveCurrentProject();
+  }catch(err){setStatus(`Save project failed: ${err.message}`)}
+});
+els.environmentBtn.addEventListener('click',()=>openEnvironment('vfs'));
+els.projectDialogClose.addEventListener('click',()=>els.projectDialog.close());
+els.environmentClose.addEventListener('click',()=>els.environmentDialog.close());
+els.environmentSaveBtn.addEventListener('click',()=>saveCurrentProject().catch(err=>setStatus(`Save project failed: ${err.message}`)));
+els.projectRefreshBtn.addEventListener('click',()=>refreshProjectCatalog({render:true}).then(refreshStorageStatus));
+els.projectImportBtn.addEventListener('click',()=>els.projectImportInput.click());
+els.projectImportInput.addEventListener('change',async()=>{
+  const file=els.projectImportInput.files?.[0];els.projectImportInput.value='';if(!file)return;
+  try{await importProjectFile(file)}catch(err){setStatus(`Import failed: ${err.message}`)}
+});
+els.vfsImportInput.addEventListener('change',async()=>{
+  const files=[...(els.vfsImportInput.files||[])];els.vfsImportInput.value='';if(!files.length)return;
+  try{await importExecutionArtifacts(files)}catch(err){setStatus(`ELF import failed: ${err.message}`)}
+});
+els.requestPersistenceBtn.addEventListener('click',async()=>{
+  const ok=await projectStore.requestPersistence();await refreshStorageStatus();setStatus(ok?'Persistent browser storage granted.':'Persistent storage was not granted by the browser.');
+});
+els.projectNewBtn.addEventListener('click',async()=>{
+  const name=prompt('Project name','Untitled project');if(name==null)return;
+  const fromWorkspace=state.workspaceOrder.length>0&&!state.activeProjectId&&confirm('Save the current workspace into this new project?');
+  try{await createProject({name,open:true,fromWorkspace});els.projectDialog.close()}catch(err){setStatus(`Create project failed: ${err.message}`)}
+});
+els.projectList.addEventListener('click',e=>{
+  const row=e.target.closest('[data-project-id]');if(!row)return;state.selectedProjectId=row.dataset.projectId;renderProjectManager();
+});
+els.projectMain.addEventListener('click',async e=>{
+  const btn=e.target.closest('[data-project-action]');if(!btn)return;
+  try{
+    const id=state.selectedProjectId,action=btn.dataset.projectAction;
+    if(action==='open'){await openProject(id);els.projectDialog.close()}
+    else if(action==='update')await updateSelectedProjectMetadata();
+    else if(action==='duplicate')await duplicateProjectById(id);
+    else if(action==='export')await exportProjectById(id);
+    else if(action==='delete')await deleteProjectById(id);
+  }catch(err){setStatus(`Project action failed: ${err.message}`)}
+});
+document.querySelectorAll('[data-env-tab]').forEach(btn=>btn.addEventListener('click',()=>renderEnvironment(btn.dataset.envTab)));
+els.environmentPanel.addEventListener('click',async e=>{
+  try{
+    if(e.target.closest('[data-vfs-import-artifact]')){els.vfsImportInput.click();return}
+    const newRun=e.target.closest('[data-run-new]');if(newRun){await createRunConfig(newRun.dataset.runNew);return}
+    const runRow=e.target.closest('[data-run-id]');if(runRow){state.selectedRunConfigId=runRow.dataset.runId;renderEnvironment('runs');return}
+    const runAction=e.target.closest('[data-run-action]');
+    if(runAction){
+      if(runAction.dataset.runAction==='save')await saveRunConfigFromForm();
+      else if(runAction.dataset.runAction==='delete')await deleteRunConfig();
+      else if(runAction.dataset.runAction==='validate'){
+        const result=validateRunConfiguration(selectedRunConfig(),state.inspectorVfs,state.activeProject?.executionPolicy),
+              out=els.environmentPanel.querySelector('[data-run-validation]');
+        if(out){out.className=`policyDecision ${result.valid?'allow':'block'}`;out.textContent=`${result.backend||'backend'} · ${result.valid?'POLICY/CONFIG OK':'CONFIG BLOCKED'} · ${result.ready?'EXECUTABLE READY':result.artifactReady?'BACKEND PENDING':'ARTIFACT NOT EXECUTABLE YET'} · ${result.reason}`}
+      }
+      return;
+    }
+    if(e.target.closest('[data-policy-probe-run]')){
+      const kind=els.environmentPanel.querySelector('[data-policy-probe-kind]')?.value||'read',
+            value=els.environmentPanel.querySelector('[data-policy-probe-value]')?.value||'',
+            request=kind==='syscall'?{kind,syscall:value}:kind==='network'?{kind}:{kind,path:value},
+            result=executionPolicyDecision(state.activeProject?.executionPolicy,request),
+            out=els.environmentPanel.querySelector('[data-policy-probe-result]');
+      if(out){out.className=`policyDecision ${result.allow?'allow':'block'}`;out.textContent=`${result.allow?'ALLOW':'BLOCK'} · ${result.reason} · rule ${result.rule}`}
+      return;
+    }
+    if(e.target.closest('[data-io-probe]')){
+      const io=state.inspectorIo||createInspectorIO(),stdin=els.environmentPanel.querySelector('[data-io-stdin]')?.value||'',
+            stdout=els.environmentPanel.querySelector('[data-io-stdout]')?.value||'',stderr=els.environmentPanel.querySelector('[data-io-stderr]')?.value||'';
+      io.feedStdin(stdin,{append:false});io.write(1,stdout);io.write(2,stderr);const read=io.read(0,Math.min(5,stdin.length||5)),
+            snap=io.snapshot(),out=els.environmentPanel.querySelector('[data-io-result]');
+      if(out){out.className='policyDecision allow';out.textContent=`FD0 read ${read.data?.length||0} B · FD1 ${snap.stdout.bytes} B · FD2 ${snap.stderr.bytes} B · stdout/stderr remain separate`}
+      const so=els.environmentPanel.querySelector('[data-io-stdout-preview]'),se=els.environmentPanel.querySelector('[data-io-stderr-preview]');
+      if(so)so.textContent=snap.stdout.text;if(se)se.textContent=snap.stderr.text;return;
+    }
+    if(e.target.closest('[data-io-clear]')){(state.inspectorIo||createInspectorIO()).clearOutput();renderEnvironment('io');return}
+    if(e.target.closest('[data-overlay-stage]')){
+      const path=els.environmentPanel.querySelector('[data-overlay-path]')?.value||'',text=els.environmentPanel.querySelector('[data-overlay-text]')?.value||'',
+            result=(state.inspectorVfs||rebuildInspectorVfs()).writeFile(path,text),out=els.environmentPanel.querySelector('[data-overlay-result]');
+      if(out){out.className=`policyDecision ${result.ok?'allow':'block'}`;out.textContent=`${result.ok?'STAGED':'BLOCKED'} · ${result.decision.reason}`}
+      renderEnvironment('overlay');return;
+    }
+    if(e.target.closest('[data-overlay-reset]')){state.inspectorVfs?.resetRuntime();renderEnvironment('overlay');setStatus('Runtime overlay discarded.');return}
+  }catch(err){setStatus(`Environment: ${err.message}`)}
+});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&state.activeProjectId&&state.projectDirty)saveCurrentProject({quiet:true}).catch(()=>{})});
+
 // File / paste / workspace
 els.openBtn.addEventListener('click',()=>els.fileInput.click());
 els.openFolderBtn.addEventListener('click',()=>els.folderInput.click());
@@ -7155,6 +8390,10 @@ els.pasteBtn.addEventListener('click',()=>{els.pasteArea.value='';els.pasteDialo
 els.unwindSimBtn.addEventListener('click',()=>openUnwindSimulator());
 els.unwindDialogClose.addEventListener('click',()=>els.unwindDialog.close());
 els.unwindRun.addEventListener('click',runUnwindSimulator);
+els.unwindExport.addEventListener('click',()=>{
+  if(!state.lastUnwindSimulation){setStatus('Run unwind before exporting');return}
+  downloadJsonFile('unwind-stack.json',serializeUnwindStack(state.lastUnwindSimulation));
+});
 els.unwindDialogSource.addEventListener('change',()=>{els.unwindDialogStatus.textContent=`Source: ${els.unwindDialogSource.value}`});
 els.hexClose.addEventListener('click',()=>els.hexDialog.close());
 els.hexViewport.addEventListener('scroll',()=>renderHexViewer());
@@ -7186,7 +8425,10 @@ els.hexLayer.addEventListener('click',e=>{
 });
 els.pasteCancel.addEventListener('click',()=>els.pasteDialog.close());
 els.pasteLoad.addEventListener('click',()=>{addWorkspaceText(els.pasteArea.value,'pasted.asm');els.pasteDialog.close()});
-els.clearBtn.addEventListener('click',clearAll);
+els.clearBtn.addEventListener('click',async()=>{
+  if(state.activeProjectId)await closeActiveProject({save:true});else clearAll();
+  updateProjectChrome();
+});
 els.editBtn.addEventListener('click',()=>setEditMode(!state.editMode));
 els.saveBtn.addEventListener('click',saveEditedSource);
 els.binaryIndexBtn.addEventListener('click',()=>openBinaryIndex('symbols'));
@@ -7210,7 +8452,9 @@ els.fileList.addEventListener('click',e=>{
 
 els.codeEditor.addEventListener('input',()=>{
   const rec=state.workspaceFiles.get(state.activeFileId);if(rec)rec.dirty=true;
+  state.projectDirty=!!state.activeProjectId;
   renderWorkspaceFiles();rebuildEditorGutter();scheduleLiveParse();
+  if(state.activeProjectId)scheduleProjectAutosave('source edit');
 });
 els.codeEditor.addEventListener('scroll',()=>{els.editorGutter.scrollTop=els.codeEditor.scrollTop});
 els.codeEditor.addEventListener('keydown',e=>{
@@ -9316,16 +10560,25 @@ new ResizeObserver(()=>{resizeCanvas();resizeTraceCanvas();renderCode(true);stat
 // not depend on it; explicit load entry points exist only for harnesses.
 Object.defineProperty(window,'asmInspectorDebug',{value:{
   get state(){return state}, functionDataflow, analyzeAdvancedCfg, buildGraph, buildCfgGraph, buildDataflowGraph, fitGraph, resizeCanvas, groupAnalysisBarriers,
-  decodeDwarfCfiProgram, decodeDwarfExpression, evaluateDwarfExpression, parseDebugFrameSection, preferredFdeForPc, compareUnwindSourcesAtPc, normalizedUnwindRecipeIr, normalizeUnwindSnapshot, evaluateUnwindRequest, evaluateStaticUnwindRecipe, unwindStackFrames, serializeUnwindStack, callerSnapshotFromUnwind, cfiRowForPc, cfiStateSummary,
-  openUnwindSimulator, runUnwindSimulator, renderUnwindSimulation, openCfiTimeline, openCieInspector, openHexViewer, selectFunction, selectGraphNode, valueDisplay, dataflowUnknownReason,
+  decodeDwarfCfiProgram, decodeDwarfExpression, evaluateDwarfExpression, parseDebugFrameSection, preferredFdeForPc, compareUnwindSourcesAtPc, normalizedUnwindRecipeIr, normalizeUnwindSnapshot, evaluateUnwindRequest, evaluateStaticUnwindRecipe,
+  evaluateFramePointerStep, compareCfiAndFramePointer, registerDiffFromUnwind, callerSnapshotFromFramePointer, unwindStackFrames, serializeUnwindStack, callerSnapshotFromUnwind, cfiRowForPc, cfiStateSummary,
+  openUnwindSimulator, runUnwindSimulator, renderUnwindSimulation, openCfiTimeline, openCieInspector, openHexViewer, selectFunction, goToFlowInstruction, selectGraphNode, valueDisplay, dataflowUnknownReason,
   // Explicit regression-harness entry points; normal UI code does not depend on them.
-  addWorkspaceText, loadText
+  addWorkspaceText, loadText,
+  projectStore, projectStoreReady, defaultProject, defaultExecutionPolicy, defaultRunConfiguration, executionPolicyDecision,
+  InspectorVFS, InspectorIO, createInspectorIO, inspectElfBytes, importExecutionArtifacts, rebuildInspectorVfs, validateRunConfiguration, saveCurrentProject, createProject, openProject, closeActiveProject,
+  refreshProjectCatalog, renderProjectManager, openProjectManager, openEnvironment, renderEnvironment
 },configurable:false,enumerable:false});
 
 function loop(){renderGraph();renderTrace();requestAnimationFrame(loop)}
 let initialLanguage='en';
 try{initialLanguage=localStorage.getItem('asm-inspector-language')||'en'}catch{}
 setLanguage(initialLanguage,{persist:false});
+updateProjectChrome();
+projectStoreReady.then(async()=>{
+  try{await refreshProjectCatalog({render:false});await refreshStorageStatus();updateProjectChrome()}
+  catch(err){setStatus(`Project storage unavailable: ${err.message}`)}
+});
 resizeCanvas();updateZoomInfo();loop();
 
 })();
