@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ASM Graph Inspector</title>
-<!-- Release V14.9: BuildArtifact / LoadedImage / ExecutionSession boundaries -->
+<!-- Release V14.10: raw ELF static model + evidence fusion -->
 <style>
 :root{
   color-scheme:dark;
@@ -57,6 +57,7 @@ html[dir="rtl"] .familyName,html[dir="rtl"] .inspector .title,html[dir="rtl"] .i
 .fileKindDot{width:7px;height:7px;border-radius:50%;background:#6b7784}
 .fileKindDot.fasm{background:#d8b36a}
 .fileKindDot.objdump{background:#6fa8ff}
+.fileKindDot.rawelf{background:#78c29c}
 .fileName{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:11px/1.2 ui-monospace,SFMono-Regular,Consolas,monospace}
 .fileRemove{opacity:.15;border:0;background:transparent;color:#aab6c0;padding:2px 4px;min-height:20px}
 .fileRow:hover .fileRemove{opacity:.75}
@@ -111,7 +112,7 @@ html[dir="rtl"] .familyName,html[dir="rtl"] .inspector .title,html[dir="rtl"] .i
 .executionTechnical{direction:ltr;text-align:left;unicode-bidi:plaintext}
 .executionTechnical input,.executionTechnical select,.executionTechnical textarea,.executionTechnical code{direction:ltr;text-align:left;unicode-bidi:plaintext}
 .vfsTree{font:11px ui-monospace,monospace;border:1px solid #29343e;border-radius:6px;background:#0a0f14;overflow:auto;max-height:520px}
-.vfsRow{display:grid;grid-template-columns:1fr 90px 90px 110px;gap:7px;padding:5px 7px;border-bottom:1px solid #202a32;align-items:center}
+.vfsRow{display:grid;grid-template-columns:minmax(220px,1fr) 90px 90px 110px 100px;gap:7px;padding:5px 7px;border-bottom:1px solid #202a32;align-items:center}
 .vfsRow:last-child{border-bottom:0}.vfsLayer{color:#86a8c5}.vfsPersistent{color:#78c29c}.vfsVirtual{color:#c6a86b}.vfsOverlay{color:#d98980}
 .policyList{font:11px ui-monospace,monospace;display:grid;grid-template-columns:190px 1fr;gap:5px 9px}
 .policyAllow{color:#78c29c}.policyBlock{color:#e38b83}.policyLocked{color:#c9a969}
@@ -734,7 +735,9 @@ function setLanguage(lang,{persist=true}={}){
   else{els.fileLabel.textContent=t('noFile');els.codeInfo.textContent=`0 ${t('lines')}`;els.status.textContent=t('ready');els.traceTitle.textContent=t('selectFunctionInstruction')}
   els.labelsBtn.textContent=`${t('labels')}: ${state.labels==='auto'?t('auto'):state.labels==='on'?t('yes'):t('no')}`;
   els.traceToggle.textContent=state.traceOpen?t('hideFlow'):t('flow');
-  if(state.inputKind==='fasm-source'){
+  if(state.inputKind==='raw-elf'){
+    els.formatBadge.textContent=`ELF · ${state.inputMeta?.bits||'?'}-bit · raw bytes`;
+  }else if(state.inputKind==='fasm-source'){
     const details=[t('fasmSource'),state.inputMeta?.format,state.inputMeta?.bits?`${state.inputMeta.bits}-bit`:null].filter(Boolean);
     els.formatBadge.textContent=details.join(' · ');
   }else if(state.lines?.length)els.formatBadge.textContent=t('objdumpInput');
@@ -893,6 +896,13 @@ const VFS_SCHEMA='asm-graph.vfs/v1';
 const INSPECTOR_IO_SCHEMA='asm-graph.io/v1';
 const PROJECT_DB_NAME='asm-graph-inspector-projects';
 const PROJECT_DB_VERSION=1;
+const CAPSTONE_CANDIDATE_MANIFEST=Object.freeze({
+  id:'capstone.js-x86-5.0.9',version:'5.0.9',upstreamCommit:'0225758',architecture:'x86',packaging:'embed JS + WASM bytes in the self-contained HTML; no runtime/CDN fetch',
+  releaseBundle:{name:'capstone_x86_5.0.9.zip',sha256:'ded6c12714a48fcd2706c8b3912f248a52c0758c80f608e30eee5c101d6b2d63',size:330005},
+  allArchAssets:{js:{name:'capstone.js',sha256:'cb88f8a55326cc19493db560a1d14809dc84fbe36e126d50b8acb84df2299ca8',size:331282},wasm:{name:'capstone.wasm',sha256:'2e71bc203418c273c10c9f21fece3a000a616c96810839dc83eda4c5ca86bf2e',size:3299566}},
+  requiredApi:['OPT_DETAIL','Capstone.option','Capstone.disasm','Capstone.disasm_iter','Capstone.regs_access','Instruction.detail.op','Instruction.detail.groups'],
+  status:'evaluated-not-integrated'
+});
 
 function projectId(){return crypto?.randomUUID?.()||`p-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`}
 function nowIso(){return new Date().toISOString()}
@@ -1186,7 +1196,7 @@ function parseElfImageBytes(data,{artifactId=null,moduleId=null,sourcePath=null,
   const dependencies=[],neededOffsets=dynamicTags.filter(x=>x.tag===1).map(x=>x.value);for(const off of neededOffsets){const name=readDynString(off);dependencies.push({name,status:'unresolved',evidence:name?'DT_NEEDED + DT_STRTAB':'DT_NEEDED unresolved string'});}
   const sonameTag=dynamicTags.find(x=>x.tag===14),soname=sonameTag?readDynString(sonameTag.value):null,runpathTag=dynamicTags.find(x=>x.tag===29)||dynamicTags.find(x=>x.tag===15),runpath=runpathTag?readDynString(runpathTag.value):null,
         bases=mappings.map(m=>m.staticVma).filter(Number.isFinite),preferredBase=bases.length?Math.min(...bases):null,canonicalPath=sourcePath?vfsPath(sourcePath):null;
-  return {
+  const image={
     schema:LOADED_IMAGE_SCHEMA,valid:!diagnostics.some(d=>d.severity==='error'),id:moduleId||`image:${artifactId||canonicalPath||projectId()}`,moduleIdentity:{id:moduleId||`module:${artifactId||canonicalPath||projectId()}`,artifactId:artifactId||null,path:canonicalPath},
     source:{kind:'raw-elf-bytes',path:canonicalPath,evidence:'authoritative',precedence:'raw-elf-bytes-over-textual-derived-dumps'},
     elf:{type:head.type,kind:head.kind,class:bits,byteOrder:little?'little':'big',machine:head.machine,architecture:machineArchitecture(head.machine)},
@@ -1195,10 +1205,196 @@ function parseElfImageBytes(data,{artifactId=null,moduleId=null,sourcePath=null,
     mappings,programHeaders,interpreter:interpreter?{path:interpreter,evidence:'PT_INTERP bytes'}:null,
     dynamic:{segment:dynamicSegment?{programHeaderIndex:dynamicSegment.index,staticVma:dynamicSegment.staticVma,fileOffset:dynamicSegment.fileOffset,fileSize:dynamicSegment.fileSize}:null,tags:dynamicTags,soname,runpath,dependencies},
     zeroFillRanges:mappings.filter(m=>Number.isFinite(m.zeroFillBytes)&&m.zeroFillBytes>0).map(m=>({start:Number.isFinite(m.staticVma)&&Number.isFinite(m.fileSize)?m.staticVma+m.fileSize:null,size:m.zeroFillBytes,evidence:'PT_LOAD p_memsz - p_filesz'})),
-    linkedStaticMetadata:{sections:[],symbols:[],relocations:[],gotPlt:[],dwarf:null,cfi:null,lsda:null,evidence:'not-linked-yet'},
+    linkedStaticMetadata:null,
     diagnostics
   };
+  image.linkedStaticMetadata=parseRawElfStaticMetadata(bytes,image);
+  if(image.linkedStaticMetadata?.diagnostics?.length)diagnostics.push(...image.linkedStaticMetadata.diagnostics.filter(d=>d.severity==='error'));
+  image.identity={buildId:image.linkedStaticMetadata?.buildId||null,soname:image.dynamic?.soname||null,evidence:image.linkedStaticMetadata?.buildId?'GNU build-id from raw ELF note':'raw ELF module/path identity'};
+  image.valid=!diagnostics.some(d=>d.severity==='error');
+  return image;
+
 }
+
+// V14.10 — authoritative raw-ELF static metadata bridge.
+// These helpers normalize section/symbol/relocation/version/note evidence from
+// ELF bytes into the same low-level entity shapes already consumed by Binary Map.
+const ELF_SECTION_TYPES=Object.freeze({
+  0:'SHT_NULL',1:'SHT_PROGBITS',2:'SHT_SYMTAB',3:'SHT_STRTAB',4:'SHT_RELA',5:'SHT_HASH',6:'SHT_DYNAMIC',7:'SHT_NOTE',8:'SHT_NOBITS',9:'SHT_REL',10:'SHT_SHLIB',11:'SHT_DYNSYM',
+  14:'SHT_INIT_ARRAY',15:'SHT_FINI_ARRAY',16:'SHT_PREINIT_ARRAY',17:'SHT_GROUP',18:'SHT_SYMTAB_SHNDX',
+  0x6ffffff6:'SHT_GNU_HASH',0x6ffffffd:'SHT_GNU_VERDEF',0x6ffffffe:'SHT_GNU_VERNEED',0x6fffffff:'SHT_GNU_VERSYM'
+});
+const ELF_DYNAMIC_TAGS=Object.freeze({
+  0:'NULL',1:'NEEDED',2:'PLTRELSZ',3:'PLTGOT',4:'HASH',5:'STRTAB',6:'SYMTAB',7:'RELA',8:'RELASZ',9:'RELAENT',10:'STRSZ',11:'SYMENT',12:'INIT',13:'FINI',14:'SONAME',15:'RPATH',16:'SYMBOLIC',17:'REL',18:'RELSZ',19:'RELENT',20:'PLTREL',21:'DEBUG',22:'TEXTREL',23:'JMPREL',24:'BIND_NOW',25:'INIT_ARRAY',26:'FINI_ARRAY',27:'INIT_ARRAYSZ',28:'FINI_ARRAYSZ',29:'RUNPATH',30:'FLAGS',
+  0x6ffffef5:'GNU_HASH',0x6ffffff0:'VERSYM',0x6ffffff9:'RELACOUNT',0x6ffffffa:'RELCOUNT',0x6ffffffb:'FLAGS_1',0x6ffffffc:'VERDEF',0x6ffffffd:'VERDEFNUM',0x6ffffffe:'VERNEED',0x6fffffff:'VERNEEDNUM'
+});
+const X86_64_RELOCATION_NAMES=Object.freeze({
+  0:'R_X86_64_NONE',1:'R_X86_64_64',2:'R_X86_64_PC32',3:'R_X86_64_GOT32',4:'R_X86_64_PLT32',5:'R_X86_64_COPY',6:'R_X86_64_GLOB_DAT',7:'R_X86_64_JUMP_SLOT',8:'R_X86_64_RELATIVE',9:'R_X86_64_GOTPCREL',10:'R_X86_64_32',11:'R_X86_64_32S',12:'R_X86_64_16',13:'R_X86_64_PC16',14:'R_X86_64_8',15:'R_X86_64_PC8',16:'R_X86_64_DTPMOD64',17:'R_X86_64_DTPOFF64',18:'R_X86_64_TPOFF64',19:'R_X86_64_TLSGD',20:'R_X86_64_TLSLD',21:'R_X86_64_DTPOFF32',22:'R_X86_64_GOTTPOFF',23:'R_X86_64_TPOFF32',24:'R_X86_64_PC64',25:'R_X86_64_GOTOFF64',26:'R_X86_64_GOTPC32',27:'R_X86_64_GOT64',28:'R_X86_64_GOTPCREL64',29:'R_X86_64_GOTPC64',30:'R_X86_64_GOTPLT64',31:'R_X86_64_PLTOFF64',32:'R_X86_64_SIZE32',33:'R_X86_64_SIZE64',34:'R_X86_64_GOTPC32_TLSDESC',35:'R_X86_64_TLSDESC_CALL',36:'R_X86_64_TLSDESC',37:'R_X86_64_IRELATIVE',38:'R_X86_64_RELATIVE64',41:'R_X86_64_GOTPCRELX',42:'R_X86_64_REX_GOTPCRELX'
+});
+const I386_RELOCATION_NAMES=Object.freeze({
+  0:'R_386_NONE',1:'R_386_32',2:'R_386_PC32',3:'R_386_GOT32',4:'R_386_PLT32',5:'R_386_COPY',6:'R_386_GLOB_DAT',7:'R_386_JMP_SLOT',8:'R_386_RELATIVE',9:'R_386_GOTOFF',10:'R_386_GOTPC',14:'R_386_TLS_TPOFF',15:'R_386_TLS_IE',16:'R_386_TLS_GOTIE',17:'R_386_TLS_LE',18:'R_386_TLS_GD',19:'R_386_TLS_LDM',42:'R_386_IRELATIVE'
+});
+function elfSectionTypeName(type){return ELF_SECTION_TYPES[Number(type)]||`SHT_0x${Number(type>>>0).toString(16)}`}
+function elfDynamicTagName(tag){return ELF_DYNAMIC_TAGS[Number(tag)]||`DT_0x${Number(tag>>>0).toString(16)}`}
+function elfRelocationTypeName(machine,type){
+  const m=Number(machine),t=Number(type);if(m===62)return X86_64_RELOCATION_NAMES[t]||`R_X86_64_${t}`;if(m===3)return I386_RELOCATION_NAMES[t]||`R_386_${t}`;return `R_MACHINE_${m}_${t}`;
+}
+function elfSectionFlagNames(flagsValue,nobits=false){
+  const n=Number(flagsValue)||0,out=[];if(n&0x2)out.push('ALLOC');if(!nobits)out.push('CONTENTS');if(n&0x4)out.push('CODE');if(n&0x1)out.push('DATA');else if(n&0x2)out.push('READONLY');if(n&0x400)out.push('TLS');if(n&0x20)out.push('STRINGS');if(n&0x10)out.push('MERGE');if(n&0x200)out.push('GROUP');return out;
+}
+function elfSymbolBinding(n){return ({0:'local',1:'global',2:'weak',10:'gnu-unique'})[Number(n)]||`binding-${Number(n)}`}
+function elfSymbolType(n){return ({0:'notype',1:'object',2:'function',3:'section',4:'file',5:'common',6:'tls',10:'gnu-ifunc'})[Number(n)]||`type-${Number(n)}`}
+function elfSymbolVisibility(n){return ({0:'default',1:'internal',2:'hidden',3:'protected'})[Number(n)&3]||'unknown'}
+function rawElfReadCString(bytes,start,limit=bytes?.length||0){
+  if(!bytes||!Number.isFinite(start)||start<0||start>=limit)return '';let end=start;while(end<limit&&bytes[end]!==0)end++;try{return new TextDecoder('utf-8',{fatal:false}).decode(bytes.subarray(start,end))}catch{return ''}
+}
+function rawElfSectionFileBytes(bytes,section){
+  if(!bytes||!section||section.nobits||!Number.isFinite(section.fileOffset)||!Number.isFinite(section.size)||section.fileOffset<0||section.size<0||section.fileOffset+section.size>bytes.length)return null;
+  return bytes.subarray(section.fileOffset,section.fileOffset+section.size);
+}
+function rawElfSectionChunks(bytes,section,chunkSize=65536){
+  const data=rawElfSectionFileBytes(bytes,section);if(!data||!data.length||!Number.isFinite(section.addressStart))return [];
+  const out=[];for(let off=0;off<data.length;off+=chunkSize)out.push({address:section.addressStart+off,fileOffset:section.fileOffset+off,bytes:data.subarray(off,Math.min(data.length,off+chunkSize)),evidence:'raw ELF section bytes'});return out;
+}
+function parseGnuBuildIdFromNoteBytes(data,littleEndian=true){
+  const bytes=toUint8Array(data);if(!bytes||bytes.length<12)return null;const dv=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength),align4=n=>(n+3)&~3;
+  for(let off=0;off+12<=bytes.length;){
+    const namesz=dv.getUint32(off,littleEndian),descsz=dv.getUint32(off+4,littleEndian),type=dv.getUint32(off+8,littleEndian),nameStart=off+12,nameEnd=nameStart+namesz,descStart=align4(nameEnd),descEnd=descStart+descsz;
+    if(nameEnd>bytes.length||descEnd>bytes.length)break;const name=rawElfReadCString(bytes,nameStart,nameEnd).replace(/\0+$/,'');
+    if(name==='GNU'&&type===3&&descsz>0)return [...bytes.subarray(descStart,descEnd)].map(b=>b.toString(16).padStart(2,'0')).join('');
+    const next=align4(descEnd);if(next<=off)break;off=next;
+  }
+  return null;
+}
+function sectionBuildId(section,littleEndian=true){
+  const runs=sectionContiguousRuns(section);if(runs.length!==1)return null;return parseGnuBuildIdFromNoteBytes(new Uint8Array(runs[0].bytes),littleEndian);
+}
+function parseRawElfStaticMetadata(data,image){
+  const bytes=toUint8Array(data),bits=image?.elf?.class,little=image?.elf?.byteOrder!=='big';
+  if(!bytes||![32,64].includes(bits))return {evidence:'raw-elf-bytes',sections:[],symbols:[],relocations:[],versionDefinitions:[],versionRequirements:[],dynamicTags:[],buildId:null,diagnostics:[{severity:'error',code:'raw-static-invalid-input',message:'Invalid raw ELF static metadata input.'}]};
+  const dv=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength),read=elfScalarReader(dv,little),u16=o=>dv.getUint16(o,little),u32=o=>dv.getUint32(o,little),diagnostics=[];
+  const shoff=read(bits===64?40:32,bits===64?8:4),shentsize=bits===64?u16(58):u16(46);let shnum=bits===64?u16(60):u16(48),shstrndx=bits===64?u16(62):u16(50);
+  if(shoff.value==null||!shentsize||!Number.isFinite(shoff.value))return {evidence:'raw-elf-bytes',sections:[],symbols:[],relocations:[],versionDefinitions:[],versionRequirements:[],dynamicTags:[],buildId:null,diagnostics:[{severity:'warning',code:'section-table-unavailable',message:'ELF section table is unavailable or outside the JavaScript safe-integer range.'}]};
+  const rawHeaders=[];
+  const readHeader=(index)=>{
+    const off=shoff.value+index*shentsize;if(off<0||off+shentsize>bytes.length)return null;
+    const nameOffset=u32(off),type=u32(off+4),flags=read(off+8,bits===64?8:4),address=read(off+(bits===64?16:12),bits===64?8:4),fileOffset=read(off+(bits===64?24:16),bits===64?8:4),size=read(off+(bits===64?32:20),bits===64?8:4),link=u32(off+(bits===64?40:24)),info=u32(off+(bits===64?44:28)),alignment=read(off+(bits===64?48:32),bits===64?8:4),entrySize=read(off+(bits===64?56:36),bits===64?8:4);
+    return {index,headerFileOffset:off,nameOffset,type,flags:flags.value,flagsHex:flags.hex,address:address.value,addressHex:address.hex,fileOffset:fileOffset.value,fileOffsetHex:fileOffset.hex,size:size.value,sizeHex:size.hex,link,info,alignment:alignment.value,alignmentHex:alignment.hex,entrySize:entrySize.value,entrySizeHex:entrySize.hex};
+  };
+  let first=readHeader(0);
+  if(shnum===0&&first?.size!=null)shnum=first.size;if(shstrndx===0xffff&&first)shstrndx=first.link;
+  if(!Number.isFinite(shnum)||shnum<0||shnum>200000){diagnostics.push({severity:'error',code:'section-count-invalid',message:`ELF section count ${shnum} is invalid or exceeds the bounded parser limit.`});shnum=0}
+  for(let i=0;i<shnum;i++){const h=readHeader(i);if(!h){diagnostics.push({severity:'error',code:'truncated-section-header',message:`Section header ${i} is truncated.`});break}rawHeaders.push(h)}
+  const shstr=rawHeaders[shstrndx],shstrBytes=shstr&&Number.isFinite(shstr.fileOffset)&&Number.isFinite(shstr.size)&&shstr.fileOffset+shstr.size<=bytes.length?bytes.subarray(shstr.fileOffset,shstr.fileOffset+shstr.size):null;
+  const nameOf=h=>shstrBytes?rawElfReadCString(shstrBytes,h.nameOffset,shstrBytes.length):`<section-${h.index}>`;
+  const sections=rawHeaders.map(h=>{
+    const name=nameOf(h),exactType=elfSectionTypeName(h.type),nobits=h.type===8,flags=elfSectionFlagNames(h.flags,nobits),flagSet=new Set(flags),size=Number.isFinite(h.size)?h.size:0,addressStart=Number.isFinite(h.address)?h.address:null,addressEnd=addressStart!=null?addressStart+size:null;
+    const sec={id:`sec:raw:${h.index}:${name}`,index:h.index,name,startLine:0,endLine:0,sourceKind:'raw-elf',kind:sectionSemanticKind(name),addressable:addressStart!=null&&flagSet.has('ALLOC'),addressStart,addressEnd,size,declaredSize:size,byteCount:nobits?0:size,chunks:[],synthetic:false,header:h,vma:addressStart,lma:addressStart,fileOffset:h.fileOffset,alignment:h.alignment,flags,flagBits:h.flags,flagBitsHex:h.flagsHex,nobits,exactType,exactTypeCode:h.type,inferredType:exactType,link:h.link,info:h.info,entrySize:h.entrySize,evidence:'raw ELF section header + bytes'};
+    sec.chunks=rawElfSectionChunks(bytes,sec);return sec;
+  });
+  const sectionByIndex=new Map(sections.map(s=>[s.index,s]));
+  const stringFromSection=(sectionIndex,offset)=>{const s=sectionByIndex.get(sectionIndex),data=rawElfSectionFileBytes(bytes,s);return data?rawElfReadCString(data,offset,data.length):''};
+  const symbols=[];
+  for(const sec of sections){
+    if(![2,11].includes(sec.exactTypeCode)||!Number.isFinite(sec.fileOffset)||!Number.isFinite(sec.size))continue;
+    const stride=sec.entrySize|| (bits===64?24:16),count=stride>0?Math.min(1000000,Math.floor(sec.size/stride)):0;
+    for(let i=0;i<count;i++){
+      const off=sec.fileOffset+i*stride;if(off<0||off+stride>bytes.length){diagnostics.push({severity:'warning',code:'truncated-symbol-entry',message:`${sec.name} symbol ${i} is truncated.`});break}
+      const stName=u32(off),info=bits===64?dv.getUint8(off+4):dv.getUint8(off+12),other=bits===64?dv.getUint8(off+5):dv.getUint8(off+13),shndx=bits===64?u16(off+6):u16(off+14),value=read(off+(bits===64?8:4),bits===64?8:4),sizeValue=read(off+(bits===64?16:8),bits===64?8:4),bind=info>>4,type=info&0xf,name=stringFromSection(sec.link,stName),sectionName=shndx===0?'*UND*':shndx===0xfff1?'*ABS*':shndx===0xfff2?'*COMMON*':sectionByIndex.get(shndx)?.name||`*SHN_${shndx}*`;
+      symbols.push({id:`sym:raw:${sec.index}:${i}:${name||'<anon>'}`,name,address:value.value??0,size:sizeValue.value??0,section:sectionName,sectionIndex:shndx,flags:'',binding:elfSymbolBinding(bind),type:elfSymbolType(type),dynamic:sec.exactTypeCode===11,defined:shndx!==0,absolute:shndx===0xfff1,version:'',baseName:name,versionName:'',defaultVersion:false,versioned:false,visibility:elfSymbolVisibility(other),rawBinding:bind,rawType:type,rawVisibility:other&3,tableSectionIndex:sec.index,tableIndex:i,evidence:'raw ELF symbol table entry'});
+    }
+  }
+  const symbolTables=new Map();for(const sym of symbols){let arr=symbolTables.get(sym.tableSectionIndex);if(!arr){arr=[];symbolTables.set(sym.tableSectionIndex,arr)}arr[sym.tableIndex]=sym}
+  const versionDefinitions=[],versionRequirements=[],versionNameByIndex=new Map();
+  for(const sec of sections){
+    if(sec.exactTypeCode===0x6ffffffd){
+      const dataBytes=rawElfSectionFileBytes(bytes,sec);if(!dataBytes)continue;const rd=new DataView(dataBytes.buffer,dataBytes.byteOffset,dataBytes.byteLength);let off=0,guard=0;
+      while(off+20<=dataBytes.length&&guard++<65536){const version=rd.getUint16(off,little),flags=rd.getUint16(off+2,little),index=rd.getUint16(off+4,little),count=rd.getUint16(off+6,little),hash=rd.getUint32(off+8,little),aux=rd.getUint32(off+12,little),next=rd.getUint32(off+16,little),auxOff=off+aux;let name='';if(aux&&auxOff+8<=dataBytes.length)name=stringFromSection(sec.link,rd.getUint32(auxOff,little));const def={id:`ver:def:raw:${sec.index}:${index}:${name}`,index,flags,hash,name,version,count,sectionIndex:sec.index,evidence:'raw ELF SHT_GNU_VERDEF'};versionDefinitions.push(def);if(name)versionNameByIndex.set(index,name);if(!next)break;off+=next}
+    }else if(sec.exactTypeCode===0x6ffffffe){
+      const dataBytes=rawElfSectionFileBytes(bytes,sec);if(!dataBytes)continue;const rd=new DataView(dataBytes.buffer,dataBytes.byteOffset,dataBytes.byteLength);let off=0,guard=0;
+      while(off+16<=dataBytes.length&&guard++<65536){const version=rd.getUint16(off,little),count=rd.getUint16(off+2,little),fileOff=rd.getUint32(off+4,little),aux=rd.getUint32(off+8,little),next=rd.getUint32(off+12,little),provider=stringFromSection(sec.link,fileOff);let auxOff=off+aux,auxGuard=0;
+        for(let j=0;j<count&&aux&&auxOff+16<=dataBytes.length&&auxGuard++<65536;j++){const hash=rd.getUint32(auxOff,little),flags=rd.getUint16(auxOff+4,little),other=rd.getUint16(auxOff+6,little),nameOff=rd.getUint32(auxOff+8,little),auxNext=rd.getUint32(auxOff+12,little),index=other&0x7fff,name=stringFromSection(sec.link,nameOff),req={id:`ver:req:raw:${sec.index}:${index}:${provider}:${name}`,provider,hash,flags,index,name,version,hidden:!!(other&0x8000),sectionIndex:sec.index,evidence:'raw ELF SHT_GNU_VERNEED'};versionRequirements.push(req);if(name)versionNameByIndex.set(index,name);if(!auxNext)break;auxOff+=auxNext}
+        if(!next)break;off+=next}
+    }
+  }
+  for(const sec of sections){
+    if(sec.exactTypeCode!==0x6fffffff)continue;const dataBytes=rawElfSectionFileBytes(bytes,sec),table=symbolTables.get(sec.link);if(!dataBytes||!table)continue;const count=Math.min(table.length,Math.floor(dataBytes.length/2));
+    for(let i=0;i<count;i++){const rawIndex=new DataView(dataBytes.buffer,dataBytes.byteOffset+i*2,2).getUint16(0,little),index=rawIndex&0x7fff,hidden=!!(rawIndex&0x8000),sym=table[i];if(!sym||index<=1)continue;const name=versionNameByIndex.get(index)||'';sym.versionIndex=index;sym.versionHidden=hidden;sym.versionName=name;sym.versioned=!!name;sym.defaultVersion=!!name&&sym.defined&&!hidden;sym.version=name?(sym.defaultVersion?`@@${name}`:`@${name}`):''}
+  }
+  const relocations=[];
+  for(const sec of sections){
+    if(![4,9].includes(sec.exactTypeCode)||!Number.isFinite(sec.fileOffset)||!Number.isFinite(sec.size))continue;const rela=sec.exactTypeCode===4,stride=sec.entrySize||(bits===64?(rela?24:16):(rela?12:8)),count=stride>0?Math.min(1000000,Math.floor(sec.size/stride)):0,table=symbolTables.get(sec.link)||[],targetSection=sectionByIndex.get(sec.info)||null;
+    for(let i=0;i<count;i++){const off=sec.fileOffset+i*stride;if(off<0||off+stride>bytes.length){diagnostics.push({severity:'warning',code:'truncated-relocation-entry',message:`${sec.name} relocation ${i} is truncated.`});break}
+      let offset,info,addend=0,addendHex='0x0',symIndex,type;
+      if(bits===64){offset=read(off,8);const infoBig=dv.getBigUint64(off+8,little);symIndex=Number(infoBig>>32n);type=Number(infoBig&0xffffffffn);if(rela){const addBig=dv.getBigInt64(off+16,little);addendHex=(addBig<0n?'-0x':'0x')+(addBig<0n?-addBig:addBig).toString(16);addend=addBig>=BigInt(Number.MIN_SAFE_INTEGER)&&addBig<=BigInt(Number.MAX_SAFE_INTEGER)?Number(addBig):null}}
+      else{offset=read(off,4);const info32=u32(off+4);symIndex=info32>>>8;type=info32&0xff;if(rela)addend=dv.getInt32(off+8,little);addendHex=(addend<0?'-0x':'0x')+Math.abs(addend).toString(16)}
+      const sym=table[symIndex]||null,typeName=elfRelocationTypeName(image.elf.machine,type),symName=sym?.name||'',versionSuffix=sym?.versionName?(sym.defaultVersion?'@@':'@')+sym.versionName:'',displaySymbol=symName+versionSuffix,value=(displaySymbol||'*ABS*')+(Number.isFinite(addend)&&addend>0?`+0x${addend.toString(16)}`:Number.isFinite(addend)&&addend<0?`-0x${Math.abs(addend).toString(16)}`:addend==null?`${String(addendHex).startsWith('-')?'':'+'}${addendHex}`:''),dynamic=image.elf.type!==1||!targetSection;
+      relocations.push({id:`rel:raw:${sec.index}:${i}:${offset.hex}`,offset:offset.value,offsetHex:(offset.hex||'').replace(/^0x/,''),type:typeName,typeCode:type,value,symbol:displaySymbol||symName,addend,addendHex,section:targetSection?.name||sec.name,relocationSection:sec.name,relocationSectionIndex:sec.index,targetSectionIndex:targetSection?.index??null,dynamic,line:null,semantics:relocationSemantics(typeName),confidence:'exact',evidence:addend==null?'raw ELF relocation entry; addend exceeds JS safe integer':'raw ELF relocation entry',symbolTableSectionIndex:sec.link,symbolIndex:symIndex});
+    }
+  }
+  let buildId=null;for(const sec of sections){if(sec.exactTypeCode!==7)continue;const noteBytes=rawElfSectionFileBytes(bytes,sec),id=parseGnuBuildIdFromNoteBytes(noteBytes,little);if(id){buildId=id;break}}
+  const dynamicTags=(image.dynamic?.tags||[]).map((tag,i)=>({id:`dyn:raw:${i}:${tag.tag}`,tag:elfDynamicTagName(tag.tag),tagValue:tag.tag,value:tag.valueHex||String(tag.value??''),numericValue:tag.value,fileOffset:tag.fileOffset,evidence:'raw ELF PT_DYNAMIC'}));
+  const pointerSize=bits===64?8:4,gotPlt=[];
+  for(const sec of sections){if(!['.got','.got.plt'].includes(sec.name)||!Number.isFinite(sec.addressStart)||!Number.isFinite(sec.size))continue;const count=Math.min(65536,Math.floor(sec.size/pointerSize));for(let i=0;i<count;i++){const address=sec.addressStart+i*pointerSize,rels=relocations.filter(r=>Number.isFinite(r.offset)&&r.offset===address);gotPlt.push({id:`slot:raw:${sec.index}:${i}:${address.toString(16)}`,sectionIndex:sec.index,sectionName:sec.name,index:i,address,pointerSize,symbol:rels.map(r=>r.symbol).find(Boolean)||null,relocationIds:rels.map(r=>r.id),evidence:rels.length?'raw ELF GOT section + relocation storage address':'raw ELF GOT section layout'})}}
+  const dwarfSections=sections.filter(sec=>/^\.debug|^\.zdebug/.test(sec.name)).map(sec=>({sectionIndex:sec.index,name:sec.name,addressStart:sec.addressStart,fileOffset:sec.fileOffset,size:sec.size,exactType:sec.exactType,evidence:'raw ELF debug section'}));
+  return {evidence:'raw-elf-bytes',precedence:'authoritative-over-textual-derived-dumps',sectionHeaders:rawHeaders,sections,symbols,relocations,versionDefinitions,versionRequirements,dynamicTags,gotPlt,dwarfSections,buildId,soname:image.dynamic?.soname||null,diagnostics};
+}
+
+function rawElfArtifactKind(image){return image?.elf?.kind==='elf-shared-library'?'shared-library':image?.elf?.kind==='elf-relocatable'?'relocatable-object':'object-or-executable'}
+function rawElfSegmentFlags(mapping){return `${mapping?.permissions?.read?'r':'-'}${mapping?.permissions?.write?'w':'-'}${mapping?.permissions?.execute?'x':'-'}`}
+function rawElfSummaryText(image,meta,path){
+  const lines=[`Raw ELF image: ${path||image?.moduleIdentity?.path||'artifact'}`,`${image?.elf?.class||'?'}-bit ${image?.elf?.byteOrder||'unknown'} ${image?.elf?.architecture||'unknown'} · ${image?.elf?.kind||'ELF'} · entry ${safeHex(image?.entrypoint)}`,`GNU build-id: ${meta?.buildId||'—'}`,`SONAME: ${meta?.soname||'—'}`,`PT_LOAD mappings: ${image?.mappings?.length||0} · sections: ${meta?.sections?.length||0} · symbols: ${meta?.symbols?.length||0} · relocations: ${meta?.relocations?.length||0}`,''];
+  for(const sec of (meta?.sections||[]).slice(0,240))lines.push(`${safeHex(sec.addressStart)}  ${String(sec.exactType||'').padEnd(18)}  ${sec.name}  size=${safeHex(sec.size)}  off=${safeHex(sec.fileOffset)}`);
+  if((meta?.sections?.length||0)>240)lines.push(`… ${(meta.sections.length-240)} more sections`);return lines.join('\n');
+}
+function rawElfEntryForPath(path){
+  const canonical=vfsPath(path),vfs=state.inspectorVfs||rebuildInspectorVfs(),entry=vfs.resolve(canonical);if(entry?.encoding==='binary')return entry;
+  const rel=canonical.startsWith('/project/')?canonical.slice(9):canonical.startsWith('/lib/')?canonical.slice(5):canonical.replace(/^\/+/,''),stored=state.projectAuxFiles.get(rel);if(!stored)return null;
+  return {path:canonical,mountSource:canonical,layer:canonical.startsWith('/lib/')?'lib':'project',persistent:true,...stored};
+}
+function rawElfMetadataDiagnostics(textParsed,rawMeta){
+  const out=[],rawByName=new Map((rawMeta?.sections||[]).map(s=>[s.name,s]));
+  for(const sec of textParsed?.sections||[]){const raw=rawByName.get(sec.name);if(!raw)continue;if(Number.isFinite(sec.addressStart)&&Number.isFinite(raw.addressStart)&&sec.addressStart!==raw.addressStart)out.push({severity:'warning',code:'raw-text-section-vma-disagreement',message:`${sec.name}: textual VMA ${safeHex(sec.addressStart)} differs from raw ELF ${safeHex(raw.addressStart)}. Raw ELF wins.`,evidence:'raw ELF > textual derived dump'});const textSize=sec.declaredSize??sec.size;if(Number.isFinite(textSize)&&Number.isFinite(raw.size)&&textSize!==raw.size)out.push({severity:'warning',code:'raw-text-section-size-disagreement',message:`${sec.name}: textual size ${safeHex(textSize)} differs from raw ELF ${safeHex(raw.size)}. Raw ELF wins.`,evidence:'raw ELF > textual derived dump'})}
+  return out;
+}
+function materializeRawElfParsed(record,entry,artifact=null,{summarySurface=true}={}){
+  const image=parseElfImageBytes(entry.data,{artifactId:artifact?.id||null,moduleId:`module:${artifact?.id||entry.mountSource||entry.path}`,sourcePath:entry.mountSource||entry.path,runtimeLoadBias:null});if(!image.valid)throw new Error(image.diagnostics?.[0]?.message||'invalid ELF LoadedImage');
+  const meta=image.linkedStaticMetadata||{},path=entry.mountSource||entry.path,summary=rawElfSummaryText(image,meta,path),lines=summary.split('\n'),lineMeta=lines.map(()=>({type:'comment'}));
+  record.encoding=record.encoding||'binary';record.readOnly=true;record.rawElfBackingPath=path;record.rawElfArtifactId=artifact?.id||null;record.rawBuildId=meta.buildId||null;record.buildId=meta.buildId||record.buildId||null;record.bits=image.elf.class;record.littleEndian=image.elf.byteOrder!=='big';record.artifactKind=rawElfArtifactKind(image);record.artifactLabel=basename(path);record.artifactPath=path;record.addressSpaceId=image.moduleIdentity?.id||record.id;record.addressSpaceLabel=meta.soname||basename(path);record.preferredBase=image.preferredBase;record.runtimeLoadBias=image.runtimeLoadBias;record.loadedImage=image;
+  const segments=(image.mappings||[]).map((m,i)=>({id:`seg:raw:${m.programHeaderIndex??i}:LOAD`,type:'LOAD',offset:m.fileOffset,vaddr:m.staticVma,paddr:image.programHeaders?.find(p=>p.index===m.programHeaderIndex)?.physicalAddress??m.staticVma,alignment:m.alignment,fileSize:m.fileSize,memorySize:m.memorySize,flags:rawElfSegmentFlags(m),line:0,sections:[],vaddrEnd:Number.isFinite(m.staticVma)&&Number.isFinite(m.memorySize)?m.staticVma+m.memorySize:null,fileOffsetEnd:Number.isFinite(m.fileOffset)&&Number.isFinite(m.fileSize)?m.fileOffset+m.fileSize:null,evidence:'raw ELF PT_LOAD'}));
+  const sections=(meta.sections||[]).map(sec=>({...sec,chunks:(sec.chunks||[]).map(c=>({...c,bytes:c.bytes}))}));mapSectionsToSegments(sections,segments);
+  const parsed={rawText:summary,inputKind:'raw-elf',inputMeta:{dialect:'ELF bytes',format:`elf${image.elf.class}-${image.elf.architecture}`,bits:image.elf.class,byteOrder:image.elf.byteOrder},explicitEntrySymbols:[],lines,lineMeta,functions:[],functionsByAddr:new Map(),functionsByName:new Map(),calls:[],addressRefs:[],dataRefs:[],relocations:(meta.relocations||[]).map(x=>({...x})),sections,segments,symbols:(meta.symbols||[]).map(x=>({...x})),versionDefinitions:(meta.versionDefinitions||[]).map(x=>({...x})),versionRequirements:(meta.versionRequirements||[]).map(x=>({...x})),dynamicTags:(meta.dynamicTags||[]).map(x=>({...x})),neededLibraries:(image.dynamic?.dependencies||[]).map(x=>x.name).filter(Boolean),linkageSlots:[],sourceDataObjects:[],dataObjects:[],callByLine:new Map(),topBlocks:[],topBlockByStart:new Map(),dwarf:{available:false,cus:[],subprograms:[],projectRoots:[]},projectRoots:[path],provenanceMapped:0,metadataPrecedence:{sections:'raw-elf-bytes',segments:'raw-elf-bytes',symbols:'raw-elf-bytes',relocations:'raw-elf-bytes',dynamic:'raw-elf-bytes',versions:'raw-elf-bytes'}};
+  buildDataObjects(parsed);mapDataReferencesToObjects(parsed);namespaceParsedWorkspace(record,parsed);
+  for(const entity of [...parsed.segments,...parsed.sections,...parsed.dataObjects]){entity.addressSpaceId=record.addressSpaceId;entity.addressSpaceLabel=record.addressSpaceLabel;entity.artifactKind=record.artifactKind;entity.artifactLabel=record.artifactLabel}
+  parsed.unwind=parseElfUnwindModel(parsed,record);for(const cie of parsed.unwind?.cies||[]){cie.id=`${record.id}::${cie.id}`;cie.workspaceFileId=record.id;cie.addressSpaceId=record.addressSpaceId}for(const fde of parsed.unwind?.fdes||[]){fde.id=`${record.id}::${fde.id}`;fde.workspaceFileId=record.id;fde.addressSpaceId=record.addressSpaceId}for(const lsda of parsed.unwind?.lsdas||[]){lsda.id=`${record.id}::${lsda.id}`;lsda.workspaceFileId=record.id;lsda.addressSpaceId=record.addressSpaceId}
+  buildLinkageSlots(record,parsed);record.neededLibraries=[...parsed.neededLibraries];record.exportedSymbols=new Set(parsed.symbols.filter(sym=>sym.dynamic&&sym.defined).map(sym=>normalizeWorkspaceSymbol(sym.name)));record.dynamicImports=new Set(parsed.symbols.filter(sym=>sym.dynamic&&!sym.defined).map(sym=>normalizeWorkspaceSymbol(sym.name)));if(summarySurface)record.text=summary;return parsed;
+}
+function mergeRawElfEvidenceIntoTextRecord(record,entry,artifact=null){
+  const textParsed=record.parsed;if(!textParsed||record.inputKind==='raw-elf')return false;const textSnapshot={sections:textParsed.sections||[],segments:textParsed.segments||[],symbols:textParsed.symbols||[],relocations:textParsed.relocations||[],versionDefinitions:textParsed.versionDefinitions||[],versionRequirements:textParsed.versionRequirements||[],dynamicTags:textParsed.dynamicTags||[],neededLibraries:textParsed.neededLibraries||[],unwind:textParsed.unwind||null,dataObjects:textParsed.dataObjects||[]};
+  const oldText=record.text,raw=materializeRawElfParsed(record,entry,artifact,{summarySurface:false}),meta=record.loadedImage?.linkedStaticMetadata||{},diagnostics=rawElfMetadataDiagnostics(textParsed,meta);
+  record.text=oldText;record.readOnly=false;record.inputKind=textParsed.inputKind;record.inputMeta=textParsed.inputMeta||record.inputMeta;record.textualDerivedMetadata=textSnapshot;record.rawTextEvidence={path:entry.mountSource||entry.path,buildId:meta.buildId||null,precedence:'raw-elf-bytes-over-textual-derived-dumps',diagnostics};
+  textParsed.sections=raw.sections.length?raw.sections:textSnapshot.sections;textParsed.segments=raw.segments.length?raw.segments:textSnapshot.segments;textParsed.symbols=raw.symbols.length?raw.symbols:textSnapshot.symbols;textParsed.relocations=raw.relocations.length?raw.relocations:textSnapshot.relocations;textParsed.versionDefinitions=raw.versionDefinitions.length?raw.versionDefinitions:textSnapshot.versionDefinitions;textParsed.versionRequirements=raw.versionRequirements.length?raw.versionRequirements:textSnapshot.versionRequirements;textParsed.dynamicTags=raw.dynamicTags.length?raw.dynamicTags:textSnapshot.dynamicTags;textParsed.neededLibraries=raw.neededLibraries.length?raw.neededLibraries:textSnapshot.neededLibraries;textParsed.unwind=raw.unwind?.available?raw.unwind:textSnapshot.unwind;textParsed.metadataPrecedence={sections:raw.sections.length?'raw-elf-bytes':'textual-derived-fallback',segments:raw.segments.length?'raw-elf-bytes':'textual-derived-fallback',symbols:raw.symbols.length?'raw-elf-bytes':'textual-derived-fallback',relocations:raw.relocations.length?'raw-elf-bytes':'textual-derived-fallback',dynamic:raw.dynamicTags.length?'raw-elf-bytes':'textual-derived-fallback',versions:(raw.versionDefinitions.length||raw.versionRequirements.length)?'raw-elf-bytes':'textual-derived-fallback'};
+  textParsed.sourceDiagnostics=[...(textParsed.sourceDiagnostics||[]),...diagnostics];
+  textParsed.dataRefs=buildDataReferences(textParsed.functions,textParsed.sections);buildDataObjects(textParsed);mapDataReferencesToObjects(textParsed);buildLinkageSlots(record,textParsed);
+  for(const fn of textParsed.functions||[]){fn.addressSpaceId=record.addressSpaceId;fn.addressSpaceLabel=record.addressSpaceLabel;fn.artifactKind=record.artifactKind;fn.artifactLabel=record.artifactLabel}
+  for(const entity of [...(textParsed.segments||[]),...(textParsed.sections||[]),...(textParsed.dataObjects||[])]){entity.addressSpaceId=record.addressSpaceId;entity.addressSpaceLabel=record.addressSpaceLabel;entity.artifactKind=record.artifactKind;entity.artifactLabel=record.artifactLabel}
+  record.parsed=textParsed;record.neededLibraries=[...(textParsed.neededLibraries||[])];record.exportedSymbols=new Set([...(record.explicitEntrySymbols||[]),...textParsed.symbols.filter(sym=>sym.dynamic&&sym.defined).map(sym=>normalizeWorkspaceSymbol(sym.name))]);record.dynamicImports=new Set(textParsed.symbols.filter(sym=>sym.dynamic&&!sym.defined).map(sym=>normalizeWorkspaceSymbol(sym.name)));return true;
+}
+function findBuildIdTextPeer(buildId,excludeId=null){
+  if(!buildId)return null;const matches=state.workspaceOrder.map(id=>state.workspaceFiles.get(id)).filter(rec=>rec&&rec.id!==excludeId&&rec.inputKind!=='raw-elf'&&rec.buildId===buildId);return matches.length===1?matches[0]:null;
+}
+function reconcileRawElfWorkspaceEvidence(){
+  const raws=state.workspaceOrder.map(id=>state.workspaceFiles.get(id)).filter(rec=>rec?.inputKind==='raw-elf'&&rec.rawBuildId);let changed=false;
+  for(const raw of raws){const peer=findBuildIdTextPeer(raw.rawBuildId,raw.id);if(!peer)continue;const entry=rawElfEntryForPath(raw.rawElfBackingPath);if(!entry)continue;peer.rawElfBackingPath=raw.rawElfBackingPath;mergeRawElfEvidenceIntoTextRecord(peer,entry,artifactForVfsPath(state.activeProject,raw.rawElfBackingPath));state.workspaceFiles.delete(raw.id);state.workspaceOrder=state.workspaceOrder.filter(id=>id!==raw.id);if(state.activeFileId===raw.id)state.activeFileId=peer.id;changed=true}
+  return changed;
+}
+function addRawElfWorkspaceEntry(entry,artifact=null){
+  const path=entry.mountSource||entry.path,image=parseElfImageBytes(entry.data,{artifactId:artifact?.id||null,moduleId:`module:${artifact?.id||path}`,sourcePath:path}),buildId=image.linkedStaticMetadata?.buildId||null,peer=findBuildIdTextPeer(buildId);
+  if(peer){peer.rawElfBackingPath=path;mergeRawElfEvidenceIntoTextRecord(peer,entry,artifact);rebuildWorkspaceAnalysis({preserveView:true});activateWorkspaceFile(peer.id);state.mode='binary';els.graphMode.value='binary';buildGraph();fitGraph(false);setStatus(`Raw ELF metadata fused with ${peer.path} by matching GNU build-id ${buildId}.`);return {record:peer,image,fused:true,evidence:'matching GNU build-id'}}
+  const existing=state.workspaceOrder.map(id=>state.workspaceFiles.get(id)).find(rec=>rec?.inputKind==='raw-elf'&&rec.rawElfBackingPath===path);if(existing){activateWorkspaceFile(existing.id);state.mode='binary';els.graphMode.value='binary';buildGraph();fitGraph(false);return {record:existing,image:existing.loadedImage,fused:false,evidence:'existing raw ELF workspace record'}}
+  let id=`raw-elf:${path}`,seq=2;while(state.workspaceFiles.has(id))id=`raw-elf:${path}#${seq++}`;const rec={id,name:basename(path),path,displayPath:path,text:'',encoding:'binary',data:entry.data,dirty:false,viewState:null,editorState:null,inputKind:'raw-elf'};rec.parsed=materializeRawElfParsed(rec,entry,artifact,{summarySurface:true});rec.inputKind='raw-elf';rec.inputMeta=rec.parsed.inputMeta;state.workspaceFiles.set(id,rec);state.workspaceOrder.push(id);rebuildWorkspaceAnalysis({preserveView:true});activateWorkspaceFile(id);state.mode='binary';els.graphMode.value='binary';buildGraph();fitGraph(false);enableWorkspaceControls();setStatus(`Raw ELF loaded into Binary map: ${path}`);return {record:rec,image:rec.loadedImage,fused:false,evidence:'standalone raw ELF address space'};
+}
+function inspectVfsElf(path){const entry=rawElfEntryForPath(path);if(!entry)throw new Error(`VFS artifact ${path} not found`);const elf=entry.elf||inspectElfBytes(entry.data);if(!elf.valid)throw new Error(elf.reason);return addRawElfWorkspaceEntry(entry,artifactForVfsPath(state.activeProject,entry.mountSource||entry.path));}
 
 function loadedImageByteRange(image,data,staticAddress,length,{requireExecutable=false}={}){
   const bytes=toUint8Array(data),start=Number(staticAddress),size=Math.max(0,Number(length)||0);if(!image?.valid||!bytes||!Number.isFinite(start))return {ok:false,reason:'invalid LoadedImage/raw bytes/address'};
@@ -1249,7 +1445,7 @@ class ExecutionSession{
     this.schema=EXECUTION_SESSION_SCHEMA;this.id=projectId();this.providerId=providerId||runConfiguration?.backend||'unknown';this.providerConnected=false;
     this.loadedImage=loadedImage||null;this.runConfiguration=cloneJson(runConfiguration||null);this.executionPolicy=cloneJson(executionPolicy||defaultExecutionPolicy());this.vfs=inspectorVfs||null;this.io=inspectorIo||null;
     this.lifecycle='created';this.observedEvents=[];this.breakpoints=new Map();this.initialRegisters={architecture:loadedImage?.elf?.architecture||'unknown',values:{},evidence:'provider-not-loaded'};
-    this.memoryMap=(loadedImage?.mappings||[]).map(m=>cloneJson(m));this.resources={instructions:0,memoryBytes:0,openFiles:0,runtimeMs:0,threads:1,processes:runConfiguration?.kind==='process'?1:0};this.resourceLimits=cloneJson(this.executionPolicy?.limits||{});this.createdAt=nowIso();this.stop=normalizeExecutionStop('provider-not-connected','execution provider is not connected',{evidence:'V14.9 boundary'});
+    this.memoryMap=(loadedImage?.mappings||[]).map(m=>cloneJson(m));this.resources={instructions:0,memoryBytes:0,openFiles:0,runtimeMs:0,threads:1,processes:runConfiguration?.kind==='process'?1:0};this.resourceLimits=cloneJson(this.executionPolicy?.limits||{});this.createdAt=nowIso();this.stop=normalizeExecutionStop('provider-not-connected','execution provider is not connected',{evidence:'V14.10 boundary'});
   }
   transition(next,reason=null){
     const allowed={created:['loading','policy-blocked','reset'],loading:['ready','faulted','policy-blocked','reset'],ready:['running','paused','reset','faulted'],running:['paused','exited','faulted','policy-blocked','reset'],paused:['running','exited','faulted','policy-blocked','reset'],exited:['reset'],faulted:['reset'],['policy-blocked']:['reset'],reset:['loading','ready']};
@@ -1267,7 +1463,7 @@ class ExecutionSession{
   reset({preserveIo=false,preserveOverlay=false}={}){
     if(this.lifecycle!=='reset')this.transition('reset','reset');this.stop=normalizeExecutionStop('reset','session reset');if(!preserveOverlay)this.vfs?.resetRuntime?.();if(!preserveIo)this.io?.clearOutput?.();this.observedEvents=[];this.resources={instructions:0,memoryBytes:0,openFiles:0,runtimeMs:0,threads:1,processes:this.runConfiguration?.kind==='process'?1:0};return this.snapshot();
   }
-  snapshot(){return {schema:this.schema,id:this.id,provider:{id:this.providerId,connected:this.providerConnected},lifecycle:this.lifecycle,loadedImageId:this.loadedImage?.id||null,runConfigurationId:this.runConfiguration?.id||null,initialRegisters:cloneJson(this.initialRegisters),memoryMap:cloneJson(this.memoryMap),resources:{consumed:cloneJson(this.resources),limits:cloneJson(this.resourceLimits)},breakpoints:[...this.breakpoints.values()].map(cloneJson),events:this.observedEvents.map(cloneJson),stop:cloneJson(this.stop),createdAt:this.createdAt}}
+  snapshot(){return {schema:this.schema,id:this.id,provider:{id:this.providerId,connected:this.providerConnected},lifecycle:this.lifecycle,loadedImageId:this.loadedImage?.id||null,runConfigurationId:this.runConfiguration?.id||null,functionTarget:cloneJson(this.functionTarget||null),initialRegisters:cloneJson(this.initialRegisters),memoryMap:cloneJson(this.memoryMap),resources:{consumed:cloneJson(this.resources),limits:cloneJson(this.resourceLimits)},breakpoints:[...this.breakpoints.values()].map(cloneJson),events:this.observedEvents.map(cloneJson),stop:cloneJson(this.stop),createdAt:this.createdAt}}
 }
 async function ensureBuildArtifactForEntry(entry,project=state.activeProject){
   if(!entry||entry.encoding!=='binary')return null;const canonical=entry.mountSource||entry.path,existing=artifactForVfsPath(project,canonical);if(existing)return existing;
@@ -1280,7 +1476,8 @@ function loadedImageForEntry(entry,artifact=null){
 }
 async function prepareExecutionSession(config=selectedRunConfig()){
   const vfs=state.inspectorVfs||rebuildInspectorVfs(),validation=validateRunConfiguration(config,vfs,state.activeProject?.executionPolicy);if(!config)throw new Error(validation.reason);
-  const entry=vfs.resolve(vfsPath(config.artifactPath||''));if(!entry)throw new Error(validation.reason);const artifact=await ensureBuildArtifactForEntry(entry,state.activeProject),image=loadedImageForEntry(entry,artifact),io=createInspectorIO(config,vfs),session=new ExecutionSession({providerId:config.backend,loadedImage:image,runConfiguration:config,executionPolicy:state.activeProject?.executionPolicy,inspectorVfs:vfs,inspectorIo:io});
+  const entry=vfs.resolve(vfsPath(config.artifactPath||''));if(!entry)throw new Error(validation.reason);if(validation.valid&&!validation.artifactReady)throw new Error(validation.reason);const artifact=await ensureBuildArtifactForEntry(entry,state.activeProject),image=loadedImageForEntry(entry,artifact),io=createInspectorIO(config,vfs),session=new ExecutionSession({providerId:config.backend,loadedImage:image,runConfiguration:config,executionPolicy:state.activeProject?.executionPolicy,inspectorVfs:vfs,inspectorIo:io});
+  session.functionTarget=validation.functionSymbol?{name:validation.functionSymbol.name,address:validation.functionSymbol.address,size:validation.functionSymbol.size,versionName:validation.functionSymbol.versionName||'',evidence:'raw ELF STT_FUNC'}:null;
   if(!validation.valid)session.transition('policy-blocked',validation.reason);
   state.executionSessions.set(session.id,session);state.selectedExecutionSessionId=session.id;
   if(state.projectDirty){await saveCurrentProject({quiet:true});session.vfs=state.inspectorVfs;session.io.vfs=state.inspectorVfs}return {session,validation,artifact,image};
@@ -1585,7 +1782,7 @@ function createInspectorIO(config=selectedRunConfig(),vfs=state.inspectorVfs||re
 }
 
 function projectFilesFromWorkspace(){
-  return state.workspaceOrder.map(id=>state.workspaceFiles.get(id)).filter(Boolean).map(rec=>({path:rec.path||rec.name||'source.asm',text:state.editMode&&rec.id===state.activeFileId?els.codeEditor.value:rec.text||'',encoding:'utf-8',kind:'workspace-text'}));
+  return state.workspaceOrder.map(id=>state.workspaceFiles.get(id)).filter(rec=>rec&&rec.inputKind!=='raw-elf'&&rec.encoding!=='binary').map(rec=>({path:rec.path||rec.name||'source.asm',text:state.editMode&&rec.id===state.activeFileId?els.codeEditor.value:rec.text||'',encoding:'utf-8',kind:'workspace-text'}));
 }
 function allProjectFilesForSnapshot(){
   return [...projectFilesFromWorkspace(),...[...state.projectAuxFiles.values()].map(cloneStoredFile)];
@@ -1596,7 +1793,7 @@ function projectNameSuggestion(){
 }
 function projectSnapshotMetadata(project=state.activeProject){
   const p=normalizedProject(project||defaultProject(projectNameSuggestion()));
-  p.ui={...(p.ui||{}),activeFilePath:state.workspaceFiles.get(state.activeFileId)?.path||null,graphMode:state.mode,viewMode:state.viewMode,cfgView:state.cfgView};
+  const activeRec=state.workspaceFiles.get(state.activeFileId);p.ui={...(p.ui||{}),activeFilePath:activeRec?.inputKind==='raw-elf'?null:activeRec?.path||null,graphMode:state.mode,viewMode:state.viewMode,cfgView:state.cfgView};
   p.modifiedAt=nowIso();return p;
 }
 function rebuildInspectorVfs(){
@@ -1607,6 +1804,11 @@ function rebuildInspectorVfs(){
     next.tmpFiles=new Map(previous.tmpFiles||[]);
   }
   state.inspectorVfs=next;return next;
+}
+function loadedImageFunctionSymbol(image,name){
+  const requested=elfSymbolVersionParts(String(name||'').trim()),symbols=image?.linkedStaticMetadata?.symbols||[],matches=symbols.filter(sym=>sym.defined&&sym.type==='function'&&sym.name===requested.baseName&&(!requested.versionName||sym.versionName===requested.versionName));
+  const byAddress=new Map();for(const sym of matches){const key=`${sym.address}|${sym.name}|${sym.versionName||''}`;if(!byAddress.has(key))byAddress.set(key,sym)}const unique=[...byAddress.values()];
+  if(unique.length===1)return {valid:true,symbol:unique[0],address:unique[0].address,evidence:'raw ELF STT_FUNC symbol table entry'};if(unique.length>1)return {valid:false,reason:`Function symbol ${name} is ambiguous at ${unique.length} distinct ELF symbol identities.`,candidates:unique};return {valid:false,reason:`Function symbol ${name} is not proven by the raw ELF symbol tables.`,candidates:[]};
 }
 function runConfigBackend(config){return config?.kind==='function'?'Unicorn function sandbox':'Blink process sandbox'}
 function validateRunConfiguration(config,vfs=state.inspectorVfs,policy=state.activeProject?.executionPolicy){
@@ -1620,9 +1822,11 @@ function validateRunConfiguration(config,vfs=state.inspectorVfs,policy=state.act
   const entry=vfs?.resolve(path);
   if(!entry)return {valid:true,ready:false,artifactReady:false,reason:`Policy/config contract is valid, but artifact ${path} is not present in InspectorVFS`,backend:runConfigBackend(config),decision};
   const image=entry.encoding==='binary'?loadedImageForEntry(entry,artifactForVfsPath(state.activeProject,entry.mountSource||path)):null,
-        actualKind=image?.valid?image.elf.kind:null,kindMatches=config.kind==='process'?actualKind==='elf-executable':['elf-executable','elf-shared-library'].includes(actualKind),artifactReady=!!image?.valid&&kindMatches;
-  return {valid:true,ready:false,artifactReady,loadedImage:image,
-    reason:artifactReady?'Authoritative raw ELF LoadedImage is ready; the execution provider is not connected yet.':image&&!image.valid?`Raw ELF LoadedImage rejected: ${image.diagnostics?.[0]?.message||'invalid ELF'}`:actualKind&&!kindMatches?`Run configuration expects ${config.artifactType}, but raw ELF bytes classify as ${actualKind}.`:'Policy/config contract is valid, but the selected VFS entry is not an authoritative raw ELF image.',
+        actualKind=image?.valid?image.elf.kind:null,kindMatches=config.kind==='process'?actualKind==='elf-executable':['elf-executable','elf-shared-library'].includes(actualKind);
+  let functionResolution=null;if(config.kind==='function'&&image?.valid&&kindMatches)functionResolution=loadedImageFunctionSymbol(image,config.functionName);
+  const artifactReady=!!image?.valid&&kindMatches&&(config.kind!=='function'||functionResolution?.valid);
+  return {valid:true,ready:false,artifactReady,loadedImage:image,functionSymbol:functionResolution?.symbol||null,functionAddress:functionResolution?.address??null,
+    reason:artifactReady?config.kind==='function'?`Authoritative raw ELF LoadedImage and STT_FUNC symbol ${config.functionName} are ready; the execution provider is not connected yet.`:'Authoritative raw ELF LoadedImage is ready; the execution provider is not connected yet.':image&&!image.valid?`Raw ELF LoadedImage rejected: ${image.diagnostics?.[0]?.message||'invalid ELF'}`:actualKind&&!kindMatches?`Run configuration expects ${config.artifactType}, but raw ELF bytes classify as ${actualKind}.`:functionResolution&&!functionResolution.valid?functionResolution.reason:'Policy/config contract is valid, but the selected VFS entry is not an authoritative raw ELF image.',
     backend:runConfigBackend(config),decision,entry};
 }
 function sourcePathFromMarker(source){return normalizePath((source||'').replace(/:\d+(?:\s.*)?$/,''))}
@@ -3537,7 +3741,7 @@ function discoverUtf16StringObjects(section,minChars=4){
 }
 
 function discoverRelocationPointerTables(parsed){
-  const objects=[],pointerSize=(parseArtifactBitness(parsed.rawText||'')||64)>=64?8:4;
+  const objects=[],pointerSize=((parsed.inputMeta?.bits||parseArtifactBitness(parsed.rawText||'')||64)>=64)?8:4;
   const rels=(parsed.relocations||[]).filter(r=>Number.isFinite(r.storageAddress)&&r.fromSection&&['read-only data','writable data','linkage','other'].includes(r.fromSection.kind))
     .sort((a,b)=>a.workspaceFileId?.localeCompare?.(b.workspaceFileId||'')||0||a.storageAddress-b.storageAddress);
 
@@ -4461,7 +4665,7 @@ function renderWorkspaceFiles(){
   els.fileList.innerHTML=state.workspaceOrder.map(id=>{
     const f=state.workspaceFiles.get(id);if(!f)return '';
     const active=id===state.activeFileId?' active':'',dirty=f.dirty?' dirty':'',
-          kind=f.inputKind==='objdump'?'objdump':'fasm',title=f.path||f.name;
+          kind=f.inputKind==='raw-elf'?'rawelf':f.inputKind==='objdump'?'objdump':'fasm',title=f.path||f.name;
     return `<div class="fileRow${active}${dirty}" data-file-id="${escapeHtml(id)}" title="${escapeHtml(title)}">
       <i class="fileKindDot ${kind}"></i>
       <span class="fileName">${escapeHtml(f.path||f.name)}</span>
@@ -4651,6 +4855,7 @@ function parseWorkspaceRecord(record){
 
   const artifact=detectArtifactIdentity(record);
   record.artifactKind=artifact.kind;record.artifactLabel=artifact.label;record.artifactPath=artifact.path;record.bits=artifact.bits||parsed.inputMeta?.bits||0;record.format=artifact.format||'';record.littleEndian=artifact.littleEndian!==false;record.addressSpaceId=artifact.addressSpaceId;record.addressSpaceLabel=artifact.addressSpaceLabel;
+  record.buildId=sectionBuildId((parsed.sections||[]).find(sec=>sec.name==='.note.gnu.build-id'),record.littleEndian)||record.buildId||null;
   const loadSegments=(parsed.segments||[]).filter(seg=>seg.type==='LOAD');
   record.preferredBase=loadSegments.length?Math.min(...loadSegments.map(seg=>seg.vaddr-seg.offset)):null;
   record.runtimeLoadBias=null;
@@ -4682,7 +4887,8 @@ function parseWorkspaceRecord(record){
   const dynExports=(parsed.symbols||[]).filter(sym=>sym.dynamic&&sym.defined).map(sym=>normalizeWorkspaceSymbol(sym.name));
   record.exportedSymbols=new Set([...(parsed.fasm?.publics||[]),...(record.explicitEntrySymbols||[]),...dynExports]);
   record.dynamicImports=new Set((parsed.symbols||[]).filter(sym=>sym.dynamic&&!sym.defined).map(sym=>normalizeWorkspaceSymbol(sym.name)));
-  return parsed;
+  if(record.rawElfBackingPath){const entry=rawElfEntryForPath(record.rawElfBackingPath);if(entry)mergeRawElfEvidenceIntoTextRecord(record,entry,artifactForVfsPath(state.activeProject,record.rawElfBackingPath))}
+  return record.parsed;
 }
 
 function buildWorkspaceDependencyMap(){
@@ -4803,9 +5009,9 @@ function resolveWorkspaceLinks(functions,calls,addressRefs,dataRefs=[],relocatio
 
   for(const rel of relocations){
     if(rel.toFunction)rel.targetAddress=rel.toFunction.addr;
-    else if(rel.toSection?.addressStart!=null)rel.targetAddress=rel.toSection.addressStart+(rel.addend||0);
-    const S=rel.targetAddress,A=rel.addend||0,P=rel.storageAddress;
-    if(Number.isFinite(S)){
+    else if(rel.toSection?.addressStart!=null&&Number.isFinite(rel.addend))rel.targetAddress=rel.toSection.addressStart+rel.addend;
+    const S=rel.targetAddress,A=Number.isFinite(rel.addend)?rel.addend:null,P=rel.storageAddress;
+    if(Number.isFinite(S)&&A!=null){
       if(['absolute','absolute-truncated'].includes(rel.semantics?.category))rel.computedValue=S+A;
       else if(['pc-relative','plt-relative'].includes(rel.semantics?.category)&&Number.isFinite(P))rel.computedValue=S+A-P;
     }
@@ -4835,14 +5041,16 @@ function setActiveFileSurface(record,{focusEditor=false}={}){
   if(!record?.parsed)return;
   const parsed=record.parsed;
   state.activeFileId=record.id;state.text=record.text;state.fileName=record.path||record.name;state.inputKind=record.inputKind;state.inputMeta=record.inputMeta||null;
+  if(record.inputKind==='raw-elf'&&state.editMode){state.editMode=false;els.codeViewport.classList.remove('editing');els.editBtn.classList.remove('active');els.editBtn.textContent=t('edit');els.saveBtn.classList.remove('visible')}
   state.lines=parsed.lines;state.lineMeta=parsed.lineMeta;state.callByLine=parsed.callByLine;state.topBlocks=parsed.topBlocks;state.topBlockByStart=parsed.topBlockByStart;
   state.collapsedTop=new Set(record.viewState?.collapsedTop||[]);
   if(!record.viewState?.collapsedTop)for(const block of state.topBlocks)if(block.kind==='contents')state.collapsedTop.add(block.id);
   state.selectedLine=Math.min(record.viewState?.selectedLine??-1,Math.max(-1,state.lines.length-1));
 
   els.fileLabel.textContent=record.path||record.name;
-  const label=record.inputKind==='objdump'?t('objdumpInput'):[record.inputMeta?.dialect||'ASM',record.inputMeta?.format,record.inputMeta?.bits?`${record.inputMeta.bits}-bit`:null].filter(Boolean).join(' · ');
-  els.formatBadge.textContent=label||'ASM';els.formatBadge.className='formatBadge '+(record.inputKind==='objdump'?'objdump':'fasm');
+  const label=record.inputKind==='raw-elf'?`ELF · ${record.inputMeta?.bits||'?'}-bit · raw bytes`:record.inputKind==='objdump'?t('objdumpInput'):[record.inputMeta?.dialect||'ASM',record.inputMeta?.format,record.inputMeta?.bits?`${record.inputMeta.bits}-bit`:null].filter(Boolean).join(' · ');
+  els.formatBadge.textContent=label||'ASM';els.formatBadge.className='formatBadge '+(record.inputKind==='raw-elf'?'objdump':record.inputKind==='objdump'?'objdump':'fasm');
+  els.editBtn.disabled=record.inputKind==='raw-elf';
 
   rebuildVisibleLines();renderCode(true);els.codeViewport.scrollTop=record.viewState?.scrollTop||0;
   if(state.editMode){
@@ -4876,6 +5084,7 @@ function activateWorkspaceFile(id,opts={}){
 
 
 function rebuildWorkspaceAnalysis({live=false,preserveView=true}={}){
+  reconcileRawElfWorkspaceEvidence();
   const previousView={...state.view},previousMode=state.mode,previousEntry=state.entryFunction?.name||'',previousExpanded=new Set(state.expandedOriginGroups),previousOriginVisibility=new Map(state.originVisibility);
   const functions=[],calls=[],addressRefs=[],dataRefs=[],relocations=[],sections=[],segments=[],dataObjects=[],symbols=[],versionDefinitions=[],versionRequirements=[],dynamicTags=[],linkageSlots=[],neededLibraries=[],functionsByAddr=new Map(),functionsByName=new Map(),roots=[];let mapped=0;
   for(const id of state.workspaceOrder){
@@ -4988,7 +5197,7 @@ function enableWorkspaceControls(){
   const enabled=state.workspaceOrder.length>0;
   els.clearBtn.disabled=!enabled;els.binaryIndexBtn.disabled=!enabled;els.search.disabled=!enabled;els.prevSearch.disabled=!enabled;els.nextSearch.disabled=!enabled;
   els.graphMode.disabled=!enabled;els.entrySelect.disabled=!enabled;els.entryBtn.disabled=!enabled;els.fitBtn.disabled=!enabled;els.labelsBtn.disabled=!enabled;
-  els.traceToggle.disabled=!enabled;els.traceFit.disabled=!enabled;els.foldAction.disabled=!enabled;els.filterToggle.disabled=!enabled;els.viewMode.disabled=!enabled;els.editBtn.disabled=!enabled;
+  els.traceToggle.disabled=!enabled;els.traceFit.disabled=!enabled;els.foldAction.disabled=!enabled;els.filterToggle.disabled=!enabled;els.viewMode.disabled=!enabled;els.editBtn.disabled=!enabled||state.workspaceFiles.get(state.activeFileId)?.inputKind==='raw-elf';
   updateProjectChrome();
 }
 
@@ -5031,7 +5240,7 @@ function scheduleLiveParse(){
 }
 
 function setEditMode(on){
-  if(!state.lines.length)return;
+  if(!state.lines.length||state.workspaceFiles.get(state.activeFileId)?.inputKind==='raw-elf')return;
   state.editMode=!!on;
   els.codeViewport.classList.toggle('editing',state.editMode);
   els.editBtn.classList.toggle('active',state.editMode);
@@ -5299,9 +5508,9 @@ function environmentVfsRows(){
   const vfs=rebuildInspectorVfs(),rows=vfs.list();
   return `<div class="path"><b>InspectorVFS ${escapeHtml(VFS_SCHEMA)}</b><br>All project paths are deterministic. Original host paths are never mounted. Runtime writes are isolated in a session overlay.</div>
   <div class="projectActions"><button data-vfs-import-artifact>Import ELF executable / library</button></div>
-  <div class="vfsTree"><div class="vfsRow"><b>PATH</b><b>LAYER</b><b>PERSIST</b><b>SIZE / ROLE</b></div>${rows.map(e=>`<div class="vfsRow">
+  <div class="vfsTree"><div class="vfsRow"><b>PATH</b><b>LAYER</b><b>PERSIST</b><b>SIZE / ROLE</b><b>ACTION</b></div>${rows.map(e=>`<div class="vfsRow">
     <span>${escapeHtml(e.path)}</span><span class="${e.layer==='runtime-overlay'?'vfsOverlay':e.layer==='virtual'?'vfsVirtual':'vfsLayer'}">${escapeHtml(e.layer||'')}</span>
-    <span class="${e.persistent?'vfsPersistent':''}">${e.persistent?'yes':'no'}</span><span>${Number.isFinite(e.size)?`${formatBytesCompact(e.size)} · ${escapeHtml(e.kind||'file')}`:escapeHtml(e.note||e.kind||'')}</span>
+    <span class="${e.persistent?'vfsPersistent':''}">${e.persistent?'yes':'no'}</span><span>${Number.isFinite(e.size)?`${formatBytesCompact(e.size)} · ${escapeHtml(e.kind||'file')}`:escapeHtml(e.note||e.kind||'')}</span><span>${['elf-executable','elf-shared-library','elf-relocatable'].includes(e.kind)?`<button data-vfs-inspect-elf="${escapeHtml(e.path)}">Binary map</button>`:'—'}</span>
   </div>`).join('')}</div>`;
 }
 function environmentPolicyHtml(){
@@ -5402,7 +5611,7 @@ function environmentExecutionHtml(){
         entry=config?vfs.resolve(vfsPath(config.artifactPath||'')):null,artifact=entry?artifactForVfsPath(project,entry.mountSource||entry.path):null,image=entry?.encoding==='binary'?loadedImageForEntry(entry,artifact):null,
         session=state.selectedExecutionSessionId?state.executionSessions.get(state.selectedExecutionSessionId):null;
   const mappings=image?.mappings||[];
-  return `<div class="executionTechnical"><div class="path"><b>V14.9 execution boundaries</b><br>Build provenance, raw ELF loading, provider contract, and observed-session state are separate. No Unicorn/Blink/Capstone code is loaded in this release.</div>
+  return `<div class="executionTechnical"><div class="path"><b>V14.10 execution boundaries</b><br>Build provenance, raw ELF loading, provider contract, and observed-session state are separate. Raw ELF static metadata is authoritative; no Unicorn/Blink/Capstone code is loaded in this release.</div>
     <section class="projectSection"><strong>BUILD ARTIFACT · ${escapeHtml(BUILD_ARTIFACT_SCHEMA)}</strong>${project?.buildArtifacts?.length?project.buildArtifacts.map(buildArtifactSummaryHtml).join(''):'<div class="path">No BuildArtifact exists yet. Importing an ELF records a manual-import artifact; future FASM/NASM/GNU as/ld builds use the same contract.</div>'}
       <div class="projectActions"><button data-build-artifact-export ${project?.buildArtifacts?.length?'':'disabled'}>Export BuildArtifact JSON</button></div></section>
     <section class="projectSection"><strong>LOADED IMAGE · ${escapeHtml(LOADED_IMAGE_SCHEMA)}</strong>${image?`<div class="policyList">
@@ -5414,7 +5623,9 @@ function environmentExecutionHtml(){
       <b>Evidence precedence</b><span>raw ELF bytes &gt; textual derived dumps</span></div>
       <div class="vfsTree"><div class="vfsRow"><b>PT_LOAD</b><b>PERMS</b><b>FILE</b><b>MEM / ZERO</b></div>${mappings.map(m=>`<div class="vfsRow"><span>${escapeHtml(`${m.staticVmaHex||safeHex(m.staticVma)} @ file ${m.fileOffsetHex||safeHex(m.fileOffset)}`)}</span><span>${m.permissions.read?'r':'-'}${m.permissions.write?'w':'-'}${m.permissions.execute?'x':'-'}</span><span>${formatBytesCompact(m.fileSize)}</span><span>${formatBytesCompact(m.memorySize)} / ${formatBytesCompact(m.zeroFillBytes)}</span></div>`).join('')}</div>`:'<div class="path">Select a Run Configuration whose artifact path points to an imported raw ELF.</div>'}</section>
     <section class="projectSection"><strong>CANONICAL DISASSEMBLY · ${escapeHtml(DECODED_INSTRUCTION_SCHEMA)}</strong><div class="policyList">
-      <b>Byte range</b><span>exact start/end + raw bytes</span><b>Registers</b><span>explicit/implicit reads and writes are separate fields</span><b>Memory</b><span>normalized operands preserve width/address evidence</span><b>Control flow</b><span>branch/call/return category + target evidence</span><b>Backend</b><span>not connected; textual parsers remain independent evidence sources</span></div></section>
+      <b>Byte range</b><span>exact start/end + raw bytes</span><b>Registers</b><span>explicit/implicit reads and writes are separate fields</span><b>Memory</b><span>normalized operands preserve width/address evidence</span><b>Control flow</b><span>branch/call/return category + target evidence</span>
+      <b>Candidate</b><span>${escapeHtml(CAPSTONE_CANDIDATE_MANIFEST.id)} · source/API evaluated, not loaded</span><b>Packaging</b><span>${escapeHtml(CAPSTONE_CANDIDATE_MANIFEST.packaging)}</span><b>Pinned bundle</b><span>${escapeHtml(CAPSTONE_CANDIDATE_MANIFEST.releaseBundle.name)} · sha256 ${escapeHtml(CAPSTONE_CANDIDATE_MANIFEST.releaseBundle.sha256)}</span>
+      <b>Backend</b><span>not connected; textual parsers remain independent evidence sources</span></div></section>
     <section class="projectSection"><strong>EXECUTION PROVIDER · ${escapeHtml(EXECUTION_PROVIDER_SCHEMA)}</strong><div class="path">${escapeHtml(EXECUTION_PROVIDER_METHODS.join(' · '))}<br>Provider inputs are fixed: LoadedImage + RunConfiguration + ExecutionPolicy + InspectorVFS + InspectorIO. Host access is not part of this interface.</div></section>
     <section class="projectSection"><strong>EXECUTION SESSION · ${escapeHtml(EXECUTION_SESSION_SCHEMA)}</strong><div class="policyList">
       <b>Run config</b><span>${config?escapeHtml(config.name):'none selected'}</span><b>Artifact boundary</b><span>${validation?escapeHtml(validation.reason):'no run configuration'}</span>
@@ -5437,7 +5648,7 @@ function renderEnvironment(tab=state.environmentTab||'vfs'){
 }
 function openEnvironment(tab='vfs'){
   if(!state.activeProject){setStatus('Save or open a project first.');return}
-  renderEnvironment(tab);els.environmentStatus.textContent='Execution provider not connected · V14.9 build/image/session contracts are active';if(!els.environmentDialog.open)els.environmentDialog.showModal();
+  renderEnvironment(tab);els.environmentStatus.textContent='Execution provider not connected · V14.10 raw ELF model is active';if(!els.environmentDialog.open)els.environmentDialog.showModal();
 }
 function selectedRunConfig(){
   return state.activeProject?.runConfigurations?.find(r=>r.id===state.selectedRunConfigId)||null;
@@ -8627,6 +8838,7 @@ document.querySelectorAll('[data-env-tab]').forEach(btn=>btn.addEventListener('c
 els.environmentPanel.addEventListener('click',async e=>{
   try{
     if(e.target.closest('[data-vfs-import-artifact]')){els.vfsImportInput.click();return}
+    const inspectElfBtn=e.target.closest('[data-vfs-inspect-elf]');if(inspectElfBtn){inspectVfsElf(inspectElfBtn.dataset.vfsInspectElf);els.environmentDialog.close();return}
     if(e.target.closest('[data-build-artifact-export]')){
       const artifacts=state.activeProject?.buildArtifacts||[];downloadJsonFile('build-artifacts.json',{schema:'asm-graph.build-artifacts/v1',version:1,projectId:state.activeProject?.id||null,artifacts:artifacts.map(normalizeBuildArtifact)});return
     }
@@ -10871,9 +11083,9 @@ Object.defineProperty(window,'asmInspectorDebug',{value:{
   // Explicit regression-harness entry points; normal UI code does not depend on them.
   addWorkspaceText, loadText,
   projectStore, projectStoreReady, defaultProject, defaultExecutionPolicy, defaultRunConfiguration, executionPolicyDecision,
-  BUILD_INPUT_SCHEMA, BUILD_REQUEST_SCHEMA, BUILD_ARTIFACT_SCHEMA, LOADED_IMAGE_SCHEMA, DECODED_INSTRUCTION_SCHEMA, EXECUTION_SESSION_SCHEMA, EXECUTION_PROVIDER_SCHEMA,
-  normalizeBuildInput, normalizeBuildArtifact, buildRequest, createManualImportBuildArtifact, parseElfImageBytes, loadedImageByteRange, canonicalDecodedInstruction, EXECUTION_PROVIDER_METHODS, EXECUTION_PROVIDER_CONTRACT, validateExecutionProvider, normalizeExecutionBreakpoint, normalizeExecutionStop, ExecutionSession, prepareExecutionSession,
-  InspectorVFS, InspectorIO, createInspectorIO, inspectElfBytes, importExecutionArtifacts, rebuildInspectorVfs, validateRunConfiguration, saveCurrentProject, createProject, openProject, closeActiveProject,
+  BUILD_INPUT_SCHEMA, BUILD_REQUEST_SCHEMA, BUILD_ARTIFACT_SCHEMA, LOADED_IMAGE_SCHEMA, DECODED_INSTRUCTION_SCHEMA, EXECUTION_SESSION_SCHEMA, EXECUTION_PROVIDER_SCHEMA, CAPSTONE_CANDIDATE_MANIFEST,
+  normalizeBuildInput, normalizeBuildArtifact, buildRequest, createManualImportBuildArtifact, parseElfImageBytes, parseRawElfStaticMetadata, parseGnuBuildIdFromNoteBytes, sectionBuildId, materializeRawElfParsed, mergeRawElfEvidenceIntoTextRecord, addRawElfWorkspaceEntry, inspectVfsElf, loadedImageByteRange, canonicalDecodedInstruction, EXECUTION_PROVIDER_METHODS, EXECUTION_PROVIDER_CONTRACT, validateExecutionProvider, normalizeExecutionBreakpoint, normalizeExecutionStop, ExecutionSession, prepareExecutionSession,
+  InspectorVFS, InspectorIO, createInspectorIO, inspectElfBytes, loadedImageFunctionSymbol, importExecutionArtifacts, rebuildInspectorVfs, validateRunConfiguration, saveCurrentProject, createProject, openProject, closeActiveProject,
   refreshProjectCatalog, renderProjectManager, openProjectManager, openEnvironment, renderEnvironment
 },configurable:false,enumerable:false});
 
