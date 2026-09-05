@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ASM Graph Inspector</title>
-<!-- Release V14.13: Capstone raw-ELF lazy function hydration into shared CFG/dataflow IR -->
+<!-- Release V14.14: Capstone semantic operands + raw-ELF PLT recovery + conservative stripped-function discovery -->
 <style>
 :root{
   color-scheme:dark;
@@ -11159,7 +11159,7 @@ const I18N = {
     viewModeTitle:'How provenance groups are represented',viewBoundaries:'View: boundaries',viewFunctions:'View: functions',viewGroups:'View: groups',
     provenanceGroups:'Provenance groups',legendProject:'project',legendSourcePackage:'source package',legendNativeStatic:'native static',legendNativeDynamic:'native dynamic',
     projectCode:'Project code',sourcePackage:'Source package',nativeStatic:'Native static',nativeDynamic:'Native dynamic',systemAbi:'System / ABI',unknownOrigin:'Unknown origin',
-    originGroup:'Origin group',semanticName:'Semantic name',linkageName:'Linkage symbol',declaredAt:'Declared at',confidence:'Confidence',producer:'Producer',members:'Members',sourceRoots:'Source roots',
+    originGroup:'Origin group',semanticName:'Semantic name',linkageName:'Linkage symbol',declaredAt:'Declared at',confidence:'Confidence',definitionEvidence:'Definition evidence',discoveryConfidence:'Discovery confidence',discoveryBasis:'Discovery basis',decoderState:'Decoder state',producer:'Producer',members:'Members',sourceRoots:'Source roots',
     expandGroup:'Expand group',collapseGroup:'Collapse group',groupExpanded:'Group expanded',groupCollapsed:'Group collapsed',
     escapeBack:'Esc to return',returnedFromGroup:'Returned from group',exact:'exact',sourceBased:'source',inferred:'inferred',unknown:'unknown',
     dwarfMapped:'DWARF mapped',sourceMapped:'source-mapped',fasmSource:'FASM source',objdumpInput:'objdump',fasmLoaded:'FASM source loaded',dwarfUnavailable:'DWARF unavailable',displayNodes:'display nodes',staticGroups:'static groups'
@@ -11180,7 +11180,7 @@ const I18N = {
     viewModeTitle:'אופן הייצוג של קבוצות מקור',viewBoundaries:'תצוגה: גבולות',viewFunctions:'תצוגה: פונקציות',viewGroups:'תצוגה: קבוצות',
     provenanceGroups:'קבוצות מקור',legendProject:'פרויקט',legendSourcePackage:'חבילת מקור',legendNativeStatic:'סטטי מקומי',legendNativeDynamic:'דינמי מקומי',
     projectCode:'קוד הפרויקט',sourcePackage:'חבילת מקור',nativeStatic:'קוד סטטי מקומי',nativeDynamic:'ספרייה דינמית',systemAbi:'מערכת / ABI',unknownOrigin:'מקור לא ידוע',
-    originGroup:'קבוצת מקור',semanticName:'שם סמנטי',linkageName:'סמל קישור',declaredAt:'הוגדר ב-',confidence:'רמת ודאות',producer:'מפיק',members:'חברים',sourceRoots:'שורשי מקור',
+    originGroup:'קבוצת מקור',semanticName:'שם סמנטי',linkageName:'סמל קישור',declaredAt:'הוגדר ב-',confidence:'רמת ודאות',definitionEvidence:'ראיית הגדרה',discoveryConfidence:'ודאות גילוי',discoveryBasis:'בסיס הגילוי',decoderState:'מצב מפענח',producer:'מפיק',members:'חברים',sourceRoots:'שורשי מקור',
     expandGroup:'הרחב קבוצה',collapseGroup:'כווץ קבוצה',groupExpanded:'הקבוצה הורחבה',groupCollapsed:'הקבוצה כווצה',
     escapeBack:'Esc כדי לחזור',returnedFromGroup:'חזרה מהקבוצה',exact:'מדויק',sourceBased:'מקור',inferred:'מוסק',unknown:'לא ידוע',
     dwarfMapped:'מופה באמצעות DWARF',sourceMapped:'מיפוי מקור',fasmSource:'מקור FASM',objdumpInput:'objdump',fasmLoaded:'מקור FASM נטען',dwarfUnavailable:'DWARF לא זמין',displayNodes:'צמתים מוצגים',staticGroups:'קבוצות סטטיות'
@@ -11911,7 +11911,7 @@ function addRawElfWorkspaceEntry(entry,artifact=null){
   const path=entry.mountSource||entry.path,image=parseElfImageBytes(entry.data,{artifactId:artifact?.id||null,moduleId:`module:${artifact?.id||path}`,sourcePath:path}),buildId=image.linkedStaticMetadata?.buildId||null,peer=findBuildIdTextPeer(buildId);
   if(peer){peer.rawElfBackingPath=path;mergeRawElfEvidenceIntoTextRecord(peer,entry,artifact);rebuildWorkspaceAnalysis({preserveView:true});activateWorkspaceFile(peer.id);state.mode='binary';els.graphMode.value='binary';buildGraph();fitGraph(false);setStatus(`Raw ELF metadata fused with ${peer.path} by matching GNU build-id ${buildId}.`);return {record:peer,image,fused:true,evidence:'matching GNU build-id'}}
   const existing=state.workspaceOrder.map(id=>state.workspaceFiles.get(id)).find(rec=>rec?.inputKind==='raw-elf'&&rec.rawElfBackingPath===path);if(existing){activateWorkspaceFile(existing.id);state.mode='binary';els.graphMode.value='binary';buildGraph();fitGraph(false);return {record:existing,image:existing.loadedImage,fused:false,evidence:'existing raw ELF workspace record'}}
-  let id=`raw-elf:${path}`,seq=2;while(state.workspaceFiles.has(id))id=`raw-elf:${path}#${seq++}`;const rec={id,name:basename(path),path,displayPath:path,text:'',encoding:'binary',data:entry.data,dirty:false,viewState:null,editorState:null,inputKind:'raw-elf'};rec.parsed=materializeRawElfParsed(rec,entry,artifact,{summarySurface:true});rec.inputKind='raw-elf';rec.inputMeta=rec.parsed.inputMeta;state.workspaceFiles.set(id,rec);state.workspaceOrder.push(id);rebuildWorkspaceAnalysis({preserveView:true});activateWorkspaceFile(id);state.mode='binary';els.graphMode.value='binary';buildGraph();fitGraph(false);enableWorkspaceControls();setStatus(`Raw ELF loaded into Binary map: ${path}`);return {record:rec,image:rec.loadedImage,fused:false,evidence:'standalone raw ELF address space'};
+  let id=`raw-elf:${path}`,seq=2;while(state.workspaceFiles.has(id))id=`raw-elf:${path}#${seq++}`;const rec={id,name:basename(path),path,displayPath:path,text:'',encoding:'binary',data:entry.data,dirty:false,viewState:null,editorState:null,inputKind:'raw-elf'};rec.parsed=materializeRawElfParsed(rec,entry,artifact,{summarySurface:true});rec.inputKind='raw-elf';rec.inputMeta=rec.parsed.inputMeta;state.workspaceFiles.set(id,rec);state.workspaceOrder.push(id);rebuildWorkspaceAnalysis({preserveView:true});activateWorkspaceFile(id);state.mode='binary';els.graphMode.value='binary';buildGraph();fitGraph(false);enableWorkspaceControls();setStatus(`Raw ELF loaded into Binary map: ${path}`);scheduleRawElfCanonicalRecovery(rec).catch(err=>console.error('Raw ELF canonical recovery failed:',err));return {record:rec,image:rec.loadedImage,fused:false,evidence:'standalone raw ELF address space'};
 }
 function inspectVfsElf(path){const entry=rawElfEntryForPath(path);if(!entry)throw new Error(`VFS artifact ${path} not found`);const elf=entry.elf||inspectElfBytes(entry.data);if(!elf.valid)throw new Error(elf.reason);return addRawElfWorkspaceEntry(entry,artifactForVfsPath(state.activeProject,entry.mountSource||entry.path));}
 
@@ -12177,6 +12177,89 @@ function scheduleCanonicalFunctionHydration(fn,{reason='selection',force=false}=
   if(!fn?.canonicalByteSource||fn.canonicalDecodeState==='ready'&&!force)return Promise.resolve(fn);if(canonicalFunctionHydrations.has(fn.id))return canonicalFunctionHydrations.get(fn.id);
   const rec=state.workspaceFiles.get(fn.workspaceFileId),promise=hydrateCanonicalRawElfFunction(fn,rec,{force}).then(()=>{canonicalFunctionHydrations.delete(fn.id);rebuildWorkspaceAnalysis({preserveView:true});const current=state.functions.find(f=>f.id===fn.id)||fn;state.selectedFunction=current;if(state.mode==='cfg'||state.mode==='dataflow'){buildGraph();fitGraph(false);updateStats()}updateInspector(state.selectedInstruction||current);setStatus(`Capstone decoded ${functionDisplayName(current)} · ${num(current.instructions.length)} instructions · ${reason}`);return current}).catch(err=>{canonicalFunctionHydrations.delete(fn.id);setStatus(`Capstone decode failed for ${functionDisplayName(fn)}: ${err.message}`);updateInspector(fn);throw err});
   canonicalFunctionHydrations.set(fn.id,promise);return promise;
+}
+
+// V14.14 — canonical raw-ELF recovery above symbol tables.
+// PLT recovery is exact only when Capstone proves the RIP-relative linkage-slot
+// branch and that slot is backed by a raw relocation. Stripped function discovery
+// is deliberately lower-confidence and never fabricates symbol-table evidence.
+function canonicalRipMemoryTargets(ins){
+  const out=[];for(const mem of ins?.memoryOperands||[]){if(String(mem?.base||'').toLowerCase()!=='rip')continue;const disp=canonicalSafeNumber(mem.displacement);if(!Number.isFinite(disp)||!Number.isFinite(ins?.range?.end))continue;out.push({address:ins.range.end+disp,memory:mem,evidence:'Capstone RIP-relative memory operand'})}return out;
+}
+function rawElfFunctionMapsRefresh(parsed){
+  parsed.functions.sort((a,b)=>(a.addr??0)-(b.addr??0)||String(a.name||'').localeCompare(String(b.name||'')));
+  parsed.functionsByAddr=new Map();parsed.functionsByName=new Map();
+  for(const fn of parsed.functions){if(Number.isFinite(fn.addr)&&!parsed.functionsByAddr.has(fn.addr))parsed.functionsByAddr.set(fn.addr,fn);if(fn.name&&!parsed.functionsByName.has(fn.name))parsed.functionsByName.set(fn.name,fn)}
+  assignSymbolFamilies(parsed.functions);return parsed;
+}
+function rawElfPltCandidateRanges(parsed,section){
+  const rels=(parsed.relocations||[]).filter(r=>r.semantics?.category==='dynamic-function'&&/\.rel(?:a)?\.plt(?:\.|$)/.test(String(r.relocationSection||''))),size=Number(section?.size)||0,start=Number(section?.addressStart);
+  if(!Number.isFinite(start)||size<=0)return [];
+  const ranges=[];
+  if(section.name==='.plt'&&rels.length&&size%(rels.length+1)===0){const stride=size/(rels.length+1);if(stride>=8&&stride<=64)for(let i=0;i<rels.length;i++)ranges.push({start:start+stride*(i+1),end:start+stride*(i+2),size:stride,layout:'plt-with-resolver-header',confidence:'layout-validated'})}
+  else if(section.name==='.plt.sec'&&rels.length&&size%rels.length===0){const stride=size/rels.length;if(stride>=8&&stride<=64)for(let i=0;i<rels.length;i++)ranges.push({start:start+stride*i,end:start+stride*(i+1),size:stride,layout:'plt-sec',confidence:'layout-validated'})}
+  else if(section.name==='.plt.got'){const stride=Math.max(1,Number(section.alignment)||8);if(stride<=64&&size%stride===0)for(let off=0;off<size;off+=stride)ranges.push({start:start+off,end:Math.min(start+size,start+off+stride),size:Math.min(stride,size-off),layout:'plt-got-aligned',confidence:'candidate'})}
+  return ranges;
+}
+function rawElfPltStubName(slot,address){
+  const rel=(slot?.relocations||[]).find(r=>r.semantics?.category==='dynamic-function'||r.semantics?.category==='dynamic-data')||slot?.relocations?.[0]||null,
+        symbol=normalizeWorkspaceSymbol(rel?.symbol||slot?.symbol||'');return {name:symbol?`${symbol}@plt`:`plt_${address.toString(16)}`,symbol,relocation:rel};
+}
+async function recoverRawElfPltStubs(record,{force=false}={}){
+  if(!record?.parsed||!record.loadedImage)return {status:'not-raw-elf',added:0,stubs:[],diagnostics:[]};
+  await ensureEmbeddedCapstoneX86Provider();const parsed=record.parsed,sections=(parsed.sections||[]).filter(s=>['.plt','.plt.sec','.plt.got'].includes(s.name)&&Number.isFinite(s.addressStart)&&Number(s.size)>0),diagnostics=[],stubs=[];
+  for(const sec of sections){
+    const ranges=rawElfPltCandidateRanges(parsed,sec);if(!ranges.length){diagnostics.push(disassemblyDiagnostic('plt-layout-unproven',`${sec.name}: no conservative entry layout could be derived from section size and relocation count.`,'warning',{section:sec.name}));continue}
+    const decoded=await canonicalDisassembleWorkspaceRange(record,sec.addressStart,sec.size,{requireExecutable:true});if(decoded.status!=='ok'){diagnostics.push(...(decoded.diagnostics||[]));continue}
+    for(const range of ranges){
+      if(!force&&(parsed.functions||[]).some(fn=>fn.pltStub&&fn.addr===range.start))continue;
+      const insns=(decoded.instructions||[]).filter(ins=>ins.range.start>=range.start&&ins.range.start<range.end),proofs=[];
+      for(const ins of insns){if(!['branch','call'].includes(ins.controlFlow?.category))continue;for(const target of canonicalRipMemoryTargets(ins)){const slot=parsed.linkageSlotByAddress?.get(target.address);if(slot)proofs.push({ins,target,slot})}}
+      const uniqueSlots=[...new Set(proofs.map(p=>p.slot))];if(uniqueSlots.length!==1){if(proofs.length)diagnostics.push(disassemblyDiagnostic('plt-slot-ambiguous',`${sec.name} entry ${safeHex(range.start)} references ${uniqueSlots.length} linkage slots; no PLT function was materialized.`,'warning',{address:range.start}));continue}
+      const slot=uniqueSlots[0],relocs=slot.relocations?.length?slot.relocations:(parsed.relocations||[]).filter(r=>r.offset===slot.address);if(!relocs.length){diagnostics.push(disassemblyDiagnostic('plt-slot-without-relocation',`${sec.name} entry ${safeHex(range.start)} reaches ${safeHex(slot.address)} but no raw relocation proves the import slot.`,'warning',{address:range.start,slot:slot.address}));continue}
+      const named=rawElfPltStubName(slot,range.start),fn={id:`${record.id}::rawplt:${range.start.toString(16)}:${named.name}`,addr:range.start,addrHex:range.start.toString(16),name:named.name,startLine:0,endLine:0,section:sec.name,source:'',instructions:[],calls:[],size:range.size,family:GENERIC_GROUPS.standalone,
+        rawElfFunction:true,pltStub:true,nodeRole:'plt-stub',canonicalByteSource:true,canonicalDecodeState:'ready',canonicalDecodeError:null,canonicalAliases:named.symbol?[named.symbol]:[],sourceDialect:'canonical-byte-disassembly',definitionKind:'raw-elf-plt',discoveryConfidence:'exact',gotSlot:slot,
+        workspaceFileId:record.id,workspaceFilePath:record.path,addressSpaceId:record.addressSpaceId,addressSpaceLabel:record.addressSpaceLabel,artifactKind:record.artifactKind,artifactLabel:record.artifactLabel};
+      fn.provenance=makeProvenance('native-dynamic','dynamic:raw-plt','Dynamic imports',{confidence:'exact',semanticName:named.symbol||named.name,linkageName:named.name,reason:`Capstone-proven ${sec.name} RIP-relative branch → relocation-backed GOT slot`});
+      fn.instructions=insns.map((ins,index)=>canonicalSharedInstruction(ins,fn,index));fn.canonicalDecodedBytes=fn.instructions.reduce((n,i)=>n+(i.bytes?.length||0),0);fn.canonicalCoverage={complete:fn.instructions.length>0,decodedBytes:fn.canonicalDecodedBytes,undecodedRanges:[]};
+      parsed.functions.push(fn);if(!slot.pltStubs.includes(fn))slot.pltStubs.push(fn);stubs.push(fn);
+    }
+  }
+  if(stubs.length){rawElfFunctionMapsRefresh(parsed);for(const fn of stubs)rebuildCanonicalFunctionEdges(parsed,fn)}
+  record.rawPltRecovery={status:'complete',added:stubs.length,diagnostics:cloneJson(diagnostics),evidence:'Capstone bytes + raw relocation-backed linkage slots'};return {status:'complete',added:stubs.length,stubs,diagnostics};
+}
+function strippedDiscoverySeed(map,address,section,kind,confidence,evidence){
+  if(!Number.isFinite(address)||!section||['.plt','.plt.sec','.plt.got'].includes(section.name))return;const prev=map.get(address),rank={entrypoint:0,'section-entry':1,'direct-call':2,prologue:3,'cet-landing-pad':4,'aligned-after-return':5};if(prev&&(rank[prev.kind]??9)<=(rank[kind]??9))return;map.set(address,{address,section,kind,confidence,evidence});
+}
+function canonicalPrologueSeeds(instructions,section,seeds){
+  for(let i=0;i<instructions.length;i++){
+    const a=instructions[i],b=instructions[i+1]||null,c=instructions[i+2]||null;
+    if(a.mnemonic==='endbr64'||a.mnemonic==='endbr32')strippedDiscoverySeed(seeds,a.range.start,section,'cet-landing-pad','heuristic','CET ENDBR landing pad decoded by Capstone; probable function entry, not symbol evidence');
+    if(b&&a.mnemonic==='push'&&a.operands?.[0]?.kind==='register'&&a.operands[0].register==='rbp'&&b.mnemonic==='mov'&&b.operands?.[0]?.register==='rbp'&&b.operands?.[1]?.register==='rsp')strippedDiscoverySeed(seeds,a.range.start,section,'prologue','heuristic','x86 frame-pointer prologue decoded by Capstone');
+    if(c&&a.mnemonic==='endbr64'&&b?.mnemonic==='push'&&b.operands?.[0]?.register==='rbp'&&c?.mnemonic==='mov'&&c.operands?.[0]?.register==='rbp'&&c.operands?.[1]?.register==='rsp')strippedDiscoverySeed(seeds,a.range.start,section,'prologue','heuristic','CET endbr64 + frame-pointer prologue decoded by Capstone');
+    if(['ret','retf','iret','iretq'].includes(a.mnemonic)){
+      let j=i+1;while(j<instructions.length&&x86NoopLikeInstruction({mnemonic:instructions[j].mnemonic,operands:instructions[j].operandText||'',sourceDialect:'canonical-byte-disassembly'}))j++;
+      const next=instructions[j];if(next&&next.range.start%16===0)strippedDiscoverySeed(seeds,next.range.start,section,'aligned-after-return','heuristic','16-byte-aligned executable code after RET/NOP padding decoded by Capstone');
+    }
+  }
+}
+async function discoverStrippedRawElfFunctions(record,{force=false,maxScanBytes=1024*1024,maxFunctions=4096}={}){
+  if(!record?.parsed||!record.loadedImage)return {status:'not-raw-elf',added:0,functions:[],diagnostics:[]};
+  const parsed=record.parsed,symbolBacked=(parsed.functions||[]).filter(fn=>fn.definitionKind==='raw-elf-symbol');if(symbolBacked.length&&!force)return {status:'symbol-functions-present',added:0,functions:[],diagnostics:[]};
+  await ensureEmbeddedCapstoneX86Provider();const execSections=(parsed.sections||[]).filter(sec=>sec.flags?.includes('CODE')&&Number.isFinite(sec.addressStart)&&Number(sec.size)>0&&!['.plt','.plt.sec','.plt.got'].includes(sec.name)),diagnostics=[],decodedBySection=new Map(),seeds=new Map();let budget=0;
+  for(const sec of execSections){if(budget+sec.size>maxScanBytes){diagnostics.push(disassemblyDiagnostic('stripped-discovery-budget',`Skipped ${sec.name}: executable scan budget ${maxScanBytes} bytes would be exceeded.`,'warning',{section:sec.name}));continue}budget+=sec.size;const result=await canonicalDisassembleWorkspaceRange(record,sec.addressStart,sec.size,{requireExecutable:true});if(result.status!=='ok'){diagnostics.push(...(result.diagnostics||[]));continue}decodedBySection.set(sec,result.instructions||[]);if(record.loadedImage.entrypoint>=sec.addressStart&&record.loadedImage.entrypoint<sec.addressStart+sec.size)strippedDiscoverySeed(seeds,record.loadedImage.entrypoint,sec,'entrypoint','inferred','ELF e_entry exact start; function boundary inferred from discovered starts');if(['.init','.fini'].includes(sec.name))strippedDiscoverySeed(seeds,sec.addressStart,sec,'section-entry','inferred',`${sec.name} executable section start`);canonicalPrologueSeeds(result.instructions||[],sec,seeds);for(const ins of result.instructions||[]){if(ins.controlFlow?.category!=='call'||!Number.isFinite(ins.controlFlow?.directTarget))continue;const target=ins.controlFlow.directTarget,targetSec=execSections.find(s=>target>=s.addressStart&&target<s.addressStart+s.size);if(targetSec)strippedDiscoverySeed(seeds,target,targetSec,'direct-call','inferred','direct CALL target decoded by Capstone')}}
+  const existing=new Set((parsed.functions||[]).map(fn=>fn.addr)),ordered=[...seeds.values()].filter(seed=>!existing.has(seed.address)).sort((a,b)=>a.address-b.address).slice(0,maxFunctions),added=[];
+  for(const seed of ordered){const sectionSeeds=[...seeds.values()].filter(x=>x.section===seed.section&&x.address>seed.address).map(x=>x.address),next=sectionSeeds.length?Math.min(...sectionSeeds):seed.section.addressStart+seed.section.size,end=Math.max(seed.address+1,Math.min(next,seed.section.addressStart+seed.section.size)),insns=(decodedBySection.get(seed.section)||[]).filter(ins=>ins.range.start>=seed.address&&ins.range.start<end);if(!insns.length)continue;const name=`sub_${seed.address.toString(16)}`,fn={id:`${record.id}::rawdiscover:${seed.address.toString(16)}`,addr:seed.address,addrHex:seed.address.toString(16),name,startLine:0,endLine:0,section:seed.section.name,source:'',instructions:[],calls:[],size:end-seed.address,family:GENERIC_GROUPS.standalone,
+      rawElfFunction:true,canonicalByteSource:true,canonicalDecodeState:'ready',canonicalDecodeError:null,canonicalAliases:[],sourceDialect:'canonical-byte-disassembly',definitionKind:`raw-elf-discovered-${seed.kind}`,discoveryConfidence:seed.confidence,discoveryEvidence:seed.evidence,
+      workspaceFileId:record.id,workspaceFilePath:record.path,addressSpaceId:record.addressSpaceId,addressSpaceLabel:record.addressSpaceLabel,artifactKind:record.artifactKind,artifactLabel:record.artifactLabel};
+    fn.provenance=makeProvenance('native-static',`raw-discovered:${record.id}`,'Raw discovered code',{confidence:seed.confidence==='heuristic'?'inferred':seed.confidence,semanticName:name,linkageName:'',reason:`${seed.evidence}; no STT_FUNC/DWARF function claim`});fn.instructions=insns.map((ins,index)=>canonicalSharedInstruction(ins,fn,index));fn.canonicalDecodedBytes=fn.instructions.reduce((n,i)=>n+(i.bytes?.length||0),0);fn.canonicalCoverage={complete:false,decodedBytes:fn.canonicalDecodedBytes,undecodedRanges:[],evidence:'discovery range, not authoritative symbol size'};parsed.functions.push(fn);added.push(fn)}
+  if(added.length){rawElfFunctionMapsRefresh(parsed);for(const fn of added)rebuildCanonicalFunctionEdges(parsed,fn);parsed.dataRefs=buildDataReferences(parsed.functions,parsed.sections);mapDataReferencesToObjects(parsed)}
+  record.rawFunctionDiscovery={status:'complete',added:added.length,scanBytes:budget,seeds:[...seeds.values()].map(x=>({address:x.address,section:x.section.name,kind:x.kind,confidence:x.confidence,evidence:x.evidence})),diagnostics:cloneJson(diagnostics),evidence:'Capstone recursive direct-call/prologue discovery; explicitly non-symbol evidence'};return {status:'complete',added:added.length,functions:added,diagnostics,seeds:[...seeds.values()]};
+}
+const rawElfCanonicalRecoveryJobs=new Map();
+function scheduleRawElfCanonicalRecovery(record,{forceDiscovery=false}={}){
+  if(!record?.id||record.inputKind!=='raw-elf')return Promise.resolve({status:'not-raw-elf'});if(rawElfCanonicalRecoveryJobs.has(record.id))return rawElfCanonicalRecoveryJobs.get(record.id);
+  const job=(async()=>{await ensureEmbeddedCapstoneX86Provider();const plt=await recoverRawElfPltStubs(record),symbolCount=(record.parsed?.functions||[]).filter(fn=>fn.definitionKind==='raw-elf-symbol').length,discovery=(symbolCount===0||forceDiscovery)?await discoverStrippedRawElfFunctions(record,{force:forceDiscovery}):{status:'symbol-functions-present',added:0,functions:[],diagnostics:[]};if(plt.added||discovery.added){rebuildWorkspaceAnalysis({preserveView:true});if(state.activeFileId===record.id){buildGraph();updateStats()}}return {status:'complete',plt,discovery}})().finally(()=>rawElfCanonicalRecoveryJobs.delete(record.id));rawElfCanonicalRecoveryJobs.set(record.id,job);return job;
 }
 
 const EXECUTION_PROVIDER_METHODS=Object.freeze(['create','load','reset','stepInstruction','run','pause','stepN','readRegisters','writeRegister','readMemory','writeMemory','setBreakpoint','removeBreakpoint','state','events']);
@@ -15752,7 +15835,7 @@ function resolveWorkspaceLinks(functions,calls,addressRefs,dataRefs=[],relocatio
     rel.symbolObject=sameSymbols.find(sym=>sym.dynamic&&!sym.defined)||sameSymbols.find(sym=>sym.dynamic)||sameSymbols.find(sym=>!sym.defined)||sameSymbols[0]||null;
     rel.gotSlot=slotByAddress.get(`${rel.workspaceFileId}|${rel.offset}`)||null;
     if(rel.gotSlot){
-      rel.gotSlot.relocations.push(rel);
+      if(!rel.gotSlot.relocations.some(existing=>existing===rel||existing?.id===rel.id))rel.gotSlot.relocations.push(rel);
       if(rel.symbol&&rel.symbol!=='*ABS*')rel.gotSlot.symbol=normalizeWorkspaceSymbol(rel.symbol);
       if(rel.symbolObject)rel.gotSlot.symbolObject=rel.symbolObject;
     }
@@ -16372,7 +16455,7 @@ function environmentExecutionHtml(){
         session=state.selectedExecutionSessionId?state.executionSessions.get(state.selectedExecutionSessionId):null;
   const mappings=image?.mappings||[];
   const disasmService=canonicalDisassemblyService(),disasmSnap=disasmService.snapshot(),lastDisasm=state.lastCanonicalDisassemblyResult;
-  return `<div class="executionTechnical"><div class="path"><b>V14.13 execution/disassembly boundaries</b><br>Build provenance, raw ELF loading, canonical disassembly, provider execution and observed-session state are separate. Raw ELF static metadata remains authoritative. Exact Capstone.js x86 5.0.9 release JS/WASM bytes are embedded locally and must pass runtime acceptance before registration.</div>
+  return `<div class="executionTechnical"><div class="path"><b>V14.14 execution/disassembly boundaries</b><br>Build provenance, raw ELF loading, canonical disassembly, provider execution and observed-session state are separate. Raw ELF static metadata remains authoritative. Exact Capstone.js x86 5.0.9 release JS/WASM bytes are embedded locally and must pass runtime acceptance before registration.</div>
     <section class="projectSection"><strong>BUILD ARTIFACT · ${escapeHtml(BUILD_ARTIFACT_SCHEMA)}</strong>${project?.buildArtifacts?.length?project.buildArtifacts.map(buildArtifactSummaryHtml).join(''):'<div class="path">No BuildArtifact exists yet. Importing an ELF records a manual-import artifact; future FASM/NASM/GNU as/ld builds use the same contract.</div>'}
       <div class="projectActions"><button data-build-artifact-export ${project?.buildArtifacts?.length?'':'disabled'}>Export BuildArtifact JSON</button></div></section>
     <section class="projectSection"><strong>LOADED IMAGE · ${escapeHtml(LOADED_IMAGE_SCHEMA)}</strong>${image?`<div class="policyList">
@@ -16414,7 +16497,7 @@ function renderEnvironment(tab=state.environmentTab||'vfs'){
 }
 function openEnvironment(tab='vfs'){
   if(!state.activeProject){setStatus('Save or open a project first.');return}
-  renderEnvironment(tab);els.environmentStatus.textContent=`Execution provider disconnected · V14.13 Capstone-backed raw ELF functions · Capstone ${CAPSTONE_RUNTIME.state}`;if(!els.environmentDialog.open)els.environmentDialog.showModal();
+  renderEnvironment(tab);els.environmentStatus.textContent=`Execution provider disconnected · V14.14 Capstone raw recovery · Capstone ${CAPSTONE_RUNTIME.state}`;if(!els.environmentDialog.open)els.environmentDialog.showModal();
 }
 function selectedRunConfig(){
   return state.activeProject?.runConfigurations?.find(r=>r.id===state.selectedRunConfigId)||null;
@@ -17390,11 +17473,15 @@ function updateInspector(item){
       <b>${t('semanticName')}</b><span>${escapeHtml(p.semanticName||'—')}</span><b>${t('linkageName')}</b><span class="linkage">${escapeHtml(p.linkageName||item.name)}</span>
       <b>${t('declaredAt')}</b><span class="sourcePath">${escapeHtml(p.logicalSource||p.sourcePath||'—')}${p.declLine?':'+p.declLine:''}</span>
       <b>${t('addressSpace')}</b><span>${escapeHtml(item.addressSpaceLabel||item.workspaceFilePath||'—')}</span>
+      ${item.definitionKind?`<b>${t('definitionEvidence')}</b><span class="linkage">${escapeHtml(item.definitionKind)}</span>`:''}
+      ${item.discoveryConfidence?`<b>${t('discoveryConfidence')}</b><span>${escapeHtml(t(item.discoveryConfidence)||item.discoveryConfidence)}</span>`:''}
+      ${item.canonicalByteSource?`<b>${t('decoderState')}</b><span>${escapeHtml(item.canonicalDecodeState||'pending')} · Capstone x86 WASM</span>`:''}
       ${item.pltStub?`<b>${t('role')}</b><span>${t('pltEntry')}</span>`:''}
       ${item.gotSlot?`<b>${t('gotSlot')}</b><span>${escapeHtml(item.gotSlot.sectionName)}[${item.gotSlot.index}] · ${safeHex(item.gotSlot.address)}${item.gotSlot.symbol?` · ${escapeHtml(item.gotSlot.symbol)}`:''}</span>`:''}
       <b>${item.syntheticAddress?t('line'):t('address')}</b><span>${item.syntheticAddress?num(item.startLine+1):safeHex(item.addr)}</span><b>${t('approxSize')}</b><span>${item.syntheticAddress?`${num(item.instructions.length)} ${t('instructionsLower')}`:`${num(item.size)} B`}</span><b>${t('section')}</b><span>${escapeHtml(item.section||'—')}</span>
       <b>${t('instructions')}</b><span>${num(item.instructions.length)}</span><b>${t('callsJumps')}</b><span>${num(item.calls.length)}</span><b>${t('incoming')}</b><span>${num(incoming)}</span>
     </div>
+    ${item.discoveryEvidence?`<div class="path"><b>${t('discoveryBasis')}</b><br>${escapeHtml(item.discoveryEvidence)}<br><span class="linkage">no STT_FUNC/DWARF function claim</span></div>`:''}
     ${item.dynamicMatch?`<div class="path"><b>${t('dynamicMatch')} · ${escapeHtml(item.dynamicMatchConfidence||'inferred')}</b><br>${escapeHtml(item.name)} · ${item.syntheticAddress?t('line')+' '+(item.startLine+1):safeHex(item.addr)}<br>↓ ${t('resolvesTo')}<br>${escapeHtml(functionDisplayName(item.dynamicMatch))} · ${safeHex(item.dynamicMatch.addr)}<br>${escapeHtml(item.dynamicMatch.addressSpaceLabel||'')}</div>`:''}
     ${item.dynamicMatchedBy?.length?`<div class="path"><b>${t('dynamicMatch')}</b><br>${item.dynamicMatchedBy.map(x=>`${escapeHtml(x.name)} · ${safeHex(x.addr)} · ${escapeHtml(x.addressSpaceLabel||'')}`).join('<br>')}</div>`:''}
     ${df?`<div class="path"><b>STATIC ANALYSIS SUMMARY</b><br>${escapeHtml(df.architecture||'unknown')} · ${escapeHtml(df.adapter?.id||'unsupported')} · ${num(df.values?.length||0)} values · ${num(df.phiValues?.length||0)} phi · ${num(df.values?.filter(v=>v.kind==='memory-version').length||0)} memory versions · ${num(df.values?.filter(v=>v.kind==='memory-slice'||v.kind==='memory-composite').length||0)} memory slices/composites · ${num(df.values?.filter(v=>v.kind==='memory-clobber').length||0)} memory clobbers · memory cells peak ${num(df.memoryCellPeak||0)}/${num(df.memoryCellBudget||0)}${df.memoryFragmentCollapses?` · ${num(df.memoryFragmentCollapses)} fragmentation collapses`:''} · ${num(df.analysisBarriers?.length||0)} barriers<br>value FP ${df.fixedPointConverged?'converged':'partial'} (${num(df.fixedPointIterations||0)}) · full-state FP ${df.stateFixedPointConverged?'converged':'partial'} (${num(df.stateFixedPointIterations||0)}/${num(df.stateFixedPointBudget||0)}) · loop headers ${num(df.loopBlocks?.length||0)}${df.stateDomainConvergence?`<br>${Object.entries(df.stateDomainConvergence).map(([k,v])=>`${escapeHtml(k)}=${v.converged?'ok':'partial'}@${num(v.iterations||0)}`).join(' · ')}`:''}</div>`:''}
@@ -20098,6 +20185,66 @@ function x86VectorRegisters(op){
   const out=[];for(const m of String(op||'').toLowerCase().matchAll(/\b((?:xmm|ymm|zmm)\d+|k[0-7])\b/g))if(!out.includes(m[1]))out.push(m[1]);
   return out;
 }
+
+// V14.14 — consume canonical Capstone x86 operand semantics directly when
+// available. Text parsing remains the independent objdump/ASM fallback path.
+function canonicalX86Operands(inst){
+  return inst?.canonical?.architecture==='x86'&&Array.isArray(inst.canonical.operands)?inst.canonical.operands:[];
+}
+function canonicalX86RegisterAccess(inst){
+  const regs=inst?.canonical?.registers;if(!regs)return {reads:[],writes:[],explicitReads:[],explicitWrites:[],implicitReads:[],implicitWrites:[],evidence:'unavailable'};
+  const unique=xs=>[...new Set((xs||[]).map(x=>String(x||'').toLowerCase()).filter(Boolean))];
+  const explicitReads=unique(regs.explicitReads),explicitWrites=unique(regs.explicitWrites),implicitReads=unique(regs.implicitReads),implicitWrites=unique(regs.implicitWrites);
+  return {reads:unique([...explicitReads,...implicitReads]),writes:unique([...explicitWrites,...implicitWrites]),explicitReads,explicitWrites,implicitReads,implicitWrites,evidence:'Capstone cs_regs_access + operand access'};
+}
+function canonicalX86RegisterInfo(op){
+  return op?.kind==='register'&&op.register?x86RegInfo(op.register):null;
+}
+function canonicalX86ImmediateValue(op){
+  if(op?.kind!=='immediate'||op.value==null)return null;
+  try{
+    if(typeof op.value==='bigint')return op.value;
+    if(typeof op.value==='number'&&Number.isInteger(op.value))return BigInt(op.value);
+    const raw=String(op.value).trim();if(/^[-+]?\d+$/.test(raw)||/^[-+]?0x[0-9a-f]+$/i.test(raw))return BigInt(raw);
+  }catch{}
+  return null;
+}
+function canonicalSafeNumber(value){
+  if(typeof value==='number')return Number.isFinite(value)?value:null;
+  if(typeof value==='bigint'){const n=Number(value);return Number.isSafeInteger(n)?n:null}
+  const raw=String(value??'').trim();if(!raw)return null;
+  try{const b=BigInt(raw),n=Number(b);return Number.isSafeInteger(n)?n:null}catch{return null}
+}
+function canonicalX86MemoryDescriptor(op,inst){
+  if(op?.kind!=='memory'||!op.memory)return null;
+  const mem=op.memory,base=x86RegInfo(mem.base||'')?.canonical||String(mem.base||'').toLowerCase()||null,
+        index=x86RegInfo(mem.index||'')?.canonical||String(mem.index||'').toLowerCase()||null,
+        disp=canonicalSafeNumber(mem.displacement)??0,scale=Number(mem.scale)||1,width=Number(mem.width||op.size)||null,
+        segment=String(mem.segment||'').toLowerCase()||null;
+  let absolute=null,ripAddress=null;
+  if(!base&&!index)absolute=disp;
+  if(base==='rip'&&Number.isFinite(inst?.addr)){const next=inst.addr+Math.max(1,inst.bytes?.length||inst.canonical?.range?.size||0);ripAddress=next+disp}
+  return {base,index,scale,disp,absolute,ripAddress,width,segment,access:mem.access||op.access||{read:false,write:false},syntax:'canonical-capstone',evidence:'Capstone x86 operand detail'};
+}
+function canonicalX86OperandRegisterInfos(op){
+  const out=[];const add=name=>{const info=x86RegInfo(name||'');if(info&&!out.some(x=>x.canonical===info.canonical))out.push(info)};
+  if(op?.kind==='register')add(op.register);
+  if(op?.kind==='memory'){add(op.memory?.segment);add(op.memory?.base);add(op.memory?.index)}
+  return out;
+}
+function canonicalX86StackMemoryOperand(op,ctx,inst){
+  const ea=canonicalX86MemoryDescriptor(op,inst);if(!ea||!['rbp','rsp'].includes(ea.base)||ea.index)return null;
+  const base=ea.base,disp=ea.disp;
+  if(base==='rbp'&&Number.isFinite(ctx.rbpEntryDelta)){const off=ctx.rbpEntryDelta+disp;return {key:`stack:${off}`,label:`stack[${off>=0?'+':''}${off}]`,entryOffset:off,base,disp,evidence:'Capstone memory base+disp'}}
+  if(base==='rsp'&&Number.isFinite(ctx.rspDelta)){const off=ctx.rspDelta+disp;return {key:`stack:${off}`,label:`stack[${off>=0?'+':''}${off}]`,entryOffset:off,base,disp,evidence:'Capstone memory base+disp'}}
+  return {key:`${base}:${disp}`,label:`[${base}${disp>=0?'+':''}${disp}]`,entryOffset:null,base,disp,evidence:'Capstone memory base+disp'};
+}
+function canonicalX86RipRelativeOperand(op,inst){
+  const ea=canonicalX86MemoryDescriptor(op,inst);if(!ea||ea.base!=='rip'||!Number.isFinite(ea.ripAddress))return null;
+  const next=inst.addr+Math.max(1,inst.bytes?.length||inst.canonical?.range?.size||0);return {disp:ea.disp,next,address:ea.ripAddress,confidence:'exact',evidence:'Capstone RIP-relative memory operand'};
+}
+function canonicalX86MemoryAccessWidth(op){const n=Number(op?.memory?.width||op?.size);return Number.isFinite(n)&&n>0?n:null}
+function canonicalX86OperandIsMemory(op){return op?.kind==='memory'}
 function x86NoopLikeInstruction(inst){
   const text=`${inst.mnemonic||''} ${inst.operands||''}`.trim().toLowerCase().replace(/\s+/g,' ');
   if(/^(?:(?:cs|ds|es|ss|fs|gs|data16|addr32|rex(?:\.w)?)\s+)*nop(?:[bwlq])?\b/.test(text))return true;
@@ -20168,7 +20315,7 @@ function x86InstructionCapability(inst){
 }
 
 function x86_64TransferInstruction({ctx,inst,decoded,api}){
-  const {info,mn,parts,syntax,dst,src,semanticBarrier}=decoded;
+  const {info,mn,parts,syntax,dst,src,semanticBarrier,canonicalOperands,dstDetail,srcDetail}=decoded;
   const {
     adapter,abi,fn,newValue,valueFromOperand,writeOperand,defineReg,readFlags,readReg,recordUse,recordDef,
     addBarrier,collectCallArguments,callSites,entryValue,stableUnknown,phiValue,
@@ -20176,27 +20323,27 @@ function x86_64TransferInstruction({ctx,inst,decoded,api}){
     clobberObjectMemory,clobberObjectRange,nextOrdinal
   }=api;
   if(/^(?:mov(?:abs)?[bwlq]?|movzx|movsx|movsxd|movz[bwlq]{2}|movs[bwlq]{2})$/.test(mn)){
-    const source=valueFromOperand(ctx,src,inst,'move source');writeOperand(ctx,dst,source,inst,'register-copy');
+    const source=valueFromOperand(ctx,src,inst,'move source',srcDetail);writeOperand(ctx,dst,source,inst,'register-copy',dstDetail);
   }else if(/^lea[qwl]?$/.test(mn)){
     const dataRef=state.dataRefs.find(r=>r.workspaceFileId===fn.workspaceFileId&&r.instruction===inst);
     let source;
     if(dataRef?.toObject)source=newValue('data-address',`&${dataRef.toObject.stringText||dataRef.toObject.text||dataRef.toObject.name||safeHex(dataRef.targetAddr)}`,inst,{dataObject:dataRef.toObject,address:dataRef.targetAddr});
     else{
-      const stackAddr=adapter.stackMemory(src,ctx),rip=adapter.ripRelative?.(src,inst)||null;
+      const stackAddr=canonicalX86StackMemoryOperand(srcDetail,ctx,inst)||adapter.stackMemory(src,ctx),rip=canonicalX86RipRelativeOperand(srcDetail,inst)||adapter.ripRelative?.(src,inst)||null;
       if(stackAddr)source=newValue('stack-address',`&${stackAddr.label}`,inst,{stackSlot:stackAddr,confidence:Number.isFinite(stackAddr.entryOffset)?'exact':'inferred'});
       else if(rip){
         const sec=state.sections.find(sec=>sec.workspaceFileId===fn.workspaceFileId&&rip.address>=sec.addressStart&&rip.address<(sec.addressEnd??sec.addressStart))||null,obj=sec?dataObjectContaining(state.dataObjects,rip.address,sec):null;
         source=newValue(obj?'data-address':'address-expression',obj?`&${obj.stringText||obj.text||obj.name||safeHex(rip.address)}`:safeHex(rip.address),inst,{dataObject:obj||null,address:rip.address,ripRelative:rip,confidence:'exact'});
       }else{
-        const regs=adapter.operandRegisters(src).filter(r=>r.canonical!=='rip').map(r=>readReg(ctx,r.canonical,inst,'LEA address component'));
+        const regs=(srcDetail?canonicalX86OperandRegisterInfos(srcDetail):adapter.operandRegisters(src)).filter(r=>r.canonical!=='rip').map(r=>readReg(ctx,r.canonical,inst,'LEA address component'));
         source=newValue('address-expression',src||'address',inst,{inputs:regs,confidence:regs.length?'inferred':'unknown'});
       }
     }
-    writeOperand(ctx,dst,source,inst,'address');
-  }else if(/^xor[bwlq]?$/.test(mn)&&operandRegister(src)?.canonical&&operandRegister(src)?.canonical===operandRegister(dst)?.canonical){
-    const zero=newValue('constant','0',inst,{constant:0n});writeOperand(ctx,dst,zero,inst,'zero');
+    writeOperand(ctx,dst,source,inst,'address',dstDetail);
+  }else if(/^xor[bwlq]?$/.test(mn)&&(canonicalX86RegisterInfo(srcDetail)||operandRegister(src))?.canonical&&(canonicalX86RegisterInfo(srcDetail)||operandRegister(src))?.canonical===(canonicalX86RegisterInfo(dstDetail)||operandRegister(dst))?.canonical){
+    const zero=newValue('constant','0',inst,{constant:0n});writeOperand(ctx,dst,zero,inst,'zero',dstDetail);
   }else if(/^(?:add|sub|and|or|xor|imul|shl|shr|sal|sar)[bwlq]?$/.test(mn)){
-    const oldDst=valueFromOperand(ctx,dst,inst,'arithmetic lhs'),rhs=valueFromOperand(ctx,src,inst,'arithmetic rhs');
+    const oldDst=valueFromOperand(ctx,dst,inst,'arithmetic lhs',dstDetail),rhs=valueFromOperand(ctx,src,inst,'arithmetic rhs',srcDetail);
     let constant=null;
     if(oldDst.constant!=null&&rhs.constant!=null){
       try{
@@ -20211,24 +20358,24 @@ function x86_64TransferInstruction({ctx,inst,decoded,api}){
       }catch{}
     }
     const expr=newValue(constant!=null?'constant':'expression',constant!=null?constant.toString():`${mn}(${oldDst.label}, ${rhs.label})`,inst,{inputs:[oldDst,rhs],constant,operator:mn,confidence:constant!=null?'exact':'inferred'});
-    writeOperand(ctx,dst,expr,inst,'expression');
-    const dreg=operandRegister(dst),imm=immediateValue(src);
+    writeOperand(ctx,dst,expr,inst,'expression',dstDetail);
+    const dreg=canonicalX86RegisterInfo(dstDetail)||operandRegister(dst),imm=canonicalX86ImmediateValue(srcDetail)??immediateValue(src);
     if(dreg?.canonical==='rsp'&&imm!=null&&Number.isFinite(ctx.rspDelta)){
       const amount=Number(imm);ctx.rspDelta+=mn.startsWith('sub')?-amount:mn.startsWith('add')?amount:0;
     }
   }else if(/^(?:inc|dec|neg|not)[bwlq]?$/.test(mn)){
-    const old=valueFromOperand(ctx,dst,inst,'unary input');let constant=null;
+    const old=valueFromOperand(ctx,dst,inst,'unary input',dstDetail);let constant=null;
     if(old.constant!=null){try{if(mn.startsWith('inc'))constant=old.constant+1n;else if(mn.startsWith('dec'))constant=old.constant-1n;else if(mn.startsWith('neg'))constant=-old.constant;else if(mn.startsWith('not'))constant=~old.constant}catch{}}
-    const expr=newValue(constant!=null?'constant':'expression',constant!=null?constant.toString():`${mn}(${old.label})`,inst,{inputs:[old],constant,operator:mn,confidence:constant!=null?'exact':'inferred'});writeOperand(ctx,dst,expr,inst,'expression');
+    const expr=newValue(constant!=null?'constant':'expression',constant!=null?constant.toString():`${mn}(${old.label})`,inst,{inputs:[old],constant,operator:mn,confidence:constant!=null?'exact':'inferred'});writeOperand(ctx,dst,expr,inst,'expression',dstDetail);
   }else if(/^xchg[bwlq]?$/.test(mn)){
-    const a=valueFromOperand(ctx,dst,inst,'xchg lhs'),b=valueFromOperand(ctx,src,inst,'xchg rhs');
-    writeOperand(ctx,dst,b,inst,'exchange');writeOperand(ctx,src,a,inst,'exchange');
+    const a=valueFromOperand(ctx,dst,inst,'xchg lhs',dstDetail),b=valueFromOperand(ctx,src,inst,'xchg rhs',srcDetail);
+    writeOperand(ctx,dst,b,inst,'exchange',dstDetail);writeOperand(ctx,src,a,inst,'exchange',srcDetail);
   }else if(/^(?:adc|sbb)[bwlq]?$/.test(mn)){
-    const a=valueFromOperand(ctx,dst,inst,'arithmetic lhs'),b=valueFromOperand(ctx,src,inst,'arithmetic rhs'),flags=readFlags(ctx,inst,'carry input');
-    const expr=newValue('expression',`${mn}(${a.label}, ${b.label}, CF)`,inst,{inputs:[a,b,flags],operator:mn,confidence:'inferred'});writeOperand(ctx,dst,expr,inst,'expression');
+    const a=valueFromOperand(ctx,dst,inst,'arithmetic lhs',dstDetail),b=valueFromOperand(ctx,src,inst,'arithmetic rhs',srcDetail),flags=readFlags(ctx,inst,'carry input');
+    const expr=newValue('expression',`${mn}(${a.label}, ${b.label}, CF)`,inst,{inputs:[a,b,flags],operator:mn,confidence:'inferred'});writeOperand(ctx,dst,expr,inst,'expression',dstDetail);
     addBarrier(inst,'partial-flags',`${mn} consumes CF; exact CF arithmetic is not modeled`,'conservative');
   }else if(mn==='push'||mn==='pushq'){
-    const source=valueFromOperand(ctx,parts[0],inst,'push source');
+    const source=valueFromOperand(ctx,parts[0],inst,'push source',canonicalOperands?.[0]||null);
     if(Number.isFinite(ctx.rspDelta))ctx.rspDelta-=8;
     const slot={key:Number.isFinite(ctx.rspDelta)?`stack:${ctx.rspDelta}`:`rsp:push:${inst.line}`,label:Number.isFinite(ctx.rspDelta)?`stack[${ctx.rspDelta>=0?'+':''}${ctx.rspDelta}]`:'stack[push]',entryOffset:ctx.rspDelta};
     const v=newValue('stack-slot',`${slot.label}#${nextOrdinal()}`,inst,{stackSlot:slot,inputs:[source],storedValue:source});ctx.stack.set(slot.key,v);recordUse(source,inst,'push source');recordDef(v,inst,slot.label);
@@ -20238,7 +20385,7 @@ function x86_64TransferInstruction({ctx,inst,decoded,api}){
     let source=ctx.stack.get(slot.key);
     if(!source&&ctx.joinBlock){source=phiValue(ctx.joinBlock,'stack',slot.key,slot.label,{stackSlot:slot});ctx.stack.set(slot.key,source)}
     source=source||stableUnknown(`entry:stack:${slot.key}`,`${slot.label}@unknown`,{stackSlot:slot});
-    recordUse(source,inst,'pop source');info.stackReads.push({slot,value:source});writeOperand(ctx,parts[0],source,inst,'stack-load');
+    recordUse(source,inst,'pop source');info.stackReads.push({slot,value:source});writeOperand(ctx,parts[0],source,inst,'stack-load',canonicalOperands?.[0]||null);
     if(Number.isFinite(ctx.rspDelta))ctx.rspDelta+=8;
   }else if(mn==='leave'||mn==='leaveq'){
     if(Number.isFinite(ctx.rbpEntryDelta))ctx.rspDelta=ctx.rbpEntryDelta;
@@ -20249,7 +20396,7 @@ function x86_64TransferInstruction({ctx,inst,decoded,api}){
     recordUse(source,inst,'leave restores rbp');info.stackReads.push({slot,value:source});
     defineReg(ctx,X86_REGS.get('rbp'),source,inst,'stack-load');if(Number.isFinite(ctx.rspDelta))ctx.rspDelta+=8;ctx.rbpEntryDelta=null;
   }else if(/^cmp[bwlq]?$/.test(mn)||/^test[bwlq]?$/.test(mn)){
-    const a=valueFromOperand(ctx,parts[0]||'',inst,'flags input'),b=parts[1]!=null?valueFromOperand(ctx,parts[1],inst,'flags input'):a;
+    const a=valueFromOperand(ctx,parts[0]||'',inst,'flags input',canonicalOperands?.[0]||null),b=parts[1]!=null?valueFromOperand(ctx,parts[1],inst,'flags input',canonicalOperands?.[1]||null):a;
     let knownFlags=null;
     if(a.constant!=null&&b.constant!=null){
       if(mn.startsWith('test'))knownFlags={ZF:(a.constant&b.constant)===0n};
@@ -20268,17 +20415,17 @@ function x86_64TransferInstruction({ctx,inst,decoded,api}){
     let condition=null;
     if(flags.knownFlags&&['sete','setz','setne','setnz'].includes(mn))condition=(mn==='sete'||mn==='setz')?!!flags.knownFlags.ZF:!flags.knownFlags.ZF;
     const v=condition==null?newValue('condition',mn,inst,{inputs:[flags],confidence:'inferred'}):newValue('constant',condition?'1':'0',inst,{inputs:[flags],constant:condition?1n:0n,confidence:'exact'});
-    writeOperand(ctx,parts[0],v,inst,'condition');
+    writeOperand(ctx,parts[0],v,inst,'condition',canonicalOperands?.[0]||null);
   }else if(/^cmov/.test(mn)){
-    const flags=readFlags(ctx,inst,'condition flags'),old=valueFromOperand(ctx,dst,inst,'cmov old value'),source=valueFromOperand(ctx,src,inst,'cmov source');
+    const flags=readFlags(ctx,inst,'condition flags'),old=valueFromOperand(ctx,dst,inst,'cmov old value',dstDetail),source=valueFromOperand(ctx,src,inst,'cmov source',srcDetail);
     let condition=null;
     if(flags.knownFlags&&['cmove','cmovz','cmovne','cmovnz'].includes(mn))condition=(mn==='cmove'||mn==='cmovz')?!!flags.knownFlags.ZF:!flags.knownFlags.ZF;
     const chosen=condition==null?newValue('merge',`${mn}(${old.label}, ${source.label})`,inst,{inputs:[old,source,flags],confidence:'inferred'}):(condition?source:old);
-    writeOperand(ctx,dst,chosen,inst,condition==null?'conditional':'constant-condition');
+    writeOperand(ctx,dst,chosen,inst,condition==null?'conditional':'constant-condition',dstDetail);
   }else if(mn.startsWith('call')){
     const callEdge=callEdgeForInstruction(inst),direct=callEdge?.to&&!callEdge?.indirect;
     if(!direct&&parts[0]){
-      info.callTargetValue=valueFromOperand(ctx,parts[0],inst,'indirect call target');
+      info.callTargetValue=valueFromOperand(ctx,parts[0],inst,'indirect call target',canonicalOperands?.[0]||null);
     }
     const args=collectCallArguments(ctx,inst,abi);
     info.callArguments=args;info.shadowSpace=abi.shadowSpace;info.redZone=abi.redZone;callSites.push({inst,args,abi,targetValue:info.callTargetValue||null});
@@ -20319,13 +20466,22 @@ function x86_64TransferInstruction({ctx,inst,decoded,api}){
     for(const alias of syscallWritable)clobberObjectMemory(ctx,alias.object,inst,alias.offset==null?'alias-set escapes into syscall':`pointer +${alias.offset} escapes into syscall`);
     if(syscallWritable.length){(info.memoryInvalidations||(info.memoryInvalidations=[])).push(...syscallWritable.map(a=>a.object));info.memoryInvalidationDetails=syscallWritable.map(a=>({object:a.object,offset:a.offset,confidence:a.confidence,scope:'exact-object'}))}
   }else if(mn==='jmp'||mn==='jmpq'){
-    const op=parts[0]||'',indirectOperand=/[\[\(]/.test(op)||adapter.operandRegisters(op).length>0;
-    if(op&&indirectOperand)info.jumpTargetValue=valueFromOperand(ctx,op,inst,'indirect jump target');
+    const op=parts[0]||'',detail=canonicalOperands?.[0]||null,indirectOperand=detail?['memory','register'].includes(detail.kind):(/[\[\(]/.test(op)||adapter.operandRegisters(op).length>0);
+    if(op&&indirectOperand)info.jumpTargetValue=valueFromOperand(ctx,op,inst,'indirect jump target',detail);
   }else if(mn.startsWith('ret')){
     const ret=ctx.regs.get(abi.returnReg)||entryValue(abi.returnReg);recordUse(ret,inst,'function return');info.returnValue=ret;
   }else{
-    for(const op of parts)for(const r of adapter.operandRegisters(op).filter(r=>r.canonical!=='rip'))readReg(ctx,r.canonical,inst,'operand register');
-    if(!semanticBarrier&&!adapter.noopLike?.(inst)&&parts.some(op=>/[\[\(]/.test(op)))addBarrier(inst,'unmodeled-memory-semantics',`${mn} memory transfer semantics are not modeled`, 'conservative');
+    if(canonicalOperands?.length){
+      const access=canonicalX86RegisterAccess(inst),readInfos=access.reads.map(x86RegInfo).filter(Boolean),writeInfos=access.writes.map(x86RegInfo).filter(Boolean);
+      for(const r of readInfos.filter(r=>r.canonical!=='rip'))readReg(ctx,r.canonical,inst,'Capstone register read');
+      for(const r of writeInfos.filter(r=>r.canonical!=='rip')){
+        const clobber=newValue('clobber',`${r.canonical} ← ${mn} (unmodeled)`,inst,{reg:r.canonical,confidence:'exact',evidence:'Capstone register write; instruction transfer semantics not modeled'});
+        ctx.regs.set(r.canonical,clobber);recordDef(clobber,inst,r.canonical);
+        if(r.canonical==='rsp')ctx.rspDelta=NaN;if(r.canonical==='rbp')ctx.rbpEntryDelta=null;
+      }
+      info.canonicalFallback={registerReads:readInfos.map(r=>r.canonical),registerWrites:writeInfos.map(r=>r.canonical),evidence:access.evidence};
+    }else for(let oi=0;oi<parts.length;oi++){const op=parts[oi];for(const r of adapter.operandRegisters(op).filter(r=>r.canonical!=='rip'))readReg(ctx,r.canonical,inst,'operand register')}
+    if(!semanticBarrier&&!adapter.noopLike?.(inst)&&parts.some((op,i)=>canonicalX86OperandIsMemory(canonicalOperands?.[i])||/[\[\(]/.test(op)))addBarrier(inst,'unmodeled-memory-semantics',`${mn} memory transfer semantics are not modeled`, 'conservative');
   }
   return true;
 }
@@ -20341,7 +20497,7 @@ const ABI_WINDOWS_X64=Object.freeze({
 });
 const X86_64_ADAPTER={
   id:'x86-64',
-  version:'1.2',
+  version:'1.3',
   contractId:'asm-graph.arch-adapter/v2',
   label:'x86-64',
   registerInfo:x86RegInfo,
@@ -20357,7 +20513,7 @@ const X86_64_ADAPTER={
   memoryAccessWidth:x86MemoryAccessWidth,
   noopLike:x86NoopLikeInstruction,
   transferInstruction:x86_64TransferInstruction,
-  capabilities:Object.freeze({registerAliases:true,partialRegisters:true,stackSlots:true,ripRelative:true,effectiveAddress:true,memoryAccessWidth:true,flags:'partial',staticMemoryState:'normalized range cells',memoryFragmentBudget:true,crossObjectRanges:true,multiObjectAliasSets:true,indirectTargets:true,simd:false,x87:false}),
+  capabilities:Object.freeze({registerAliases:true,partialRegisters:true,stackSlots:true,ripRelative:true,effectiveAddress:true,memoryAccessWidth:true,canonicalOperandDetail:true,canonicalRegisterAccess:true,canonicalMemoryAccess:true,flags:'partial',staticMemoryState:'normalized range cells',memoryFragmentBudget:true,crossObjectRanges:true,multiObjectAliasSets:true,indirectTargets:true,simd:false,x87:false}),
   transferAPI:Object.freeze({
     request:'{ ctx, instruction, decoded, api }',
     decoded:['info','mnemonic','parts','syntax','dst','src','semanticBarrier'],
@@ -20743,23 +20899,25 @@ function analyzeFunctionDataflow(fn){
   };
   const unknown=(label,inst=null,extra={})=>inst?newValue('unknown',label,inst,{confidence:'unknown',...extra}):stableUnknown(`unknown:${label}`,label,extra);
 
-  const memoryExplanation=(ctx,op,inst)=>{
-    if(!/[\[\(]/.test(String(op||''))&&!x86AttAbsoluteMemoryOperand(op,inst))return null;
-    const slot=adapter.stackMemory(op,ctx),rip=adapter.ripRelative?.(op,inst)||null,regs=adapter.operandRegisters(op).filter(r=>r.canonical!=='rip').map(r=>({
+  const memoryExplanation=(ctx,op,inst,canonicalOperand=null)=>{
+    const canonicalMem=canonicalX86MemoryDescriptor(canonicalOperand,inst);if(!canonicalMem&&!/[\[\(]/.test(String(op||''))&&!x86AttAbsoluteMemoryOperand(op,inst))return null;
+    const slot=canonicalX86StackMemoryOperand(canonicalOperand,ctx,inst)||adapter.stackMemory(op,ctx),rip=canonicalX86RipRelativeOperand(canonicalOperand,inst)||adapter.ripRelative?.(op,inst)||null,regs=(canonicalOperand?canonicalX86OperandRegisterInfos(canonicalOperand):adapter.operandRegisters(op)).filter(r=>r.canonical!=='rip').map(r=>({
       reg:r.canonical,value:readReg(ctx,r.canonical,inst,'memory effective-address component')
-    })),exact=exactStaticMemoryTarget(ctx,op,inst);
+    })),exact=exactStaticMemoryTarget(ctx,op,inst,canonicalOperand);
     const targetObject=exact?.object||(rip?dataObjectContaining(state.dataObjects,rip.address,state.sections.find(sec=>sec.workspaceFileId===fn.workspaceFileId&&rip.address>=sec.addressStart&&rip.address<(sec.addressEnd??sec.addressStart))||null):null),targetAddress=exact?.address??rip?.address??null;
     const range=targetObject&&Number.isFinite(targetAddress)?normalizeObjectRange(targetObject,targetAddress,exact?.width||1):null;
     return {
       text:String(op).trim(),stackSlot:slot,ripRelative:rip,targetAddress,targetObject,registers:regs,rangeStart:range?.start??null,rangeEnd:range?.end??null,
+      canonicalMemory:canonicalMem?{base:canonicalMem.base,index:canonicalMem.index,scale:canonicalMem.scale,displacement:canonicalMem.disp,width:canonicalMem.width,access:canonicalMem.access,evidence:canonicalMem.evidence}:null,
+      operandEvidence:canonicalMem?'canonical-capstone-detail':'textual-operand-parser',
       expression:slot?slot.label:targetObject&&Number.isFinite(targetAddress)?`${dataObjectLabel(targetObject)}+${targetAddress-targetObject.address} → ${safeHex(targetAddress)}`:rip?`RIP ${rip.disp>=0?'+':''}${rip.disp} → ${safeHex(rip.address)}`:String(op).trim(),
       confidence:slot&&Number.isFinite(slot.entryOffset)?'exact':exact||rip?'exact':regs.length?'inferred':'unknown'
     };
   };
-  const exactStaticMemoryTarget=(ctx,op,inst)=>{
-    if(!/[\[\(]/.test(String(op||''))&&!x86AttAbsoluteMemoryOperand(op,inst))return null;
-    const rip=adapter.ripRelative?.(op,inst)||null,{parts}=adapter.normalizeOperands(inst),peer=(parts||[]).find(x=>x!==op)||'';
-    const width=adapter.memoryAccessWidth?.(inst,op,peer)||null,ea=adapter.effectiveAddress?.(op)||null;
+  const exactStaticMemoryTarget=(ctx,op,inst,canonicalOperand=null)=>{
+    const canonicalMem=canonicalX86MemoryDescriptor(canonicalOperand,inst);if(!canonicalMem&&!/[\[\(]/.test(String(op||''))&&!x86AttAbsoluteMemoryOperand(op,inst))return null;
+    const rip=canonicalX86RipRelativeOperand(canonicalOperand,inst)||adapter.ripRelative?.(op,inst)||null,{parts}=adapter.normalizeOperands(inst),peer=(parts||[]).find(x=>x!==op)||'';
+    const width=canonicalX86MemoryAccessWidth(canonicalOperand)||adapter.memoryAccessWidth?.(inst,op,peer)||null,ea=canonicalMem||adapter.effectiveAddress?.(op)||null;
     let address=rip?.address??null,obj=null,sec=null,pointerSource=null;
     const ref=state.dataRefs.find(r=>r.workspaceFileId===fn.workspaceFileId&&r.instruction===inst&&r.toObject);
     if(ref?.toObject){obj=ref.toObject;address=Number.isFinite(ref.targetAddr)?ref.targetAddr:obj.address;sec=obj.section||null}
@@ -20905,11 +21063,11 @@ function analyzeFunctionDataflow(fn){
     (info.memoryWrites||(info.memoryWrites=[])).push({crossObject:true,address:target.address,width:target.width,pieces,versions,source});
     instInfo.set(inst,info);return versions.at(-1)||null;
   };
-  const valueFromOperand=(ctx,op,inst,role='operand')=>{
-    const reg=operandRegister(op);if(reg)return readReg(ctx,reg.canonical,inst,role);
-    const attAbsoluteMemory=x86AttAbsoluteMemoryOperand(op,inst),imm=attAbsoluteMemory?null:immediateValue(op);
+  const valueFromOperand=(ctx,op,inst,role='operand',canonicalOperand=null)=>{
+    const reg=canonicalX86RegisterInfo(canonicalOperand)||operandRegister(op);if(reg)return readReg(ctx,reg.canonical,inst,role);
+    const canonicalMem=canonicalX86MemoryDescriptor(canonicalOperand,inst),attAbsoluteMemory=canonicalMem?false:x86AttAbsoluteMemoryOperand(op,inst),imm=canonicalMem?null:(canonicalX86ImmediateValue(canonicalOperand)??(attAbsoluteMemory?null:immediateValue(op)));
     if(imm!=null)return newValue('constant',imm.toString(),null,{constant:imm,confidence:'exact'});
-    const slot=adapter.stackMemory(op,ctx);
+    const slot=canonicalX86StackMemoryOperand(canonicalOperand,ctx,inst)||adapter.stackMemory(op,ctx);
     if(slot){
       let stored=ctx.stack.get(slot.key);
       if(!stored&&ctx.joinBlock){
@@ -20920,7 +21078,7 @@ function analyzeFunctionDataflow(fn){
       const info=instInfo.get(inst)||{uses:[],defs:[],stackReads:[],stackWrites:[],memoryOperands:[],notes:[]};
       info.stackReads.push({slot,value:stored});instInfo.set(inst,info);return stored;
     }
-    const exactMem=exactStaticMemoryTarget(ctx,op,inst);
+    const exactMem=exactStaticMemoryTarget(ctx,op,inst,canonicalOperand);
     if(exactMem){
       if(exactMem.crossObjectPieces?.length)return readCrossObjectMemory(ctx,exactMem,inst,role);
       if(exactMem.writable)return readObjectMemory(ctx,exactMem,inst,role);
@@ -20929,30 +21087,30 @@ function analyzeFunctionDataflow(fn){
     }
     const dataRef=state.dataRefs.find(r=>r.workspaceFileId===fn.workspaceFileId&&r.instruction===inst);
     if(dataRef?.toObject){
-      const isMemory=/[\[\(]/.test(String(op||''));
+      const isMemory=canonicalX86OperandIsMemory(canonicalOperand)||/[\[\(]/.test(String(op||''));
       return newValue(isMemory?'data-load':'data-address',
         `${isMemory?'load ':'&'}${dataRef.toObject.stringText||dataRef.toObject.text||dataRef.toObject.name||safeHex(dataRef.toObject.address)}`,
         inst,{dataObject:dataRef.toObject,address:dataRef.targetAddr,confidence:'exact'});
     }
-    const rip=adapter.ripRelative?.(op,inst)||null;
+    const rip=canonicalX86RipRelativeOperand(canonicalOperand,inst)||adapter.ripRelative?.(op,inst)||null;
     if(rip){
       const sec=state.sections.find(sec=>sec.workspaceFileId===fn.workspaceFileId&&rip.address>=sec.addressStart&&rip.address<(sec.addressEnd??sec.addressStart))||null,
-            obj=sec?dataObjectContaining(state.dataObjects,rip.address,sec):null,isMemory=/[\[\(]/.test(String(op||''));
+            obj=sec?dataObjectContaining(state.dataObjects,rip.address,sec):null,isMemory=canonicalX86OperandIsMemory(canonicalOperand)||/[\[\(]/.test(String(op||''));
       if(obj)return newValue(isMemory?'data-load':'data-address',`${isMemory?'load ':'&'}${obj.stringText||obj.text||obj.name||safeHex(obj.address)}`,inst,{dataObject:obj,address:rip.address,ripRelative:rip,confidence:'exact'});
       return newValue(isMemory?'memory-load':'address-expression',`${isMemory?'load ':''}${safeHex(rip.address)}`,inst,{address:rip.address,ripRelative:rip,confidence:'exact'});
     }
-    const regs=adapter.operandRegisters(op).filter(r=>r.canonical!=='rip');
+    const regs=(canonicalOperand?canonicalX86OperandRegisterInfos(canonicalOperand):adapter.operandRegisters(op)).filter(r=>r.canonical!=='rip');
     if(regs.length){
       const inputs=regs.map(r=>readReg(ctx,r.canonical,inst,`${role} address component`));
-      const isMemory=/[\[\(]/.test(String(op||''));
+      const isMemory=canonicalX86OperandIsMemory(canonicalOperand)||/[\[\(]/.test(String(op||''));
       return newValue(isMemory?'memory-load':'address-expression',`${isMemory?'load ':''}${String(op).trim()}`,inst,{inputs,confidence:'inferred'});
     }
     return unknown(String(op||'?').trim()||'unknown',null);
   };
-  const writeOperand=(ctx,dst,source,inst,kind='register')=>{
-    const reg=operandRegister(dst);
+  const writeOperand=(ctx,dst,source,inst,kind='register',canonicalOperand=null)=>{
+    const reg=canonicalX86RegisterInfo(canonicalOperand)||operandRegister(dst);
     if(reg)return defineReg(ctx,reg,source,inst,kind);
-    const slot=adapter.stackMemory(dst,ctx);
+    const slot=canonicalX86StackMemoryOperand(canonicalOperand,ctx,inst)||adapter.stackMemory(dst,ctx);
     if(slot){
       if(source&&!((instInfo.get(inst)?.uses||[]).some(x=>x.value===source)))recordUse(source,inst,`${slot.label} store source`);
       const v=newValue('stack-slot',`${slot.label}#${seq+1}`,inst,{stackSlot:slot,inputs:source?[source]:[],storedValue:source});
@@ -20961,16 +21119,16 @@ function analyzeFunctionDataflow(fn){
       info.stackWrites.push({slot,value:v,source});info.defs.push({value:v,role:slot.label});instInfo.set(inst,info);
       return v;
     }
-    const exactMem=exactStaticMemoryTarget(ctx,dst,inst);
+    const exactMem=exactStaticMemoryTarget(ctx,dst,inst,canonicalOperand);
     if(exactMem){
       if(exactMem.crossObjectPieces?.length)return writeCrossObjectMemory(ctx,exactMem,source,inst);
       if(exactMem.writable)return writeObjectMemory(ctx,exactMem,source,inst);
       addBarrier(inst,'write-readonly-memory',`store targets read-only DataObject ${dataObjectLabel(exactMem.object)}`,'exact');
       return null;
     }
-    if(/[\[\(]/.test(String(dst||''))){
+    if(canonicalX86OperandIsMemory(canonicalOperand)||/[\[\(]/.test(String(dst||''))){
       const info=instInfo.get(inst)||{uses:[],defs:[],stackReads:[],stackWrites:[],memoryOperands:[],notes:[]};
-      for(const r of adapter.operandRegisters(dst).filter(r=>r.canonical!=='rip'))readReg(ctx,r.canonical,inst,'memory destination address');
+      for(const r of (canonicalOperand?canonicalX86OperandRegisterInfos(canonicalOperand):adapter.operandRegisters(dst)).filter(r=>r.canonical!=='rip'))readReg(ctx,r.canonical,inst,'memory destination address');
       info.notes.push('unknown memory write may alias tracked static memory');instInfo.set(inst,info);
       if(ctx.memory.size){
         addBarrier(inst,'unknown-memory-alias','store target is not exact; tracked writable DataObject memory is conservatively invalidated','conservative');
@@ -21003,24 +21161,25 @@ function analyzeFunctionDataflow(fn){
     const ctx=makeBlockEntry(block);
     for(const inst of block.instructions){
       const mn=inst.mnemonic.toLowerCase().replace(/^(?:lock|rep|repe|repne)\s+/,'');
-      const {syntax,parts}=adapter.normalizeOperands(inst);
+      const {syntax,parts}=adapter.normalizeOperands(inst),canonicalAvailable=syntax==='intel'&&inst?.canonical?.architecture==='x86',canonicalOperands=canonicalAvailable?canonicalX86Operands(inst):[],canonicalUsable=canonicalAvailable;
       const info=instInfo.get(inst)||{uses:[],defs:[],stackReads:[],stackWrites:[],memoryOperands:[],notes:[],block};
-      info.block=block;info.abi=abi;info.adapter=adapter;info.transferCapability=adapter.instructionCapability?.(inst)||{level:'unknown',kind:'unknown',evidence:'adapter did not report capability'};instInfo.set(inst,info);
+      info.block=block;info.abi=abi;info.adapter=adapter;info.transferCapability=adapter.instructionCapability?.(inst)||{level:'unknown',kind:'unknown',evidence:'adapter did not report capability'};info.operandEvidence=canonicalUsable?'canonical-capstone-detail':'textual-operand-parser';info.canonicalRegisterAccess=canonicalUsable?canonicalX86RegisterAccess(inst):null;instInfo.set(inst,info);
       const semanticBarrier=adapter.instructionBarrier?.(inst);if(semanticBarrier)addBarrier(inst,semanticBarrier.kind,semanticBarrier.reason,semanticBarrier.confidence);
-      for(const op of parts){
-        const mem=memoryExplanation(ctx,op,inst);if(mem)info.memoryOperands.push(mem);
+      for(let oi=0;oi<parts.length;oi++){
+        const mem=memoryExplanation(ctx,parts[oi],inst,canonicalUsable?(canonicalOperands[oi]||null):null);if(mem)info.memoryOperands.push(mem);
       }
 
-      const dst=parts.length?(syntax==='att'?parts.at(-1):parts[0]):'',src=parts.length>1?(syntax==='att'?parts[0]:parts[1]):'';
+      const dstIndex=parts.length?(syntax==='att'?parts.length-1:0):-1,srcIndex=parts.length>1?(syntax==='att'?0:1):-1,
+            dst=dstIndex>=0?parts[dstIndex]:'',src=srcIndex>=0?parts[srcIndex]:'',dstDetail=canonicalUsable&&dstIndex>=0?canonicalOperands[dstIndex]||null:null,srcDetail=canonicalUsable&&srcIndex>=0?canonicalOperands[srcIndex]||null:null;
 
       adapter.transferInstruction?.({
         ctx,inst,
-        decoded:{info,mn,parts,syntax,dst,src,semanticBarrier},
+        decoded:{info,mn,parts,syntax,dst,src,semanticBarrier,canonicalOperands:canonicalUsable?canonicalOperands:[],dstDetail,srcDetail},
         api:transferAPI
       });
 
       if(/^mov/.test(mn)){
-        const dreg=operandRegister(dst),sreg=operandRegister(src);
+        const dreg=canonicalX86RegisterInfo(dstDetail)||operandRegister(dst),sreg=canonicalX86RegisterInfo(srcDetail)||operandRegister(src);
         if(dreg?.canonical==='rbp'&&sreg?.canonical==='rsp'&&Number.isFinite(ctx.rspDelta))ctx.rbpEntryDelta=ctx.rspDelta;
       }
       info.rspDeltaAfter=ctx.rspDelta;info.rbpEntryDelta=ctx.rbpEntryDelta;
@@ -22003,7 +22162,7 @@ Object.defineProperty(window,'asmInspectorDebug',{value:{
   projectStore, projectStoreReady, defaultProject, defaultExecutionPolicy, defaultRunConfiguration, executionPolicyDecision,
   BUILD_INPUT_SCHEMA, BUILD_REQUEST_SCHEMA, BUILD_ARTIFACT_SCHEMA, LOADED_IMAGE_SCHEMA, DECODED_INSTRUCTION_SCHEMA, DISASSEMBLY_REQUEST_SCHEMA, DISASSEMBLY_RESULT_SCHEMA, DISASSEMBLY_DIAGNOSTIC_SCHEMA, EXECUTION_SESSION_SCHEMA, EXECUTION_PROVIDER_SCHEMA, CAPSTONE_CANDIDATE_MANIFEST,
   normalizeBuildInput, normalizeBuildArtifact, buildRequest, createManualImportBuildArtifact, parseElfImageBytes, parseRawElfStaticMetadata, parseGnuBuildIdFromNoteBytes, sectionBuildId, materializeRawElfParsed, rawElfFunctionStubCandidates, mergeRawElfEvidenceIntoTextRecord, addRawElfWorkspaceEntry, inspectVfsElf, loadedImageByteRange, canonicalDecodedInstruction,
-  CANONICAL_DISASSEMBLER_CONTRACT, validateCanonicalDisassembler, normalizeDisassemblyRequest, disassemblyCacheKey, canonicalFromDecoderInstruction, compareCanonicalDisassemblyToTextRecord, CanonicalDisassemblyService, canonicalDisassemblyService, CAPSTONE_RUNTIME, capstoneX86LiveDetail, acceptEmbeddedCapstoneX86, ensureEmbeddedCapstoneX86Provider, createCapstoneX86Provider, rawDisassemblyBackingForRecord, canonicalDisassembleWorkspaceRange, canonicalDisassembleFunction, canonicalSharedInstruction, attachCanonicalEvidenceToSharedFunction, hydrateCanonicalRawElfFunction, scheduleCanonicalFunctionHydration, callEdgeForInstruction,
+  CANONICAL_DISASSEMBLER_CONTRACT, validateCanonicalDisassembler, normalizeDisassemblyRequest, disassemblyCacheKey, canonicalFromDecoderInstruction, compareCanonicalDisassemblyToTextRecord, CanonicalDisassemblyService, canonicalDisassemblyService, CAPSTONE_RUNTIME, capstoneX86LiveDetail, acceptEmbeddedCapstoneX86, ensureEmbeddedCapstoneX86Provider, createCapstoneX86Provider, rawDisassemblyBackingForRecord, canonicalDisassembleWorkspaceRange, canonicalDisassembleFunction, canonicalSharedInstruction, attachCanonicalEvidenceToSharedFunction, hydrateCanonicalRawElfFunction, scheduleCanonicalFunctionHydration, callEdgeForInstruction, canonicalX86Operands, canonicalX86MemoryDescriptor, canonicalX86ImmediateValue, recoverRawElfPltStubs, discoverStrippedRawElfFunctions, scheduleRawElfCanonicalRecovery, rawElfPltCandidateRanges, canonicalRipMemoryTargets,
   EXECUTION_PROVIDER_METHODS, EXECUTION_PROVIDER_CONTRACT, validateExecutionProvider, normalizeExecutionBreakpoint, normalizeExecutionStop, ExecutionSession, prepareExecutionSession,
   InspectorVFS, InspectorIO, createInspectorIO, inspectElfBytes, loadedImageFunctionSymbol, importExecutionArtifacts, rebuildInspectorVfs, validateRunConfiguration, saveCurrentProject, createProject, openProject, closeActiveProject,
   refreshProjectCatalog, renderProjectManager, openProjectManager, openEnvironment, renderEnvironment
