@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ASM Graph Inspector</title>
-<!-- Release V14.14: Capstone semantic operands + raw-ELF PLT recovery + conservative stripped-function discovery -->
+<!-- Release V14.15: FDE-priority recursive stripped-function discovery + tail-call/overlap reconciliation + IFUNC resolver linkage -->
 <style>
 :root{
   color-scheme:dark;
@@ -12179,7 +12179,7 @@ function scheduleCanonicalFunctionHydration(fn,{reason='selection',force=false}=
   canonicalFunctionHydrations.set(fn.id,promise);return promise;
 }
 
-// V14.14 — canonical raw-ELF recovery above symbol tables.
+// V14.15 — canonical raw-ELF recovery above symbol tables.
 // PLT recovery is exact only when Capstone proves the RIP-relative linkage-slot
 // branch and that slot is backed by a raw relocation. Stripped function discovery
 // is deliberately lower-confidence and never fabricates symbol-table evidence.
@@ -12190,10 +12190,10 @@ function rawElfFunctionMapsRefresh(parsed){
   parsed.functions.sort((a,b)=>(a.addr??0)-(b.addr??0)||String(a.name||'').localeCompare(String(b.name||'')));
   parsed.functionsByAddr=new Map();parsed.functionsByName=new Map();
   for(const fn of parsed.functions){if(Number.isFinite(fn.addr)&&!parsed.functionsByAddr.has(fn.addr))parsed.functionsByAddr.set(fn.addr,fn);if(fn.name&&!parsed.functionsByName.has(fn.name))parsed.functionsByName.set(fn.name,fn)}
-  assignSymbolFamilies(parsed.functions);return parsed;
+  assignSymbolFamilies(parsed.functions);rawElfBindUnwindToFunctions?.(parsed);rawElfBindIfuncResolvers?.(parsed);return parsed;
 }
 function rawElfPltCandidateRanges(parsed,section){
-  const rels=(parsed.relocations||[]).filter(r=>r.semantics?.category==='dynamic-function'&&/\.rel(?:a)?\.plt(?:\.|$)/.test(String(r.relocationSection||''))),size=Number(section?.size)||0,start=Number(section?.addressStart);
+  const rels=(parsed.relocations||[]).filter(r=>['dynamic-function','ifunc-relative'].includes(r.semantics?.category)&&/\.rel(?:a)?\.plt(?:\.|$)/.test(String(r.relocationSection||''))),size=Number(section?.size)||0,start=Number(section?.addressStart);
   if(!Number.isFinite(start)||size<=0)return [];
   const ranges=[];
   if(section.name==='.plt'&&rels.length&&size%(rels.length+1)===0){const stride=size/(rels.length+1);if(stride>=8&&stride<=64)for(let i=0;i<rels.length;i++)ranges.push({start:start+stride*(i+1),end:start+stride*(i+2),size:stride,layout:'plt-with-resolver-header',confidence:'layout-validated'})}
@@ -12201,9 +12201,10 @@ function rawElfPltCandidateRanges(parsed,section){
   else if(section.name==='.plt.got'){const stride=Math.max(1,Number(section.alignment)||8);if(stride<=64&&size%stride===0)for(let off=0;off<size;off+=stride)ranges.push({start:start+off,end:Math.min(start+size,start+off+stride),size:Math.min(stride,size-off),layout:'plt-got-aligned',confidence:'candidate'})}
   return ranges;
 }
-function rawElfPltStubName(slot,address){
+function rawElfPltStubName(slot,address,parsed=null){
   const rel=(slot?.relocations||[]).find(r=>r.semantics?.category==='dynamic-function'||r.semantics?.category==='dynamic-data')||slot?.relocations?.[0]||null,
-        symbol=normalizeWorkspaceSymbol(rel?.symbol||slot?.symbol||'');return {name:symbol?`${symbol}@plt`:`plt_${address.toString(16)}`,symbol,relocation:rel};
+        symbol=normalizeWorkspaceSymbol(rel?.symbol||slot?.symbol||''),irelative=rel?.type==='R_X86_64_IRELATIVE'||rel?.type==='R_386_IRELATIVE',addendResolver=irelative&&Number.isFinite(rel?.addend)?rel.addend:null,sym=(parsed?.symbols||[]).find(s=>s.defined&&s.type==='gnu-ifunc'&&((symbol&&normalizeWorkspaceSymbol(s.name)===symbol)||(Number.isFinite(addendResolver)&&s.address===addendResolver)))||null,resolverAddress=Number.isFinite(addendResolver)?addendResolver:Number.isFinite(sym?.address)?sym.address:null,resolverSymbol=sym?.name||null,base=symbol||resolverSymbol|| (Number.isFinite(resolverAddress)?`ifunc_${resolverAddress.toString(16)}`:'');
+  return {name:base?`${base}@plt`:`plt_${address.toString(16)}`,symbol:base||symbol,relocation:rel,ifunc:irelative||!!sym,resolverAddress,resolverSymbol};
 }
 async function recoverRawElfPltStubs(record,{force=false}={}){
   if(!record?.parsed||!record.loadedImage)return {status:'not-raw-elf',added:0,stubs:[],diagnostics:[]};
@@ -12217,44 +12218,148 @@ async function recoverRawElfPltStubs(record,{force=false}={}){
       for(const ins of insns){if(!['branch','call'].includes(ins.controlFlow?.category))continue;for(const target of canonicalRipMemoryTargets(ins)){const slot=parsed.linkageSlotByAddress?.get(target.address);if(slot)proofs.push({ins,target,slot})}}
       const uniqueSlots=[...new Set(proofs.map(p=>p.slot))];if(uniqueSlots.length!==1){if(proofs.length)diagnostics.push(disassemblyDiagnostic('plt-slot-ambiguous',`${sec.name} entry ${safeHex(range.start)} references ${uniqueSlots.length} linkage slots; no PLT function was materialized.`,'warning',{address:range.start}));continue}
       const slot=uniqueSlots[0],relocs=slot.relocations?.length?slot.relocations:(parsed.relocations||[]).filter(r=>r.offset===slot.address);if(!relocs.length){diagnostics.push(disassemblyDiagnostic('plt-slot-without-relocation',`${sec.name} entry ${safeHex(range.start)} reaches ${safeHex(slot.address)} but no raw relocation proves the import slot.`,'warning',{address:range.start,slot:slot.address}));continue}
-      const named=rawElfPltStubName(slot,range.start),fn={id:`${record.id}::rawplt:${range.start.toString(16)}:${named.name}`,addr:range.start,addrHex:range.start.toString(16),name:named.name,startLine:0,endLine:0,section:sec.name,source:'',instructions:[],calls:[],size:range.size,family:GENERIC_GROUPS.standalone,
-        rawElfFunction:true,pltStub:true,nodeRole:'plt-stub',canonicalByteSource:true,canonicalDecodeState:'ready',canonicalDecodeError:null,canonicalAliases:named.symbol?[named.symbol]:[],sourceDialect:'canonical-byte-disassembly',definitionKind:'raw-elf-plt',discoveryConfidence:'exact',gotSlot:slot,
+      const named=rawElfPltStubName(slot,range.start,parsed),fn={id:`${record.id}::rawplt:${range.start.toString(16)}:${named.name}`,addr:range.start,addrHex:range.start.toString(16),name:named.name,startLine:0,endLine:0,section:sec.name,source:'',instructions:[],calls:[],size:range.size,family:GENERIC_GROUPS.standalone,
+        rawElfFunction:true,pltStub:true,nodeRole:'plt-stub',ifuncResolverAddress:named.resolverAddress,ifuncResolverSymbol:named.resolverSymbol,ifuncImport:named.ifunc,canonicalByteSource:true,canonicalDecodeState:'ready',canonicalDecodeError:null,canonicalAliases:named.symbol?[named.symbol]:[],sourceDialect:'canonical-byte-disassembly',definitionKind:'raw-elf-plt',discoveryConfidence:'exact',gotSlot:slot,
         workspaceFileId:record.id,workspaceFilePath:record.path,addressSpaceId:record.addressSpaceId,addressSpaceLabel:record.addressSpaceLabel,artifactKind:record.artifactKind,artifactLabel:record.artifactLabel};
-      fn.provenance=makeProvenance('native-dynamic','dynamic:raw-plt','Dynamic imports',{confidence:'exact',semanticName:named.symbol||named.name,linkageName:named.name,reason:`Capstone-proven ${sec.name} RIP-relative branch → relocation-backed GOT slot`});
+      fn.provenance=makeProvenance('native-dynamic','dynamic:raw-plt','Dynamic imports',{confidence:'exact',semanticName:named.symbol||named.name,linkageName:named.name,reason:`Capstone-proven ${sec.name} RIP-relative branch → relocation-backed GOT slot${named.ifunc&&Number.isFinite(named.resolverAddress)?` → IFUNC resolver ${safeHex(named.resolverAddress)}`:''}`});
       fn.instructions=insns.map((ins,index)=>canonicalSharedInstruction(ins,fn,index));fn.canonicalDecodedBytes=fn.instructions.reduce((n,i)=>n+(i.bytes?.length||0),0);fn.canonicalCoverage={complete:fn.instructions.length>0,decodedBytes:fn.canonicalDecodedBytes,undecodedRanges:[]};
       parsed.functions.push(fn);if(!slot.pltStubs.includes(fn))slot.pltStubs.push(fn);stubs.push(fn);
     }
   }
-  if(stubs.length){rawElfFunctionMapsRefresh(parsed);for(const fn of stubs)rebuildCanonicalFunctionEdges(parsed,fn)}
+  if(stubs.length){rawElfFunctionMapsRefresh(parsed);rawElfBindIfuncResolvers(parsed);for(const fn of stubs)rebuildCanonicalFunctionEdges(parsed,fn)}
   record.rawPltRecovery={status:'complete',added:stubs.length,diagnostics:cloneJson(diagnostics),evidence:'Capstone bytes + raw relocation-backed linkage slots'};return {status:'complete',added:stubs.length,stubs,diagnostics};
 }
-function strippedDiscoverySeed(map,address,section,kind,confidence,evidence){
-  if(!Number.isFinite(address)||!section||['.plt','.plt.sec','.plt.got'].includes(section.name))return;const prev=map.get(address),rank={entrypoint:0,'section-entry':1,'direct-call':2,prologue:3,'cet-landing-pad':4,'aligned-after-return':5};if(prev&&(rank[prev.kind]??9)<=(rank[kind]??9))return;map.set(address,{address,section,kind,confidence,evidence});
+function rawElfDiscoverySeedRank(kind){return ({'unwind-fde':0,entrypoint:1,'section-entry':2,'direct-call':3,'tail-call':4,prologue:5,'cet-landing-pad':6,'aligned-after-return':7})[kind]??20}
+function strippedDiscoverySeed(map,address,section,kind,confidence,evidence,extra={}){
+  if(!Number.isFinite(address)||!section||['.plt','.plt.sec','.plt.got'].includes(section.name))return null;
+  const candidate={address,section,kind,confidence,evidence,rangeEnd:Number.isFinite(extra.rangeEnd)?extra.rangeEnd:null,coverageStart:Number.isFinite(extra.coverageStart)?extra.coverageStart:null,leadingPaddingBytes:Number.isFinite(extra.leadingPaddingBytes)?extra.leadingPaddingBytes:0,sourceKind:extra.sourceKind||null,sourceId:extra.sourceId||null,priority:rawElfDiscoverySeedRank(kind)};
+  const prev=map.get(address);
+  if(prev){
+    if(prev.priority<candidate.priority)return prev;
+    if(prev.priority===candidate.priority){
+      const sourceRank=x=>x?.sourceKind==='debug_frame'?0:x?.sourceKind==='eh_frame'?1:2;
+      if(sourceRank(prev)<=sourceRank(candidate))return prev;
+    }
+  }
+  map.set(address,candidate);return candidate;
 }
-function canonicalPrologueSeeds(instructions,section,seeds){
+function rawElfPreferredFdeClaims(parsed,execSections){
+  const candidates=[];
+  for(const fde of parsed?.unwind?.fdes||[]){
+    if(!Number.isFinite(fde.startAddress)||!Number.isFinite(fde.endAddress)||fde.endAddress<=fde.startAddress)continue;
+    const section=execSections.find(sec=>fde.startAddress>=sec.addressStart&&fde.startAddress<sec.addressStart+sec.size);if(!section)continue;
+    const end=Math.min(fde.endAddress,section.addressStart+section.size);if(end<=fde.startAddress)continue;
+    candidates.push({start:fde.startAddress,end,section,fde,sourceKind:fde.sourceKind||'frame',sourceId:fde.id||null,sourceRank:fde.sourceKind==='debug_frame'?0:fde.sourceKind==='eh_frame'?1:2});
+  }
+  const byStart=new Map();for(const c of candidates){const prev=byStart.get(c.start);if(!prev||c.sourceRank<prev.sourceRank||(c.sourceRank===prev.sourceRank&&c.end>prev.end))byStart.set(c.start,c)}
+  const ordered=[...byStart.values()].sort((a,b)=>a.start-b.start||a.end-b.end),accepted=[],conflicts=[];
+  for(const claim of ordered){
+    const overlap=accepted.find(x=>claim.start<x.end&&claim.end>x.start);
+    if(overlap){conflicts.push({kind:'overlapping-fde-coverage',kept:{start:overlap.start,end:overlap.end,sourceKind:overlap.sourceKind},suppressed:{start:claim.start,end:claim.end,sourceKind:claim.sourceKind},evidence:'distinct unwind FDE coverages overlap; discovery keeps one non-overlapping function claim and preserves a diagnostic'});continue}
+    accepted.push(claim);
+  }
+  return {claims:accepted,conflicts,candidates};
+}
+function rawElfFdeStrictlyCoversAddress(address,fdeClaims){return fdeClaims.find(c=>address>c.start&&address<c.end)||null}
+function rawElfNormalizeFdeEntry(claim,decodedBySection,{maxPaddingBytes=32}={}){
+  const instructions=decodedBySection.get(claim.section)||[],byAddress=new Map(instructions.map(ins=>[ins.range.start,ins])),first=byAddress.get(claim.start);
+  if(!first)return {address:claim.start,coverageStart:claim.start,leadingPaddingBytes:0,evidence:'FDE coverage start has no exact canonical instruction boundary; semantic entry remains the raw FDE start'};
+  let current=first,address=claim.start,padding=0;
+  while(current&&current.range.start<claim.end){
+    const width=Math.max(0,current.range.end-current.range.start),mnemonic=String(current.mnemonic||'').toLowerCase(),isNop=/^nop(?:l|w|q)?$/.test(mnemonic)||(mnemonic==='xchg'&&current.operands?.length===2&&current.operands[0]?.kind==='register'&&current.operands[1]?.kind==='register'&&current.operands[0].register===current.operands[1].register);
+    if(!isNop||padding+width>maxPaddingBytes)break;
+    padding+=width;address=current.range.end;current=byAddress.get(address);
+  }
+  if(!padding||!current||current.range.start>=claim.end)return {address:claim.start,coverageStart:claim.start,leadingPaddingBytes:0,evidence:'FDE coverage start used directly as inferred semantic entry'};
+  return {address:current.range.start,coverageStart:claim.start,leadingPaddingBytes:padding,evidence:`FDE unwind coverage starts at ${safeHex(claim.start)}; skipped ${padding} leading NOP/alignment byte${padding===1?'':'s'} to first canonical instruction ${safeHex(current.range.start)}`};
+}
+function canonicalPrologueSeeds(instructions,section,seeds,fdeClaims=[]){
+  const add=(address,kind,confidence,evidence)=>{if(rawElfFdeStrictlyCoversAddress(address,fdeClaims))return null;return strippedDiscoverySeed(seeds,address,section,kind,confidence,evidence)};
   for(let i=0;i<instructions.length;i++){
     const a=instructions[i],b=instructions[i+1]||null,c=instructions[i+2]||null;
-    if(a.mnemonic==='endbr64'||a.mnemonic==='endbr32')strippedDiscoverySeed(seeds,a.range.start,section,'cet-landing-pad','heuristic','CET ENDBR landing pad decoded by Capstone; probable function entry, not symbol evidence');
-    if(b&&a.mnemonic==='push'&&a.operands?.[0]?.kind==='register'&&a.operands[0].register==='rbp'&&b.mnemonic==='mov'&&b.operands?.[0]?.register==='rbp'&&b.operands?.[1]?.register==='rsp')strippedDiscoverySeed(seeds,a.range.start,section,'prologue','heuristic','x86 frame-pointer prologue decoded by Capstone');
-    if(c&&a.mnemonic==='endbr64'&&b?.mnemonic==='push'&&b.operands?.[0]?.register==='rbp'&&c?.mnemonic==='mov'&&c.operands?.[0]?.register==='rbp'&&c.operands?.[1]?.register==='rsp')strippedDiscoverySeed(seeds,a.range.start,section,'prologue','heuristic','CET endbr64 + frame-pointer prologue decoded by Capstone');
+    if(a.mnemonic==='endbr64'||a.mnemonic==='endbr32')add(a.range.start,'cet-landing-pad','heuristic','CET ENDBR landing pad decoded by Capstone; probable function entry, not symbol evidence');
+    if(b&&a.mnemonic==='push'&&a.operands?.[0]?.kind==='register'&&a.operands[0].register==='rbp'&&b.mnemonic==='mov'&&b.operands?.[0]?.register==='rbp'&&b.operands?.[1]?.register==='rsp')add(a.range.start,'prologue','heuristic','x86 frame-pointer prologue decoded by Capstone');
+    if(c&&a.mnemonic==='endbr64'&&b?.mnemonic==='push'&&b.operands?.[0]?.register==='rbp'&&c?.mnemonic==='mov'&&c.operands?.[0]?.register==='rbp'&&c.operands?.[1]?.register==='rsp')add(a.range.start,'prologue','heuristic','CET endbr64 + frame-pointer prologue decoded by Capstone');
     if(['ret','retf','iret','iretq'].includes(a.mnemonic)){
       let j=i+1;while(j<instructions.length&&x86NoopLikeInstruction({mnemonic:instructions[j].mnemonic,operands:instructions[j].operandText||'',sourceDialect:'canonical-byte-disassembly'}))j++;
-      const next=instructions[j];if(next&&next.range.start%16===0)strippedDiscoverySeed(seeds,next.range.start,section,'aligned-after-return','heuristic','16-byte-aligned executable code after RET/NOP padding decoded by Capstone');
+      const next=instructions[j];if(next&&next.range.start%16===0)add(next.range.start,'aligned-after-return','heuristic','16-byte-aligned executable code after RET/NOP padding decoded by Capstone');
     }
   }
 }
-async function discoverStrippedRawElfFunctions(record,{force=false,maxScanBytes=1024*1024,maxFunctions=4096}={}){
+function rawElfDiscoveryInstructionIndexes(decodedBySection){
+  const bySection=new Map(),global=new Map();for(const [section,instructions] of decodedBySection){const map=new Map();for(const ins of instructions||[]){map.set(ins.range.start,ins);global.set(ins.range.start,{section,instruction:ins})}bySection.set(section,map)}return {bySection,global};
+}
+function rawElfUnconditionalBranch(ins){return ins?.controlFlow?.category==='branch'&&/^(?:jmp|ljmp|jmpq)$/i.test(String(ins.mnemonic||''))}
+function rawElfConditionalBranch(ins){return ins?.controlFlow?.category==='branch'&&!rawElfUnconditionalBranch(ins)}
+function rawElfTerminalInstruction(ins){return ins?.controlFlow?.category==='return'||/^(?:ret|retf|iret|iretq|ud2|hlt)$/i.test(String(ins?.mnemonic||''))}
+function rawElfSeedCoveredByFde(seed,fdeClaims){return fdeClaims.find(c=>seed.kind!=='unwind-fde'&&seed.address>c.start&&seed.address<c.end)||null}
+function rawElfLikelyTailTarget(target,seeds,indexes,fdeClaims){
+  if(seeds.has(target)||fdeClaims.some(c=>c.start===target))return true;const hit=indexes.global.get(target)?.instruction;if(!hit)return false;
+  return hit.mnemonic==='endbr64'||hit.mnemonic==='endbr32';
+}
+function rawElfRecursiveTrace(seed,{seeds,indexes,execSections,fdeClaims,maxInstructions=131072}={}){
+  const index=indexes.bySection.get(seed.section)||new Map(),visited=new Map(),queue=[seed.address],callTargets=[],tailTargets=[],diagnostics=[];
+  const hardEnd=Number.isFinite(seed.rangeEnd)?seed.rangeEnd:null,sectionEnd=seed.section.addressStart+seed.section.size,insideCurrent=addr=>Number.isFinite(addr)&&addr>=seed.address&&addr<(hardEnd??sectionEnd);
+  let steps=0;
+  while(queue.length&&steps<maxInstructions){const address=queue.pop();if(visited.has(address))continue;if(address!==seed.address&&seeds.has(address))continue;if(!insideCurrent(address))continue;const ins=index.get(address);if(!ins)continue;visited.set(address,ins);steps++;
+    const cf=ins.controlFlow||{},target=Number.isFinite(cf.directTarget)?cf.directTarget:null,next=ins.range.end,targetHit=Number.isFinite(target)?indexes.global.get(target):null;
+    if(cf.category==='call'){
+      if(targetHit&&!['.plt','.plt.sec','.plt.got'].includes(targetHit.section.name))callTargets.push({address:target,section:targetHit.section,from:ins.range.start,evidence:'reachable direct CALL target decoded by Capstone'});
+      if(insideCurrent(next)&&!seeds.has(next))queue.push(next);continue;
+    }
+    if(rawElfTerminalInstruction(ins))continue;
+    if(cf.category==='branch'){
+      if(rawElfUnconditionalBranch(ins)){
+        if(targetHit){
+          if(target!==seed.address&&seeds.has(target)){tailTargets.push({address:target,section:targetHit.section,from:ins.range.start,evidence:'terminal JMP reaches another discovered function start'});continue}
+          if(!insideCurrent(target)){
+            if(rawElfLikelyTailTarget(target,seeds,indexes,fdeClaims))tailTargets.push({address:target,section:targetHit.section,from:ins.range.start,evidence:'terminal JMP leaves unwind/range boundary and reaches an independently supported entry'});continue
+          }
+          queue.push(target);
+        }
+        continue;
+      }
+      if(targetHit&&insideCurrent(target)&&!seeds.has(target))queue.push(target);if(insideCurrent(next)&&!seeds.has(next))queue.push(next);continue;
+    }
+    if(insideCurrent(next)&&!seeds.has(next))queue.push(next);
+  }
+  if(steps>=maxInstructions)diagnostics.push(disassemblyDiagnostic('stripped-recursive-budget',`Recursive discovery for ${safeHex(seed.address)} reached ${maxInstructions} instructions.`,'warning',{address:seed.address}));
+  const instructions=[...visited.values()].sort((a,b)=>a.range.start-b.range.start);return {seed,instructions,callTargets,tailTargets,diagnostics,visitedAddresses:[...visited.keys()].sort((a,b)=>a-b)};
+}
+function rawElfBindUnwindToFunctions(parsed){
+  for(const fde of parsed?.unwind?.fdes||[]){fde.function=(parsed.functions||[]).find(fn=>fn.discoveryFdeId&&fn.discoveryFdeId===fde.id)||(parsed.functionsByAddr?.get(fde.startAddress))||(parsed.functions||[]).find(fn=>fde.startAddress>=fn.addr&&fde.startAddress<fn.addr+Math.max(1,fn.size))||null}
+  for(const lsda of parsed?.unwind?.lsdas||[])if(lsda?.fde)lsda.function=lsda.fde.function||null;
+  for(const site of parsed?.unwind?.exceptionSites||[])if(site?.fde)site.function=site.fde.function||null;
+}
+function rawElfBindIfuncResolvers(parsed){
+  for(const fn of parsed?.functions||[]){if(!fn.pltStub||!Number.isFinite(fn.ifuncResolverAddress))continue;const resolver=canonicalFunctionTarget(parsed,fn.ifuncResolverAddress);fn.ifuncResolver=resolver||null;if(fn.gotSlot)fn.gotSlot.ifuncResolver=resolver||null}
+}
+function rawElfReconcileDiscoverySeeds(seeds,fdeClaims){
+  const out=[];for(const seed of [...seeds.values()].sort((a,b)=>a.priority-b.priority||a.address-b.address)){if(rawElfSeedCoveredByFde(seed,fdeClaims))continue;out.push(seed)}
+  return out.sort((a,b)=>a.address-b.address||a.priority-b.priority);
+}
+async function discoverStrippedRawElfFunctions(record,{force=false,maxScanBytes=1024*1024,maxFunctions=4096,maxPasses=16}={}){
   if(!record?.parsed||!record.loadedImage)return {status:'not-raw-elf',added:0,functions:[],diagnostics:[]};
   const parsed=record.parsed,symbolBacked=(parsed.functions||[]).filter(fn=>fn.definitionKind==='raw-elf-symbol');if(symbolBacked.length&&!force)return {status:'symbol-functions-present',added:0,functions:[],diagnostics:[]};
   await ensureEmbeddedCapstoneX86Provider();const execSections=(parsed.sections||[]).filter(sec=>sec.flags?.includes('CODE')&&Number.isFinite(sec.addressStart)&&Number(sec.size)>0&&!['.plt','.plt.sec','.plt.got'].includes(sec.name)),diagnostics=[],decodedBySection=new Map(),seeds=new Map();let budget=0;
-  for(const sec of execSections){if(budget+sec.size>maxScanBytes){diagnostics.push(disassemblyDiagnostic('stripped-discovery-budget',`Skipped ${sec.name}: executable scan budget ${maxScanBytes} bytes would be exceeded.`,'warning',{section:sec.name}));continue}budget+=sec.size;const result=await canonicalDisassembleWorkspaceRange(record,sec.addressStart,sec.size,{requireExecutable:true});if(result.status!=='ok'){diagnostics.push(...(result.diagnostics||[]));continue}decodedBySection.set(sec,result.instructions||[]);if(record.loadedImage.entrypoint>=sec.addressStart&&record.loadedImage.entrypoint<sec.addressStart+sec.size)strippedDiscoverySeed(seeds,record.loadedImage.entrypoint,sec,'entrypoint','inferred','ELF e_entry exact start; function boundary inferred from discovered starts');if(['.init','.fini'].includes(sec.name))strippedDiscoverySeed(seeds,sec.addressStart,sec,'section-entry','inferred',`${sec.name} executable section start`);canonicalPrologueSeeds(result.instructions||[],sec,seeds);for(const ins of result.instructions||[]){if(ins.controlFlow?.category!=='call'||!Number.isFinite(ins.controlFlow?.directTarget))continue;const target=ins.controlFlow.directTarget,targetSec=execSections.find(s=>target>=s.addressStart&&target<s.addressStart+s.size);if(targetSec)strippedDiscoverySeed(seeds,target,targetSec,'direct-call','inferred','direct CALL target decoded by Capstone')}}
-  const existing=new Set((parsed.functions||[]).map(fn=>fn.addr)),ordered=[...seeds.values()].filter(seed=>!existing.has(seed.address)).sort((a,b)=>a.address-b.address).slice(0,maxFunctions),added=[];
-  for(const seed of ordered){const sectionSeeds=[...seeds.values()].filter(x=>x.section===seed.section&&x.address>seed.address).map(x=>x.address),next=sectionSeeds.length?Math.min(...sectionSeeds):seed.section.addressStart+seed.section.size,end=Math.max(seed.address+1,Math.min(next,seed.section.addressStart+seed.section.size)),insns=(decodedBySection.get(seed.section)||[]).filter(ins=>ins.range.start>=seed.address&&ins.range.start<end);if(!insns.length)continue;const name=`sub_${seed.address.toString(16)}`,fn={id:`${record.id}::rawdiscover:${seed.address.toString(16)}`,addr:seed.address,addrHex:seed.address.toString(16),name,startLine:0,endLine:0,section:seed.section.name,source:'',instructions:[],calls:[],size:end-seed.address,family:GENERIC_GROUPS.standalone,
-      rawElfFunction:true,canonicalByteSource:true,canonicalDecodeState:'ready',canonicalDecodeError:null,canonicalAliases:[],sourceDialect:'canonical-byte-disassembly',definitionKind:`raw-elf-discovered-${seed.kind}`,discoveryConfidence:seed.confidence,discoveryEvidence:seed.evidence,
+  for(const sec of execSections){if(budget+sec.size>maxScanBytes){diagnostics.push(disassemblyDiagnostic('stripped-discovery-budget',`Skipped ${sec.name}: executable scan budget ${maxScanBytes} bytes would be exceeded.`,'warning',{section:sec.name}));continue}budget+=sec.size;const result=await canonicalDisassembleWorkspaceRange(record,sec.addressStart,sec.size,{requireExecutable:true});if(result.status!=='ok'){diagnostics.push(...(result.diagnostics||[]));continue}decodedBySection.set(sec,result.instructions||[])}
+  const fdeModel=rawElfPreferredFdeClaims(parsed,execSections);for(const conflict of fdeModel.conflicts)diagnostics.push(disassemblyDiagnostic('stripped-overlapping-fde',`Overlapping unwind coverages ${safeHex(conflict.kept.start)}..${safeHex(conflict.kept.end)} and ${safeHex(conflict.suppressed.start)}..${safeHex(conflict.suppressed.end)}; only one non-overlapping function claim is materialized.`,'warning',conflict));
+  for(const claim of fdeModel.claims){const normalized=rawElfNormalizeFdeEntry(claim,decodedBySection),entry=normalized.address,evidence=normalized.leadingPaddingBytes?`${claim.sourceKind} FDE gives exact unwind coverage ${safeHex(claim.start)}..${safeHex(claim.end)}; ${normalized.evidence}; semantic function identity remains inferred`:`${claim.sourceKind} FDE gives exact unwind coverage ${safeHex(claim.start)}..${safeHex(claim.end)}; semantic function identity remains inferred`;strippedDiscoverySeed(seeds,entry,claim.section,'unwind-fde','inferred',evidence,{rangeEnd:claim.end,coverageStart:claim.start,leadingPaddingBytes:normalized.leadingPaddingBytes,sourceKind:claim.sourceKind,sourceId:claim.sourceId})}
+  for(const sec of execSections){const instructions=decodedBySection.get(sec)||[];if(record.loadedImage.entrypoint>=sec.addressStart&&record.loadedImage.entrypoint<sec.addressStart+sec.size)strippedDiscoverySeed(seeds,record.loadedImage.entrypoint,sec,'entrypoint','inferred','ELF e_entry exact start; function identity inferred from executable control flow');if(['.init','.fini'].includes(sec.name))strippedDiscoverySeed(seeds,sec.addressStart,sec,'section-entry','inferred',`${sec.name} executable section start`);canonicalPrologueSeeds(instructions,sec,seeds,fdeModel.claims)}
+  const indexes=rawElfDiscoveryInstructionIndexes(decodedBySection),traceByAddress=new Map(),tailProofs=[];let pass=0,changed=true;
+  while(changed&&pass++<maxPasses){changed=false;const current=rawElfReconcileDiscoverySeeds(seeds,fdeModel.claims).slice(0,maxFunctions);for(const seed of current){const trace=rawElfRecursiveTrace(seed,{seeds,indexes,execSections,fdeClaims:fdeModel.claims});traceByAddress.set(seed.address,trace);diagnostics.push(...trace.diagnostics);for(const call of trace.callTargets){if(rawElfFdeStrictlyCoversAddress(call.address,fdeModel.claims)&&!seeds.has(call.address))continue;const before=seeds.size;strippedDiscoverySeed(seeds,call.address,call.section,'direct-call','inferred',call.evidence);if(seeds.size>before)changed=true}for(const tail of trace.tailTargets){tailProofs.push(tail);if(rawElfFdeStrictlyCoversAddress(tail.address,fdeModel.claims)&&!seeds.has(tail.address))continue;const before=seeds.size;strippedDiscoverySeed(seeds,tail.address,tail.section,'tail-call','inferred',tail.evidence);if(seeds.size>before)changed=true}}}
+  if(pass>=maxPasses&&changed)diagnostics.push(disassemblyDiagnostic('stripped-discovery-pass-budget',`Function discovery stopped after ${maxPasses} recursive passes.`,'warning'));
+  const suppressedByFde=[...seeds.values()].filter(seed=>rawElfSeedCoveredByFde(seed,fdeModel.claims));if(suppressedByFde.length)diagnostics.push(disassemblyDiagnostic('stripped-seeds-covered-by-fde',`${suppressedByFde.length} lower-confidence entry candidate${suppressedByFde.length===1?' was':'s were'} suppressed because stronger FDE unwind coverage already owns the containing range.`,'info',{count:suppressedByFde.length,sample:suppressedByFde.slice(0,16).map(seed=>({address:seed.address,kind:seed.kind}))}));
+  const existing=new Set((parsed.functions||[]).map(fn=>fn.addr)),accepted=rawElfReconcileDiscoverySeeds(seeds,fdeModel.claims).filter(seed=>!existing.has(seed.address)).slice(0,maxFunctions),acceptedStartsBySection=new Map();for(const seed of accepted){let arr=acceptedStartsBySection.get(seed.section);if(!arr){arr=[];acceptedStartsBySection.set(seed.section,arr)}arr.push(seed.address)}for(const arr of acceptedStartsBySection.values())arr.sort((a,b)=>a-b);
+  const added=[];
+  for(const seed of accepted){let trace=traceByAddress.get(seed.address);if(!trace)trace=rawElfRecursiveTrace(seed,{seeds,indexes,execSections,fdeClaims:fdeModel.claims});let insns=trace.instructions||[];const starts=acceptedStartsBySection.get(seed.section)||[],nextStart=starts.find(x=>x>seed.address),sectionEnd=seed.section.addressStart+seed.section.size,hardEnd=Number.isFinite(seed.rangeEnd)?Math.min(seed.rangeEnd,sectionEnd):(Number.isFinite(nextStart)?nextStart:sectionEnd);insns=insns.filter(ins=>ins.range.start>=seed.address&&ins.range.start<hardEnd);if(!insns.length)continue;
+    const maxEnd=Math.max(...insns.map(ins=>ins.range.end)),end=Number.isFinite(seed.rangeEnd)?hardEnd:Math.min(hardEnd,maxEnd),name=`sub_${seed.address.toString(16)}`,fn={id:`${record.id}::rawdiscover:${seed.address.toString(16)}`,addr:seed.address,addrHex:seed.address.toString(16),name,startLine:0,endLine:0,section:seed.section.name,source:'',instructions:[],calls:[],size:Math.max(1,end-seed.address),family:GENERIC_GROUPS.standalone,
+      rawElfFunction:true,canonicalByteSource:true,canonicalDecodeState:'ready',canonicalDecodeError:null,canonicalAliases:[],sourceDialect:'canonical-byte-disassembly',definitionKind:`raw-elf-discovered-${seed.kind}`,discoveryConfidence:seed.confidence,discoveryEvidence:seed.evidence,discoveryFdeId:seed.kind==='unwind-fde'?seed.sourceId:null,discoveryUnwindCoverageStart:seed.kind==='unwind-fde'?(Number.isFinite(seed.coverageStart)?seed.coverageStart:seed.address):null,discoveryLeadingPaddingBytes:seed.leadingPaddingBytes||0,discoveryRangeEnd:end,discoveryRangeEvidence:Number.isFinite(seed.rangeEnd)?`${seed.sourceKind||'unwind'} FDE unwind coverage ${safeHex(Number.isFinite(seed.coverageStart)?seed.coverageStart:seed.address)}..${safeHex(seed.rangeEnd)}; semantic entry ${safeHex(seed.address)}${seed.leadingPaddingBytes?` after ${seed.leadingPaddingBytes} leading NOP/alignment bytes`:''}`:'recursive Capstone reachability bounded by independently discovered starts',discoveryTailTargets:trace.tailTargets.map(x=>x.address),
       workspaceFileId:record.id,workspaceFilePath:record.path,addressSpaceId:record.addressSpaceId,addressSpaceLabel:record.addressSpaceLabel,artifactKind:record.artifactKind,artifactLabel:record.artifactLabel};
-    fn.provenance=makeProvenance('native-static',`raw-discovered:${record.id}`,'Raw discovered code',{confidence:seed.confidence==='heuristic'?'inferred':seed.confidence,semanticName:name,linkageName:'',reason:`${seed.evidence}; no STT_FUNC/DWARF function claim`});fn.instructions=insns.map((ins,index)=>canonicalSharedInstruction(ins,fn,index));fn.canonicalDecodedBytes=fn.instructions.reduce((n,i)=>n+(i.bytes?.length||0),0);fn.canonicalCoverage={complete:false,decodedBytes:fn.canonicalDecodedBytes,undecodedRanges:[],evidence:'discovery range, not authoritative symbol size'};parsed.functions.push(fn);added.push(fn)}
-  if(added.length){rawElfFunctionMapsRefresh(parsed);for(const fn of added)rebuildCanonicalFunctionEdges(parsed,fn);parsed.dataRefs=buildDataReferences(parsed.functions,parsed.sections);mapDataReferencesToObjects(parsed)}
-  record.rawFunctionDiscovery={status:'complete',added:added.length,scanBytes:budget,seeds:[...seeds.values()].map(x=>({address:x.address,section:x.section.name,kind:x.kind,confidence:x.confidence,evidence:x.evidence})),diagnostics:cloneJson(diagnostics),evidence:'Capstone recursive direct-call/prologue discovery; explicitly non-symbol evidence'};return {status:'complete',added:added.length,functions:added,diagnostics,seeds:[...seeds.values()]};
+    fn.provenance=makeProvenance('native-static',`raw-discovered:${record.id}`,'Raw discovered code',{confidence:seed.confidence==='heuristic'?'inferred':seed.confidence,semanticName:name,linkageName:'',reason:`${seed.evidence}; no STT_FUNC/DWARF subprogram symbol claim`});fn.instructions=insns.map((ins,index)=>canonicalSharedInstruction(ins,fn,index));fn.canonicalDecodedBytes=fn.instructions.reduce((n,i)=>n+(i.bytes?.length||0),0);fn.canonicalCoverage={complete:false,decodedBytes:fn.canonicalDecodedBytes,undecodedRanges:[],evidence:Number.isFinite(seed.rangeEnd)?'recursive decode inside FDE unwind coverage; coverage is exact for unwind semantics but semantic function identity/entry remains inferred; reachability may be partial':'recursive-discovery range, not authoritative symbol size'};parsed.functions.push(fn);added.push(fn)
+  }
+  if(added.length){rawElfFunctionMapsRefresh(parsed);rawElfBindUnwindToFunctions(parsed);rawElfBindIfuncResolvers(parsed);for(const fn of added)rebuildCanonicalFunctionEdges(parsed,fn);parsed.dataRefs=buildDataReferences(parsed.functions,parsed.sections);mapDataReferencesToObjects(parsed)}
+  const uniqueTailProofs=[...new Map(tailProofs.map(x=>[`${x.from}:${x.address}`,x])).values()],uniqueDiagnostics=[...new Map(diagnostics.map(d=>[`${d.code||''}:${d.address??''}:${d.message||''}`,d])).values()];record.rawFunctionDiscovery={status:'complete',algorithm:'fde-priority-recursive-descent/v1',added:added.length,scanBytes:budget,passes:Math.min(pass,maxPasses),fdeClaims:fdeModel.claims.map(c=>({start:c.start,end:c.end,sourceKind:c.sourceKind,section:c.section.name})),fdeConflicts:fdeModel.conflicts,seeds:[...seeds.values()].map(x=>({address:x.address,section:x.section.name,kind:x.kind,confidence:x.confidence,evidence:x.evidence,coverageStart:x.coverageStart,leadingPaddingBytes:x.leadingPaddingBytes,rangeEnd:x.rangeEnd})),tailCalls:uniqueTailProofs.map(x=>({from:x.from,target:x.address,evidence:x.evidence})),diagnostics:cloneJson(uniqueDiagnostics),evidence:'FDE-priority Capstone recursive descent with direct-call/tail-boundary reconciliation; explicitly non-symbol evidence'};return {status:'complete',added:added.length,functions:added,diagnostics:uniqueDiagnostics,seeds:[...seeds.values()],fdeClaims:fdeModel.claims,tailCalls:uniqueTailProofs,passes:Math.min(pass,maxPasses)};
 }
 const rawElfCanonicalRecoveryJobs=new Map();
 function scheduleRawElfCanonicalRecovery(record,{forceDiscovery=false}={}){
@@ -16455,7 +16560,7 @@ function environmentExecutionHtml(){
         session=state.selectedExecutionSessionId?state.executionSessions.get(state.selectedExecutionSessionId):null;
   const mappings=image?.mappings||[];
   const disasmService=canonicalDisassemblyService(),disasmSnap=disasmService.snapshot(),lastDisasm=state.lastCanonicalDisassemblyResult;
-  return `<div class="executionTechnical"><div class="path"><b>V14.14 execution/disassembly boundaries</b><br>Build provenance, raw ELF loading, canonical disassembly, provider execution and observed-session state are separate. Raw ELF static metadata remains authoritative. Exact Capstone.js x86 5.0.9 release JS/WASM bytes are embedded locally and must pass runtime acceptance before registration.</div>
+  return `<div class="executionTechnical"><div class="path"><b>V14.15 execution/disassembly boundaries</b><br>Build provenance, raw ELF loading, canonical disassembly, provider execution and observed-session state are separate. Raw ELF static metadata remains authoritative. Exact Capstone.js x86 5.0.9 release JS/WASM bytes are embedded locally and must pass runtime acceptance before registration.</div>
     <section class="projectSection"><strong>BUILD ARTIFACT · ${escapeHtml(BUILD_ARTIFACT_SCHEMA)}</strong>${project?.buildArtifacts?.length?project.buildArtifacts.map(buildArtifactSummaryHtml).join(''):'<div class="path">No BuildArtifact exists yet. Importing an ELF records a manual-import artifact; future FASM/NASM/GNU as/ld builds use the same contract.</div>'}
       <div class="projectActions"><button data-build-artifact-export ${project?.buildArtifacts?.length?'':'disabled'}>Export BuildArtifact JSON</button></div></section>
     <section class="projectSection"><strong>LOADED IMAGE · ${escapeHtml(LOADED_IMAGE_SCHEMA)}</strong>${image?`<div class="policyList">
@@ -16497,7 +16602,7 @@ function renderEnvironment(tab=state.environmentTab||'vfs'){
 }
 function openEnvironment(tab='vfs'){
   if(!state.activeProject){setStatus('Save or open a project first.');return}
-  renderEnvironment(tab);els.environmentStatus.textContent=`Execution provider disconnected · V14.14 Capstone raw recovery · Capstone ${CAPSTONE_RUNTIME.state}`;if(!els.environmentDialog.open)els.environmentDialog.showModal();
+  renderEnvironment(tab);els.environmentStatus.textContent=`Execution provider disconnected · V14.15 Capstone/FDE raw recovery · Capstone ${CAPSTONE_RUNTIME.state}`;if(!els.environmentDialog.open)els.environmentDialog.showModal();
 }
 function selectedRunConfig(){
   return state.activeProject?.runConfigurations?.find(r=>r.id===state.selectedRunConfigId)||null;
@@ -17481,7 +17586,9 @@ function updateInspector(item){
       <b>${item.syntheticAddress?t('line'):t('address')}</b><span>${item.syntheticAddress?num(item.startLine+1):safeHex(item.addr)}</span><b>${t('approxSize')}</b><span>${item.syntheticAddress?`${num(item.instructions.length)} ${t('instructionsLower')}`:`${num(item.size)} B`}</span><b>${t('section')}</b><span>${escapeHtml(item.section||'—')}</span>
       <b>${t('instructions')}</b><span>${num(item.instructions.length)}</span><b>${t('callsJumps')}</b><span>${num(item.calls.length)}</span><b>${t('incoming')}</b><span>${num(incoming)}</span>
     </div>
-    ${item.discoveryEvidence?`<div class="path"><b>${t('discoveryBasis')}</b><br>${escapeHtml(item.discoveryEvidence)}<br><span class="linkage">no STT_FUNC/DWARF function claim</span></div>`:''}
+    ${item.discoveryEvidence?`<div class="path"><b>${t('discoveryBasis')}</b><br>${escapeHtml(item.discoveryEvidence)}<br><span class="linkage">no STT_FUNC/DWARF subprogram symbol claim</span></div>`:''}
+    ${item.discoveryRangeEvidence?`<div class="path"><b>DISCOVERY RANGE</b><br>${safeHex(item.addr)}..${safeHex(item.discoveryRangeEnd??(item.addr+item.size))} · ${escapeHtml(item.discoveryRangeEvidence)}</div>`:''}
+    ${item.ifuncImport?`<div class="path"><b>IFUNC RESOLUTION</b><br>PLT/GOT relocation → ${Number.isFinite(item.ifuncResolverAddress)?safeHex(item.ifuncResolverAddress):'unresolved resolver'}${item.ifuncResolverSymbol?` · ${escapeHtml(item.ifuncResolverSymbol)}`:''}${item.ifuncResolver?`<br>resolver entity: ${escapeHtml(functionDisplayName(item.ifuncResolver))} · ${safeHex(item.ifuncResolver.addr)}`:''}<br><span class="linkage">metadata relation only; not modeled as an ordinary call edge</span></div>`:''}
     ${item.dynamicMatch?`<div class="path"><b>${t('dynamicMatch')} · ${escapeHtml(item.dynamicMatchConfidence||'inferred')}</b><br>${escapeHtml(item.name)} · ${item.syntheticAddress?t('line')+' '+(item.startLine+1):safeHex(item.addr)}<br>↓ ${t('resolvesTo')}<br>${escapeHtml(functionDisplayName(item.dynamicMatch))} · ${safeHex(item.dynamicMatch.addr)}<br>${escapeHtml(item.dynamicMatch.addressSpaceLabel||'')}</div>`:''}
     ${item.dynamicMatchedBy?.length?`<div class="path"><b>${t('dynamicMatch')}</b><br>${item.dynamicMatchedBy.map(x=>`${escapeHtml(x.name)} · ${safeHex(x.addr)} · ${escapeHtml(x.addressSpaceLabel||'')}`).join('<br>')}</div>`:''}
     ${df?`<div class="path"><b>STATIC ANALYSIS SUMMARY</b><br>${escapeHtml(df.architecture||'unknown')} · ${escapeHtml(df.adapter?.id||'unsupported')} · ${num(df.values?.length||0)} values · ${num(df.phiValues?.length||0)} phi · ${num(df.values?.filter(v=>v.kind==='memory-version').length||0)} memory versions · ${num(df.values?.filter(v=>v.kind==='memory-slice'||v.kind==='memory-composite').length||0)} memory slices/composites · ${num(df.values?.filter(v=>v.kind==='memory-clobber').length||0)} memory clobbers · memory cells peak ${num(df.memoryCellPeak||0)}/${num(df.memoryCellBudget||0)}${df.memoryFragmentCollapses?` · ${num(df.memoryFragmentCollapses)} fragmentation collapses`:''} · ${num(df.analysisBarriers?.length||0)} barriers<br>value FP ${df.fixedPointConverged?'converged':'partial'} (${num(df.fixedPointIterations||0)}) · full-state FP ${df.stateFixedPointConverged?'converged':'partial'} (${num(df.stateFixedPointIterations||0)}/${num(df.stateFixedPointBudget||0)}) · loop headers ${num(df.loopBlocks?.length||0)}${df.stateDomainConvergence?`<br>${Object.entries(df.stateDomainConvergence).map(([k,v])=>`${escapeHtml(k)}=${v.converged?'ok':'partial'}@${num(v.iterations||0)}`).join(' · ')}`:''}</div>`:''}
@@ -20186,7 +20293,7 @@ function x86VectorRegisters(op){
   return out;
 }
 
-// V14.14 — consume canonical Capstone x86 operand semantics directly when
+// V14.15 — consume canonical Capstone x86 operand semantics directly when
 // available. Text parsing remains the independent objdump/ASM fallback path.
 function canonicalX86Operands(inst){
   return inst?.canonical?.architecture==='x86'&&Array.isArray(inst.canonical.operands)?inst.canonical.operands:[];
@@ -22162,7 +22269,7 @@ Object.defineProperty(window,'asmInspectorDebug',{value:{
   projectStore, projectStoreReady, defaultProject, defaultExecutionPolicy, defaultRunConfiguration, executionPolicyDecision,
   BUILD_INPUT_SCHEMA, BUILD_REQUEST_SCHEMA, BUILD_ARTIFACT_SCHEMA, LOADED_IMAGE_SCHEMA, DECODED_INSTRUCTION_SCHEMA, DISASSEMBLY_REQUEST_SCHEMA, DISASSEMBLY_RESULT_SCHEMA, DISASSEMBLY_DIAGNOSTIC_SCHEMA, EXECUTION_SESSION_SCHEMA, EXECUTION_PROVIDER_SCHEMA, CAPSTONE_CANDIDATE_MANIFEST,
   normalizeBuildInput, normalizeBuildArtifact, buildRequest, createManualImportBuildArtifact, parseElfImageBytes, parseRawElfStaticMetadata, parseGnuBuildIdFromNoteBytes, sectionBuildId, materializeRawElfParsed, rawElfFunctionStubCandidates, mergeRawElfEvidenceIntoTextRecord, addRawElfWorkspaceEntry, inspectVfsElf, loadedImageByteRange, canonicalDecodedInstruction,
-  CANONICAL_DISASSEMBLER_CONTRACT, validateCanonicalDisassembler, normalizeDisassemblyRequest, disassemblyCacheKey, canonicalFromDecoderInstruction, compareCanonicalDisassemblyToTextRecord, CanonicalDisassemblyService, canonicalDisassemblyService, CAPSTONE_RUNTIME, capstoneX86LiveDetail, acceptEmbeddedCapstoneX86, ensureEmbeddedCapstoneX86Provider, createCapstoneX86Provider, rawDisassemblyBackingForRecord, canonicalDisassembleWorkspaceRange, canonicalDisassembleFunction, canonicalSharedInstruction, attachCanonicalEvidenceToSharedFunction, hydrateCanonicalRawElfFunction, scheduleCanonicalFunctionHydration, callEdgeForInstruction, canonicalX86Operands, canonicalX86MemoryDescriptor, canonicalX86ImmediateValue, recoverRawElfPltStubs, discoverStrippedRawElfFunctions, scheduleRawElfCanonicalRecovery, rawElfPltCandidateRanges, canonicalRipMemoryTargets,
+  CANONICAL_DISASSEMBLER_CONTRACT, validateCanonicalDisassembler, normalizeDisassemblyRequest, disassemblyCacheKey, canonicalFromDecoderInstruction, compareCanonicalDisassemblyToTextRecord, CanonicalDisassemblyService, canonicalDisassemblyService, CAPSTONE_RUNTIME, capstoneX86LiveDetail, acceptEmbeddedCapstoneX86, ensureEmbeddedCapstoneX86Provider, createCapstoneX86Provider, rawDisassemblyBackingForRecord, canonicalDisassembleWorkspaceRange, canonicalDisassembleFunction, canonicalSharedInstruction, attachCanonicalEvidenceToSharedFunction, hydrateCanonicalRawElfFunction, scheduleCanonicalFunctionHydration, callEdgeForInstruction, canonicalX86Operands, canonicalX86MemoryDescriptor, canonicalX86ImmediateValue, recoverRawElfPltStubs, discoverStrippedRawElfFunctions, scheduleRawElfCanonicalRecovery, rawElfPltCandidateRanges, canonicalRipMemoryTargets, rawElfPreferredFdeClaims, rawElfRecursiveTrace, rawElfReconcileDiscoverySeeds, rawElfBindUnwindToFunctions, rawElfBindIfuncResolvers,
   EXECUTION_PROVIDER_METHODS, EXECUTION_PROVIDER_CONTRACT, validateExecutionProvider, normalizeExecutionBreakpoint, normalizeExecutionStop, ExecutionSession, prepareExecutionSession,
   InspectorVFS, InspectorIO, createInspectorIO, inspectElfBytes, loadedImageFunctionSymbol, importExecutionArtifacts, rebuildInspectorVfs, validateRunConfiguration, saveCurrentProject, createProject, openProject, closeActiveProject,
   refreshProjectCatalog, renderProjectManager, openProjectManager, openEnvironment, renderEnvironment
